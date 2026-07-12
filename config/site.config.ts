@@ -3,16 +3,18 @@
  *  SITE CONFIGURATION — edit this file to rebrand the entire gateway.
  * ============================================================================
  *
- *  Every label, icon, the welcome image, theme radius and the verification
- *  salt live here. The `messages` block is fed directly into vue-i18n, so the
- *  message keys below (e.g. `verify.nameLabel`, `welcome.body`) are exactly the
- *  keys used in the Vue templates via `t('...')`.
+ *  Every label, icon, the welcome image, theme radius and the live-gateway /
+ *  CORS-proxy settings live here. The `messages` block is fed directly into
+ *  vue-i18n, so the message keys below (e.g. `verify.nameLabel`,
+ *  `welcome.body`) are exactly the keys used in the Vue templates via `t('...')`.
  *
- *  To customize:
- *    1. Edit labels/icons below (supports zh + en).
- *    2. Put your students in `config/students.csv` (see students.example.csv).
- *    3. Run `pnpm gen` to regenerate the bundled verifier hashes.
- *    4. Run `pnpm build` for a static site in `dist/`.
+ *  Verification queries the live UNNC admission portal (a faithful port of
+ *  `ref/client.py`). Browsers cannot call the portal directly, so by default
+ *  requests go through a local same-origin prefix (`/__portal`) that the Vite
+ *  dev/preview server proxies to the portal — everything runs on your own
+ *  machine. See `gateway.proxy` and vite.config.ts.
+ *
+ *  For local UI preview without the portal, set `gateway.mode: 'mock'`.
  *
  *  NOTE: this module is intentionally runtime-pure (only a type-only import) so
  *  the CLI can load it dynamically under both tsx and Node 24 native TS.
@@ -24,8 +26,19 @@ const config: SiteConfig = {
   locales: ['zh', 'en'],
   defaultLocale: 'zh',
 
-  // Mix this into every name|id hash. Change it for your deployment.
-  salt: 'unnc-freshmen-verifier-2026-change-me',
+  gateway: {
+    // 'live' = query the real portal; 'mock' = admit any well-formed input (UI preview)
+    mode: 'live',
+    baseUrl: 'https://entry.nottingham.edu.cn',
+    // Local same-origin prefix routed by the Vite dev/preview proxy (see
+    // vite.config.ts) — runs entirely on your own machine, no remote proxy.
+    // For a remote CORS proxy instead, use a `{url}` / `{urlEncoded}` template.
+    proxy: '/__portal',
+    maxCaptchaRounds: 6,
+    maxOffsetTries: 25,
+    requestTimeoutMs: 20000,
+    credentials: 'include', // same-origin in dev; relays the PHP session cookie
+  },
 
   // Every icon on every page. Use any lucide-vue-next name, or
   // { img: '/path.svg' } for a custom image (great for a school crest).
@@ -58,27 +71,37 @@ const config: SiteConfig = {
   messages: {
     zh: {
       brand: {
-        title: '宁波诺定汉大学 · 新生核验',
-        subtitle: '输入姓名与身份证号，核验通过后查看专属迎新内容',
+        title: '宁波诺定汉大学 · 录取核验',
+        subtitle: '输入姓名与身份证号，核验录取状态后查看迎新内容',
       },
       verify: {
-        heading: '身份核验',
-        subheading: '请填写以下信息，核验通过后即可查看迎新详情。',
+        heading: '录取状态核验',
+        subheading: '请填写以下信息，系统将通过官方接口实时校验录取状态。',
         nameLabel: '姓名',
         namePlaceholder: '请输入姓名',
         idLabel: '身份证号',
         idPlaceholder: '18 位身份证号（末位可为 X）',
-        submit: '立即核验',
-        submitting: '核验中…',
+        submit: '立即查询',
+        submitting: '正在查询…',
+        hint: '查询需要完成官方滑块验证码，可能需要数秒。',
       },
       errors: {
         emptyName: '请输入姓名',
         badIdFormat: '身份证号格式不正确（应为 18 位，末位可为 X）',
-        notFound: '未找到匹配的核验信息，请确认输入或联系迎新负责人',
-        generic: '核验失败，请稍后重试',
+        notAdmitted: '未查询到录取信息，可能是未录取或信息不匹配',
+        captcha: '验证码校验未通过，请重试',
+        network: '网络请求失败，请检查 CORS 代理配置或稍后重试',
+        generic: '查询失败，请稍后重试',
+      },
+      admission: {
+        title: '录取信息',
+        name: '姓名',
+        university: '院校',
+        date: '日期',
+        detail: '详情',
       },
       welcome: {
-        badge: '核验通过',
+        badge: '录取核验通过',
         title: '欢迎加入 UNNC！',
         imageAlt: '迎新插画',
         // Full markdown supported. Bare URLs / emails are auto-linked.
@@ -99,36 +122,46 @@ const config: SiteConfig = {
           '',
           '`温馨提示：` 本页面链接与邮箱均可直接点击跳转。',
         ].join('\n'),
-        back: '重新核验',
+        back: '再次查询',
       },
       theme: { toggle: '切换主题' },
       lang: { label: '语言' },
-      footer: '仅供迎新核验演示使用，请合法合规使用本工具。',
+      footer: '仅供录取状态核验演示使用，请合法合规使用本工具，勿批量请求。',
     },
 
     en: {
       brand: {
-        title: 'UNNC · Freshmen Verifier',
-        subtitle: 'Enter your name and ID number to unlock your welcome content',
+        title: 'UNNC · Admission Verifier',
+        subtitle: 'Enter your name and ID number to check admission status',
       },
       verify: {
-        heading: 'Identity Verification',
-        subheading: 'Fill in the form below. Once verified, your welcome details will appear.',
+        heading: 'Admission Status Verification',
+        subheading: 'Fill in the form below. We verify your admission status live via the official portal.',
         nameLabel: 'Name',
         namePlaceholder: 'Enter your name',
         idLabel: 'ID Number',
         idPlaceholder: '18-digit ID number (last may be X)',
-        submit: 'Verify Now',
-        submitting: 'Verifying…',
+        submit: 'Check Now',
+        submitting: 'Checking…',
+        hint: 'The query solves the official slider captcha and may take a few seconds.',
       },
       errors: {
         emptyName: 'Please enter your name',
         badIdFormat: 'Invalid ID format (18 digits, last may be X)',
-        notFound: 'No matching record. Please check your input or contact the freshmen team',
-        generic: 'Verification failed, please try again later',
+        notAdmitted: 'No admission record found — not admitted or details do not match',
+        captcha: 'Captcha verification failed, please try again',
+        network: 'Network request failed — check the CORS proxy or retry',
+        generic: 'Query failed, please try again later',
+      },
+      admission: {
+        title: 'Admission Details',
+        name: 'Name',
+        university: 'University',
+        date: 'Date',
+        detail: 'Details',
       },
       welcome: {
-        badge: 'Verified',
+        badge: 'Admission Verified',
         title: 'Welcome to UNNC!',
         imageAlt: 'Welcome illustration',
         body: [
@@ -148,11 +181,11 @@ const config: SiteConfig = {
           '',
           '`Tip:` every link and email on this page is clickable.',
         ].join('\n'),
-        back: 'Verify another',
+        back: 'Check another',
       },
       theme: { toggle: 'Toggle theme' },
       lang: { label: 'Language' },
-      footer: 'For freshmen verification demo only. Please use responsibly.',
+      footer: 'For admission verification demo only. Please use responsibly — do not bulk-query.',
     },
   },
 }

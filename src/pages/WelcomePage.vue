@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import siteConfig from '@config/site.config'
 import { siteMessages } from '@/i18n'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Icon from '@/components/Icon.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
@@ -13,10 +14,9 @@ import type { Locale } from '@/shared/types'
 
 const { t, locale } = useI18n()
 const router = useRouter()
-const { reset } = useVerifier()
+const { reset, admission } = useVerifier()
 
-// Read the raw markdown body for the active locale directly from messages so
-// `{` characters in the markdown never trip vue-i18n's interpolation.
+// Raw markdown body for the active locale (avoids vue-i18n interpolation of `{`).
 const body = computed(() => {
   const messages = siteMessages[locale.value as Locale] as
     | { welcome?: { body?: string } }
@@ -27,6 +27,19 @@ const body = computed(() => {
 const image = siteConfig.welcome.image
 const imageMaxWidth = siteConfig.welcome.imageMaxWidth ?? '12rem'
 const imageRounded = siteConfig.welcome.imageRounded ?? false
+
+const details = computed(() => {
+  const a = admission.value
+  if (!a || !a.admitted) return null
+  const rows: { label: string; value: string }[] = []
+  if (a.name) rows.push({ label: t('admission.name'), value: a.name })
+  if (a.university) rows.push({ label: t('admission.university'), value: a.university })
+  if (a.date) rows.push({ label: t('admission.date'), value: a.date })
+  if (a.detail && a.detail !== a.message) {
+    rows.push({ label: t('admission.detail'), value: a.detail })
+  }
+  return rows.length ? rows : null
+})
 
 function goBack(): void {
   reset()
@@ -61,6 +74,20 @@ function goBack(): void {
         <Icon :spec="siteConfig.icons.welcome" :size="28" />
         <span>{{ t('welcome.title') }}</span>
       </h1>
+
+      <Card v-if="details" class="mt-6 w-full text-left">
+        <CardHeader>
+          <CardTitle class="text-base">{{ t('admission.title') }}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl class="grid grid-cols-1 gap-2 text-sm">
+            <div v-for="row in details" :key="row.label" class="flex justify-between gap-4">
+              <dt class="text-muted-foreground">{{ row.label }}</dt>
+              <dd class="text-right font-medium">{{ row.value }}</dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
 
       <div class="mt-6 w-full text-left">
         <MarkdownView :source="body" />

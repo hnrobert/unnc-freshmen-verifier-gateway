@@ -1,9 +1,8 @@
 /**
  * Shared types used by both the static SPA and the config CLI.
  *
- * Everything the user can customize flows through {@link SiteConfig}. Edit
- * `config/site.config.ts` to rebrand the gateway — no component code changes
- * required.
+ * Verification queries the live UNNC admission gateway (ported from the Python
+ * `ref/client.py`) through a configurable CORS proxy. See {@link GatewayConfig}.
  */
 
 /** Locales supported by the gateway. Extend here + add messages to support more. */
@@ -52,10 +51,47 @@ export interface WelcomeAssetsConfig {
   imageRounded?: boolean
 }
 
-/** A single verifiable person from the students source file. */
-export interface StudentEntry {
-  name: string
-  idNumber: string
+/** How verification resolves a name + ID. */
+export type VerifyMode = 'live' | 'mock'
+
+/**
+ * Live-gateway configuration. The SPA ports `ref/client.py` and talks to the
+ * admission portal through a CORS proxy (browsers cannot call the portal
+ * directly — it does not send CORS headers).
+ */
+export interface GatewayConfig {
+  /** `mock` short-circuits the portal and admits any well-formed input (UI preview). */
+  mode: VerifyMode
+  /** Base URL of the admission portal. */
+  baseUrl: string
+  /**
+   * CORS proxy template. Must contain exactly one of:
+   *   - `{url}`          → the raw portal URL is substituted
+   *   - `{urlEncoded}`   → the encodeURIComponent'd portal URL is substituted
+   * The proxy MUST be cookie/sticky (see proxy/cloudflare-worker.js), because the
+   * captcha flow is bound to a PHP session cookie.
+   */
+  proxy: string
+  /** Max captcha re-init rounds (the Python default is 6). */
+  maxCaptchaRounds: number
+  /** Max slider offsets tried per round (the Python default is 25). */
+  maxOffsetTries: number
+  /** Per-request fetch timeout in ms. */
+  requestTimeoutMs: number
+  /** `include` for cookie-relaying sticky proxies; `omit` otherwise. */
+  credentials: 'include' | 'omit'
+}
+
+/** Result of an admission query (mirrors `ref/client.py` `AdmissionResult`). */
+export interface AdmissionResult {
+  ok: boolean
+  /** `true` = admitted, `false` = not found, `null` = could not determine. */
+  admitted: boolean | null
+  message: string
+  name?: string
+  detail?: string
+  university?: string
+  date?: string
 }
 
 /**
@@ -68,12 +104,7 @@ export interface SiteConfig {
   locales: Locale[]
   /** Locale used before the visitor picks one. */
   defaultLocale: Locale
-  /**
-   * Salt mixed into every `name|id` hash. Change this for your deployment so the
-   * bundled hashes are not reusable elsewhere. Must match between `gen` and the
-   * SPA (both read this same file).
-   */
-  salt: string
+  gateway: GatewayConfig
   icons: IconsConfig
   theme: ThemeConfig
   welcome: WelcomeAssetsConfig

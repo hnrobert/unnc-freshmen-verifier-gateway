@@ -16,6 +16,7 @@
     "build:cli": "tsup",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
+    "test": "tsx scripts/selftest.ts",
     "postinstall": "tsx src/cli/index.ts gen"
   },
   "files": [

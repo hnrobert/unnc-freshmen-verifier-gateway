@@ -1,34 +1,29 @@
 #!/usr/bin/env node
 /**
- * unnc-vg — config CLI for the UNNC freshmen verifier gateway.
+ * unnc-vg — config CLI for the UNNC admission verifier gateway.
  *
- *   gen        Read config/students.csv, hash each name|id with the configured
- *              salt, and write src/generated/verifiers.json (consumed by the SPA).
- *   validate   Check config/site.config.ts for required fields & message keys.
+ *   gen        Generate src/generated/icons.ts — a tiny registry importing only
+ *              the lucide icons referenced by config/site.config.ts (keeps the
+ *              bundle small). Run after changing any icon in config.
+ *   validate   Check config/site.config.ts: gateway settings + required i18n
+ *              message keys for every locale.
  *   help       Show usage.
  *
- * In this project the CLI is run through tsx (`pnpm gen` / `pnpm validate`),
- * which resolves the live `config/site.config.ts`. tsup bundles a distributable
- * copy (`pnpm build:cli` -> dist-cli/cli.mjs); because config is loaded
+ * Run in dev via tsx (`pnpm gen` / `pnpm validate`). tsup bundles a distributable
+ * copy (`pnpm build:cli` -> dist-cli/index.js); because config is loaded
  * dynamically from process.cwd(), the bundled CLI also reads the caller's config
- * when run on Node 24 (native TS type-stripping).
+ * under Node 24 (native TS type-stripping).
  */
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { hashStudent, normalizeId, normalizeName } from '../shared/hash'
-import type { IconRef, Locale, SiteConfig, StudentEntry } from '../shared/types'
+import type { IconRef, Locale, SiteConfig } from '../shared/types'
 
 const cwd = process.cwd()
-const STUDENTS_FILE = resolve(cwd, 'config/students.csv')
-const STUDENTS_EXAMPLE = resolve(cwd, 'config/students.example.csv')
-const VERIFIERS_FILE = resolve(cwd, 'src/generated/verifiers.json')
 const ICONS_FILE = resolve(cwd, 'src/generated/icons.ts')
 const CONFIG_FILE = resolve(cwd, 'config/site.config.ts')
-
-const ID_PATTERN = /^\d{17}[\dX]$/
 const FALLBACK_ICON = 'CircleHelp'
 
 /* ----------------------------------------------------------------- config -- */
@@ -37,137 +32,12 @@ async function loadConfig(): Promise<SiteConfig> {
   if (!existsSync(CONFIG_FILE)) {
     throw new Error(`config/site.config.ts not found at ${CONFIG_FILE}`)
   }
-  const mod = (await import(pathToFileURL(CONFIG_FILE).href)) as {
-    default: SiteConfig
-  }
+  const mod = (await import(pathToFileURL(CONFIG_FILE).href)) as { default: SiteConfig }
   return mod.default
-}
-
-/* ------------------------------------------------------------------- csv --- */
-
-/** Minimal RFC-4180-ish CSV parser supporting quoted fields and "" escapes. */
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let field = ''
-  let inQuotes = false
-
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]!
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          field += '"'
-          i++
-        } else {
-          inQuotes = false
-        }
-      } else {
-        field += c
-      }
-    } else if (c === '"') {
-      inQuotes = true
-    } else if (c === ',') {
-      row.push(field)
-      field = ''
-    } else if (c === '\n') {
-      row.push(field)
-      rows.push(row)
-      row = []
-      field = ''
-    } else if (c !== '\r') {
-      field += c
-    }
-  }
-  row.push(field)
-  rows.push(row)
-  return rows.filter((r) => r.some((cell) => cell.trim() !== ''))
-}
-
-function parseStudents(text: string): StudentEntry[] {
-  const rows = parseCsv(text)
-  if (rows.length === 0) return []
-
-  const header = rows[0]!.map((h) => h.trim().toLowerCase())
-  const nameIdx = header.findIndex((h) => h === 'name' || h.includes('name') || h.includes('姓名'))
-  const idIdx = header.findIndex(
-    (h) => h === 'id_number' || h === 'id' || h.includes('id') || h.includes('身份证'),
-  )
-
-  const out: StudentEntry[] = []
-  for (let r = 1; r < rows.length; r++) {
-    const cells = rows[r]!
-    const name = (nameIdx >= 0 ? cells[nameIdx] : cells[0]) ?? ''
-    const id = (idIdx >= 0 ? cells[idIdx] : cells[1]) ?? ''
-    if (!name.trim() && !id.trim()) continue
-    out.push({ name: name.trim(), idNumber: id.trim() })
-  }
-  return out
-}
-
-/* ------------------------------------------------------------------ gen --- */
-
-async function gen(): Promise<void> {
-  const config = await loadConfig()
-
-  const file = existsSync(STUDENTS_FILE)
-    ? STUDENTS_FILE
-    : existsSync(STUDENTS_EXAMPLE)
-      ? STUDENTS_EXAMPLE
-      : null
-
-  if (!file) {
-    console.error(
-      '✗ No students file found.\n' +
-        '  Expected config/students.csv (or config/students.example.csv).\n' +
-        '  See config/students.example.csv for the format.',
-    )
-    process.exit(1)
-  }
-
-  const usingExample = file === STUDENTS_EXAMPLE
-  const text = await readFile(file, 'utf8')
-  const students = parseStudents(text)
-  if (students.length === 0) {
-    console.warn('⚠ No student rows parsed; writing an empty verifier list.')
-  }
-
-  const seen = new Set<string>()
-  const hashes: string[] = []
-  let skipped = 0
-
-  for (const s of students) {
-    const name = normalizeName(s.name)
-    const id = normalizeId(s.idNumber)
-    if (!name || !ID_PATTERN.test(id)) {
-      skipped++
-      continue
-    }
-    const hash = await hashStudent(config.salt, { name, idNumber: id })
-    if (!seen.has(hash)) {
-      seen.add(hash)
-      hashes.push(hash)
-    }
-  }
-
-  await mkdir(dirname(VERIFIERS_FILE), { recursive: true })
-  await writeFile(VERIFIERS_FILE, `${JSON.stringify(hashes, null, 2)}\n`, 'utf8')
-
-  const rel = VERIFIERS_FILE.replace(cwd + '/', '')
-  console.log(`✓ Wrote ${hashes.length} verifier hash(es) → ${rel}`)
-  if (usingExample) {
-    console.log('  (used students.example.csv — create config/students.csv for real data)')
-  }
-  if (skipped > 0) {
-    console.warn(`  ⚠ Skipped ${skipped} invalid row(s) (missing name or bad ID format).`)
-  }
-
-  await generateIcons(config)
 }
 
 /* ----------------------------------------------------------- icon-codegen -- */
 
-/** Collect every lucide icon name referenced by the config. */
 function collectIconNames(config: SiteConfig): string[] {
   const names = new Set<string>([FALLBACK_ICON])
   for (const ref of Object.values(config.icons) as IconRef[]) {
@@ -179,8 +49,8 @@ function collectIconNames(config: SiteConfig): string[] {
 
 /**
  * Validate the config's icon names against lucide-vue-next and write a tiny
- * registry module that imports only the icons actually used — keeping the SPA
- * bundle small while still allowing any lucide name in config.
+ * registry module importing only the icons actually used — keeping the SPA
+ * bundle small while allowing any lucide name in config.
  */
 async function generateIcons(config: SiteConfig): Promise<void> {
   const wanted = collectIconNames(config)
@@ -190,14 +60,14 @@ async function generateIcons(config: SiteConfig): Promise<void> {
   try {
     lucide = (await import('lucide-vue-next')) as Record<string, unknown>
   } catch {
-    // lucide-vue-next not resolvable from the CLI (e.g. bundled bin without the
-    // dep installed) — emit all names unvalidated; an invalid one will surface
-    // as a build error.
+    // lucide-vue-next not resolvable from the CLI — emit names unvalidated.
   }
 
   if (lucide) {
     valid = wanted.filter((n) => typeof lucide![n] !== 'undefined')
-    const invalid = wanted.filter((n) => n !== FALLBACK_ICON && typeof lucide![n] === 'undefined')
+    const invalid = wanted.filter(
+      (n) => n !== FALLBACK_ICON && typeof lucide![n] === 'undefined',
+    )
     if (invalid.length > 0) {
       console.warn(
         `  ⚠ Unknown lucide icon(s) in config: ${invalid.join(', ')}. ` +
@@ -218,9 +88,18 @@ async function generateIcons(config: SiteConfig): Promise<void> {
     `import { ${imports} } from 'lucide-vue-next'\n\n` +
     `export const iconRegistry: Record<string, Component> = {\n${entries}\n}\n`
 
-  await mkdir(dirname(ICONS_FILE), { recursive: true })
+  await mkdir(resolve(ICONS_FILE, '..'), { recursive: true })
   await writeFile(ICONS_FILE, body, 'utf8')
-  console.log(`✓ Wrote icon registry (${deduped.length} icons) → ${ICONS_FILE.replace(cwd + '/', '')}`)
+  console.log(
+    `✓ Wrote icon registry (${deduped.length} icons) → ${ICONS_FILE.replace(cwd + '/', '')}`,
+  )
+}
+
+/* ------------------------------------------------------------------ gen --- */
+
+async function gen(): Promise<void> {
+  const config = await loadConfig()
+  await generateIcons(config)
 }
 
 /* ------------------------------------------------------------- validate --- */
@@ -245,10 +124,18 @@ const REQUIRED_KEYS = [
   'verify.idPlaceholder',
   'verify.submit',
   'verify.submitting',
+  'verify.hint',
   'errors.emptyName',
   'errors.badIdFormat',
-  'errors.notFound',
+  'errors.notAdmitted',
+  'errors.captcha',
+  'errors.network',
   'errors.generic',
+  'admission.title',
+  'admission.name',
+  'admission.university',
+  'admission.date',
+  'admission.detail',
   'welcome.badge',
   'welcome.title',
   'welcome.body',
@@ -268,9 +155,34 @@ async function validate(): Promise<void> {
   else if (!config.locales.includes(config.defaultLocale)) {
     errors.push(`defaultLocale "${config.defaultLocale}" is not listed in locales`)
   }
-  if (!config.salt || !config.salt.trim()) {
-    errors.push('salt is empty — set a deployment-specific salt')
+
+  const g = config.gateway
+  if (!g) {
+    errors.push('gateway is missing')
+  } else {
+    if (!['live', 'mock'].includes(g.mode)) errors.push(`gateway.mode "${g.mode}" must be 'live' or 'mock'`)
+    if (!g.baseUrl || !/^https?:\/\//.test(g.baseUrl)) {
+      errors.push('gateway.baseUrl must be an http(s) URL')
+    }
+    if (
+      !g.proxy ||
+      (!g.proxy.startsWith('/') &&
+        !g.proxy.includes('{url}') &&
+        !g.proxy.includes('{urlEncoded}') &&
+        !/^https?:\/\//.test(g.proxy))
+    ) {
+      errors.push(
+        "gateway.proxy must be a local prefix ('/__portal'), a {url}/{urlEncoded} template, or a URL prefix",
+      )
+    }
+    if (!Number.isFinite(g.maxCaptchaRounds) || g.maxCaptchaRounds < 1) {
+      errors.push('gateway.maxCaptchaRounds must be >= 1')
+    }
+    if (!Number.isFinite(g.maxOffsetTries) || g.maxOffsetTries < 1) {
+      errors.push('gateway.maxOffsetTries must be >= 1')
+    }
   }
+
   if (!config.messages) errors.push('messages is missing')
 
   for (const loc of config.locales) {
@@ -300,11 +212,11 @@ async function validate(): Promise<void> {
 function help(): void {
   console.log(
     [
-      'unnc-vg — UNNC freshmen verifier gateway CLI',
+      'unnc-vg — UNNC admission verifier gateway CLI',
       '',
       'Usage:',
-      '  unnc-vg gen        Generate src/generated/verifiers.json from config/students.csv',
-      '  unnc-vg validate   Validate config/site.config.ts',
+      '  unnc-vg gen        Generate src/generated/icons.ts from config icons',
+      '  unnc-vg validate   Validate config/site.config.ts (gateway + i18n keys)',
       '  unnc-vg help       Show this message',
     ].join('\n'),
   )

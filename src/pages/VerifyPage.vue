@@ -25,7 +25,10 @@ const errorMsg = ref('')
 const reasonKey: Record<VerifyReason, string> = {
   empty_name: 'errors.emptyName',
   bad_id_format: 'errors.badIdFormat',
-  not_found: 'errors.notFound',
+  not_admitted: 'errors.notAdmitted',
+  captcha: 'errors.captcha',
+  network: 'errors.network',
+  generic: 'errors.generic',
   ok: 'errors.generic',
 }
 
@@ -35,7 +38,7 @@ async function onSubmit(): Promise<void> {
   try {
     const result = await verify({ name: name.value, idNumber: idNumber.value })
     if (result.ok) {
-      setVerified(true)
+      setVerified(true, result.admission)
       await router.push({ name: 'welcome' })
       return
     }
@@ -104,6 +107,10 @@ async function onSubmit(): Promise<void> {
             <Icon v-else :spec="siteConfig.icons.submit" :size="18" />
             {{ submitting ? t('verify.submitting') : t('verify.submit') }}
           </Button>
+
+          <p class="text-center text-xs leading-relaxed text-muted-foreground">
+            {{ t('verify.hint') }}
+          </p>
         </form>
       </CardContent>
     </Card>

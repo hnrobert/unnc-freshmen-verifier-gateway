@@ -1,14 +1,14 @@
 # UNNC Freshmen Verifier Gateway
 
 A **static, fully-customizable, bilingual (中文 / English)** verify-gateway for UNNC
-freshmen. Visitors enter a **name + ID number**; once verified they see a welcome
-page with your custom image, title and **Markdown** body (bare URLs and emails are
-auto-linked). No server required — deploy the built `dist/` to any static host.
+freshmen. Visitors enter a **name + ID number**; the app queries the **live UNNC
+admission portal** (a faithful TypeScript port of the Python `ref/client.py`,
+slider-captcha solver included) and, on a match, shows a welcome page with your
+custom image, title and **Markdown** body (bare URLs and emails auto-linked).
 
-It is the static reimagining of the Python/Flask checker in [`ref/`](./ref): where
-that tool solves the official portal's slider captcha at runtime (impossible in a
-static site), this gateway verifies against a **build-time hashed allow-list**
-generated from your own student roster.
+The portal cannot be called from a browser directly (no CORS), so by default
+requests are routed through the **Vite dev/preview proxy on your own machine**
+(`/__portal` → `entry.nottingham.edu.cn`). Run it locally with `pnpm dev`.
 
 ---
 
@@ -22,137 +22,104 @@ TypeScript · Node 24 · Vue 3 · Vite · vue-router · vue-i18n · Tailwind CSS
 ## Quick start
 
 ```bash
-pnpm install      # also runs `gen` (postinstall) to create the bundled allow-list
-pnpm dev          # dev server at http://localhost:5173
-pnpm build        # production static site -> dist/
-pnpm preview      # preview the built site
+pnpm install      # also runs `gen` (postinstall) to build the icon registry
+pnpm dev          # dev server at http://localhost:5173 — live portal queries work locally
+pnpm build        # production static build -> dist/
+pnpm preview      # serve dist/ locally (portal proxy still active in preview)
+pnpm test         # unit tests for the captcha-ranking math + result parser
 ```
 
-`pnpm install` runs `gen` automatically (postinstall), so a fresh clone works out
-of the box using the example data. Deploy the contents of `dist/` anywhere
-(GitHub Pages, Netlify, Vercel, Nginx, …). Hash routing is used, so no server
-rewrites are needed.
+`pnpm dev` and `pnpm preview` proxy `/__portal` → the admission portal (see
+`vite.config.ts`), so verification runs against the real gateway on your machine
+with **no remote proxy and no extra setup**.
 
-### Try the demo
-
-The repo ships `config/students.example.csv`. With it, these verify successfully:
-
-| 姓名 / Name | 身份证号 / ID Number |
-| --- | --- |
-| 张三 | `110101200001011234` |
-| 李四 | `32058320000719567X` |
-| Li Si | `44030120051109203X` |
+> **Previewing the welcome UI without the portal?** Set `gateway.mode: 'mock'` in
+> `config/site.config.ts` — any well-formed name + 18-digit ID is admitted. Set it
+> back to `'live'` for real queries.
 
 ---
 
 ## How verification works
 
-1. You list verifiable people in `config/students.csv` (`name,id_number`).
-2. `pnpm gen` hashes each `name|id` pair with your `salt` (SHA-256) and writes a
-   list of **hashes** to `src/generated/verifiers.json`. Raw names/IDs are **never**
-   shipped to the browser.
-3. On submit, the SPA hashes the visitor's input the same way and checks membership
-   in that list. A match unlocks the welcome page for the session.
+A 1:1 port of `ref/client.py`'s `AdmissionClient` runs **in the browser**:
 
-> **Security note.** This is a *UX gate*, not an access-control boundary — the
-> welcome content lives in the static bundle and can be read by anyone inspecting
-> it. The hashed allow-list prevents casual exposure of the roster and resists
-> trivial lookup, but a determined attacker could brute-force IDs. Choose a unique
-> `salt` per deployment and don't rely on this for anything sensitive.
+1. **Warmup** → **init captcha** (get `key`/`token`/`target_y`).
+2. Fetch the slider **background** + **piece** bitmaps.
+3. **Rank candidate offsets** with the same heuristics as the Python version
+   (window grayscale std-dev, edge gradient, and RGB normalized cross-correlation),
+4. **Verify** offsets until the captcha passes.
+5. **Submit** name + ID + captcha → **parse** the returned HTML (admitted /
+   not-found / unrecognized).
+
+All HTTP goes through `gateway.proxy`. With the default `'/__portal'` prefix and
+the Vite proxy, the browser calls same-origin `/__portal/...` (no CORS) and Vite
+forwards it server-side, relaying the PHP session cookie so the multi-step
+captcha flow stays bound to one session.
+
+| Portal outcome | Gateway behaviour |
+| --- | --- |
+| Admitted | Unlock the welcome page (with the portal's name/university/date) |
+| Not found | Localized "no admission record" error |
+| Captaptcha / network failure | Localized error, retryable |
 
 ---
 
 ## Customizing everything
 
-All customization happens in **`config/site.config.ts`** (type-checked, with full
-autocomplete) and **`config/students.csv`**. After editing, re-run `pnpm gen`
-(regenerates the allow-list **and** the icon registry) and `pnpm build`.
+All customization lives in **`config/site.config.ts`** (type-checked, full
+autocomplete). After editing icons, run `pnpm gen`; after editing anything,
+`pnpm build`.
+
+### Gateway & proxy
+
+```ts
+gateway: {
+  mode: 'live',                       // 'live' = real portal, 'mock' = UI preview
+  baseUrl: 'https://entry.nottingham.edu.cn',
+  proxy: '/__portal',                 // local prefix handled by the Vite proxy
+  maxCaptchaRounds: 6,                // captcha re-init attempts
+  maxOffsetTries: 25,                 // slider offsets tried per round
+  requestTimeoutMs: 20000,
+  credentials: 'include',             // relays the session cookie
+}
+```
+
+`gateway.proxy` accepts:
+- **`/prefix`** — local same-origin prefix, proxied by Vite dev/preview (default).
+- **`https://your-proxy/{url}`** or **`{urlEncoded}`** — a remote CORS proxy, if you
+  deploy the built site to a static host and need server-side relaying there.
 
 ### Labels & content (bilingual)
 
-Every label and the welcome title/body live under `messages.zh` / `messages.en`.
-These are fed straight into `vue-i18n`, so the keys (e.g. `verify.nameLabel`,
-`welcome.body`) are exactly what the templates render via `t('...')`. Add any keys
-you reference.
-
-```ts
-messages: {
-  zh: {
-    verify: { nameLabel: '姓名', idPlaceholder: '18 位身份证号（末位可为 X）', submit: '立即核验' },
-    welcome: {
-      title: '欢迎加入 UNNC！',
-      // Full Markdown. Bare URLs / emails are auto-linked.
-      body: '# 欢迎\n加入迎新群：freshmen@unnc.example',
-    },
-  },
-  en: { /* …mirror the same keys… */ },
-}
-```
+Every label, error message, and the welcome title/body live under
+`messages.zh` / `messages.en` — fed straight into vue-i18n, so the keys
+(e.g. `verify.nameLabel`, `welcome.body`) are exactly what templates render via
+`t('...')`.
 
 ### Icons (every page)
 
-Set any `lucide-vue-next` icon by name, or use a custom image (e.g. a school crest):
+Any `lucide-vue-next` name, or a custom image:
 
 ```ts
-icons: {
-  brand: 'GraduationCap',          // any lucide name: https://lucide.dev/icons
-  nameField: 'User',
-  submit: 'ArrowRight',
-  // …or a custom image:
-  // brand: { img: '/crest.png' },
-}
+icons: { brand: 'GraduationCap', submit: 'ArrowRight' /* , brand: { img: '/crest.png' } */ }
 ```
 
-Only the icons referenced in config are bundled (`gen` generates a tiny registry),
-so the bundle stays small. Unknown names fall back to `CircleHelp` with a warning.
+Only referenced icons are bundled (`pnpm gen` builds a tiny registry).
 
 ### Welcome page assets
 
 ```ts
-welcome: {
-  image: './welcome.svg',     // public path or remote URL; omit for no image
-  imageMaxWidth: '12rem',
-  imageRounded: true,         // circular crop
-}
+welcome: { image: './welcome.svg', imageMaxWidth: '12rem', imageRounded: true }
 ```
 
-The welcome body is **Markdown** rendered with `markdown-it`. Bare URLs and emails
-are detected automatically (TLD-agnostic — `.dev`, `.app`, `.edu.cn`, …) and open
-in a new tab safely. Code spans, fenced code, and existing links are left alone.
+The body is **Markdown**; bare URLs/emails are auto-linked (TLD-agnostic:
+`.dev`, `.app`, `.edu.cn`, …) and open in a new tab. The portal's admission
+details (name/university/date) render in a card above the markdown.
 
 ### Theme & branding
 
-- `theme.radius` sets the global border-radius.
-- Colors are CSS variables in `src/style.css` (`:root` / `.dark`) — edit them to
-  rebrand. Dark/light/system toggle is built in (persisted per visitor).
-
-### Salt
-
-```ts
-salt: 'change-me-for-your-deployment'
-```
-
-Change this so your bundled hashes aren't reusable elsewhere. **Must match** between
-`gen` and the SPA (both read this same file).
-
-### Students roster
-
-Copy the example and fill in real records:
-
-```bash
-cp config/students.example.csv config/students.csv
-# edit config/students.csv  (gitignored — sensitive)
-pnpm gen && pnpm build
-```
-
-```csv
-name,id_number
-张三,110101200001011234
-李四,32058320000719567X
-```
-
-`gen` tolerates header names like `name/姓名` and `id_number/id/身份证号`, normalizes
-whitespace/case, and skips invalid rows with a warning.
+`theme.radius` sets the global radius; colors are CSS variables in
+`src/style.css` (`:root` / `.dark`). Dark/light toggle is built in.
 
 ### Adding a locale
 
@@ -164,39 +131,33 @@ whitespace/case, and skips invalid rows with a warning.
 
 ## CLI (`unnc-vg`)
 
-The config helper is also a bundled CLI (`pnpm build:cli` → `dist-cli/index.js`):
-
 ```bash
-pnpm cli gen        # regenerate verifiers.json + icon registry from students + config
-pnpm cli validate   # check site.config.ts for missing locales/keys/salt
+pnpm cli gen        # regenerate src/generated/icons.ts from config icons
+pnpm cli validate   # check gateway config + required i18n keys
 pnpm cli help
 ```
-
-`validate` confirms every required message key exists for every locale and that the
-salt is set.
 
 ---
 
 ## Project structure
 
 ```
-config/
-  site.config.ts          # ← edit this: labels, icons, welcome content, salt, theme
-  students.example.csv    # roster format; copy to students.csv (gitignored)
+config/site.config.ts     # ← edit: labels, icons, welcome content, gateway/proxy
 src/
   cli/index.ts            # tsup-bundled CLI: gen + validate
-  shared/                 # types + hashing (shared by CLI and SPA)
-  lib/                    # verify, markdown (autolink), icon resolver, cn()
+  shared/types.ts         # config + admission types
+  lib/
+    admissionClient.ts    # port of ref/client.py (warmup → captcha → submit → parse)
+    png.ts                # browser PNG/RGB decode via canvas (no image lib)
+    verify.ts             # maps AdmissionResult → UI reasons (live + mock)
+    markdown.ts           # markdown-it + TLD-agnostic autolinking
+    icon.ts               # resolves config icon refs
   i18n/                   # vue-i18n from config.messages
   components/ui/          # shadcn-vue: button, input, label, card
-  components/             # Icon, MarkdownView, toggles, BrandMark, StatusAlert
   pages/                  # VerifyPage.vue, WelcomePage.vue
-  layouts/                # DefaultLayout.vue
-  generated/              # gitignored build output (verifiers.json, icons.ts)
+  generated/icons.ts      # gitignored; created by `pnpm gen`
+scripts/selftest.ts       # unit tests for captcha math + parser
 ```
-
-Add more shadcn-vue components anytime: `npx shadcn-vue@latest add <component>`
-(requires `reka-ui`, installed automatically by the CLI when needed).
 
 ---
 
@@ -204,21 +165,27 @@ Add more shadcn-vue components anytime: `npx shadcn-vue@latest add <component>`
 
 | Script | What it does |
 | --- | --- |
-| `pnpm dev` | `gen` + Vite dev server |
-| `pnpm build` | `gen` + static production build to `dist/` |
-| `pnpm preview` | Preview the built site |
-| `pnpm gen` | Regenerate allow-list + icon registry |
-| `pnpm validate` | Validate `site.config.ts` |
-| `pnpm build:cli` | Bundle the CLI with tsup (`dist-cli/index.js`) |
+| `pnpm dev` | Vite dev server (portal proxy active) |
+| `pnpm build` | Static production build → `dist/` |
+| `pnpm preview` | Serve `dist/` locally (portal proxy active) |
+| `pnpm test` | Unit tests: captcha ranking + result parsing |
+| `pnpm gen` | Regenerate the icon registry |
+| `pnpm validate` | Validate `config/site.config.ts` |
+| `pnpm build:cli` | Bundle the CLI with tsup |
 | `pnpm typecheck` | `vue-tsc --noEmit` |
 
 ---
 
-## Notes
+## Notes & caveats
 
-- The browser language is auto-detected on first visit; the chosen language and
-  theme are persisted. `defaultLocale` is the fallback.
-- Verification state is kept in `sessionStorage`, so a verified visitor stays on
-  the welcome page across reloads in the same tab but re-verifies after closing it.
-- For legal/ethical use only. ID numbers are sensitive personal data — handle the
-  roster with care and don't expose it publicly.
+- **Local-only live mode.** The `/__portal` proxy exists in `vite dev` / `vite
+  preview`, so real portal queries work on your machine. A built site deployed to
+  a static host has no such proxy — point `gateway.proxy` at your own
+  server-side proxy (the `{url}` template form) if you need live queries there.
+- **Session cookies.** The captcha flow is bound to a PHP session cookie; the
+  Vite proxy rewrites the cookie domain (`cookieDomainRewrite`) so it persists
+  across the warmup → init → verify → submit requests.
+- **Browser language** is auto-detected on first visit; language/theme persist.
+- Verification state lives in `sessionStorage` (per-tab, resets on close).
+- For legal/ethical use only — don't bulk-query the portal; ID numbers are
+  sensitive personal data.
