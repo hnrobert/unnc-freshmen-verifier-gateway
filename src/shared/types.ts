@@ -62,14 +62,23 @@ export type VerifyMode = 'live' | 'mock'
 export interface GatewayConfig {
   /** `mock` short-circuits the portal and admits any well-formed input (UI preview). */
   mode: VerifyMode
+  /**
+   * How the SPA reaches the portal:
+   *   - `'backend'` → SPA POSTs to {@link api} (a Node backend does the portal
+   *     query server-side; no CORS, reliable). Default.
+   *   - `'browser'` → SPA calls the portal itself through {@link proxy}
+   *     (Vite dev proxy / host rewrite / remote CORS proxy).
+   */
+  transport: 'backend' | 'browser'
+  /** Backend endpoint for `transport: 'backend'` (relative or absolute). */
+  api: string
   /** Base URL of the admission portal. */
   baseUrl: string
   /**
-   * CORS proxy template. Must contain exactly one of:
-   *   - `{url}`          → the raw portal URL is substituted
-   *   - `{urlEncoded}`   → the encodeURIComponent'd portal URL is substituted
-   * The proxy MUST be cookie/sticky (see proxy/cloudflare-worker.js), because the
-   * captcha flow is bound to a PHP session cookie.
+   * Browser-transport proxy. A leading `/` is a same-origin prefix handled by the
+   * Vite dev/preview proxy or a host rewrite (_redirects / vercel.json); a
+   * `{url}` / `{urlEncoded}` template is a remote CORS proxy. Ignored for
+   * `transport: 'backend'` (the backend calls the portal directly).
    */
   proxy: string
   /** Max captcha re-init rounds (the Python default is 6). */

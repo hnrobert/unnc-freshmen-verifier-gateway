@@ -29,10 +29,14 @@ const config: SiteConfig = {
   gateway: {
     // 'live' = query the real portal; 'mock' = admit any well-formed input (UI preview)
     mode: 'live',
+    // 'backend' (default): SPA -> /api/check -> Node backend queries the portal
+    //   server-side (no CORS). Run `pnpm server` (or `pnpm dev:all`).
+    // 'browser': SPA -> the portal itself through `proxy` (Vite proxy / rewrite).
+    transport: 'backend',
+    api: '/api/check', // backend endpoint (relative; Vite proxies /api in dev)
     baseUrl: 'https://entry.nottingham.edu.cn',
-    // Local same-origin prefix routed by the Vite dev/preview proxy (see
-    // vite.config.ts) — runs entirely on your own machine, no remote proxy.
-    // For a remote CORS proxy instead, use a `{url}` / `{urlEncoded}` template.
+    // Used only for transport 'browser'. '/__portal' = Vite dev/preview proxy or
+    // a host rewrite; or a `{url}` / `{urlEncoded}` remote CORS proxy template.
     proxy: '/__portal',
     maxCaptchaRounds: 6,
     maxOffsetTries: 25,

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/__portal/:path*",
+      "destination": "https://entry.nottingham.edu.cn/:path*"
+    }
+  ]
+}

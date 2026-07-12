@@ -6,7 +6,7 @@
  *
  *   pnpm test
  */
-import { parseResultHtml, rankOffsets } from '../src/lib/admissionClient'
+import { parseResultHtml, rankOffsets } from '../src/lib/admissionCore'
 import type { DecodedImage } from '../src/lib/png'
 
 let passed = 0

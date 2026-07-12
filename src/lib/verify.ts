@@ -1,8 +1,9 @@
 /**
- * Verification entry point used by the verify page. In `live` mode it runs the
- * ported AdmissionClient against the real portal (via the CORS proxy); in `mock`
- * mode it short-circuits and admits any well-formed input so the welcome UI can
- * be previewed without the portal/proxy.
+ * Verification entry point used by the verify page. Routes to one of three paths
+ * based on `gateway`:
+ *   - `mock`     → admit any well-formed input (UI preview, no portal/backend).
+ *   - `backend`  → POST `gateway.api`; a Node backend does the portal query.
+ *   - `browser`  → run the ported client in the browser through `gateway.proxy`.
  */
 import siteConfig from '@config/site.config'
 import { queryAdmission } from './admissionClient'
@@ -48,6 +49,17 @@ function classifyError(message: string): VerifyReason {
   return 'generic'
 }
 
+/** Map an AdmissionResult (from backend or browser client) to UI reasons. */
+function mapResult(result: AdmissionResult): VerifyOutput {
+  if (result.ok && result.admitted === true) {
+    return { ok: true, reason: 'ok', admission: result }
+  }
+  if (result.ok && result.admitted === false) {
+    return { ok: false, reason: 'not_admitted', admission: result }
+  }
+  return { ok: false, reason: classifyError(result.message) }
+}
+
 export async function verify(input: VerifyInput): Promise<VerifyOutput> {
   const invalid = validateInput(input)
   if (invalid) return invalid
@@ -60,13 +72,24 @@ export async function verify(input: VerifyInput): Promise<VerifyOutput> {
     }
   }
 
-  const result = await queryAdmission(siteConfig.gateway, input.name, input.idNumber)
+  if (siteConfig.gateway.transport === 'backend') {
+    try {
+      const res = await fetch(siteConfig.gateway.api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: input.name, userid: input.idNumber }),
+      })
+      if (!res.ok) return { ok: false, reason: 'network' }
+      return mapResult((await res.json()) as AdmissionResult)
+    } catch {
+      return { ok: false, reason: 'network' }
+    }
+  }
 
-  if (result.ok && result.admitted === true) {
-    return { ok: true, reason: 'ok', admission: result }
+  // transport === 'browser'
+  try {
+    return mapResult(await queryAdmission(siteConfig.gateway, input.name, input.idNumber))
+  } catch {
+    return { ok: false, reason: 'network' }
   }
-  if (result.ok && result.admitted === false) {
-    return { ok: false, reason: 'not_admitted', admission: result }
-  }
-  return { ok: false, reason: classifyError(result.message) }
 }

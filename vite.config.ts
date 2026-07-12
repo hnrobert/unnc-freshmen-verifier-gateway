@@ -26,8 +26,18 @@ export default defineConfig({
       '@config': fileURLToPath(new URL('./config', import.meta.url)),
     },
   },
-  server: { proxy: { '/__portal': portalProxy } },
-  preview: { proxy: { '/__portal': portalProxy } },
+  server: {
+    proxy: {
+      '/__portal': portalProxy,
+      '/api': { target: 'http://localhost:8787', changeOrigin: true },
+    },
+  },
+  preview: {
+    proxy: {
+      '/__portal': portalProxy,
+      '/api': { target: 'http://localhost:8787', changeOrigin: true },
+    },
+  },
   build: {
     outDir: 'dist',
     target: 'es2022',
