@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <circle cx="120" cy="120" r="116" fill="#e0f2fe" />
+  <circle cx="120" cy="120" r="116" fill="url(#g)" opacity="0.5" />
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#38bdf8" />
+      <stop offset="1" stop-color="#0369a1" />
+    </linearGradient>
+  </defs>
+
+  <!-- graduation cap -->
+  <path d="M120 70 50 100l70 30 70-30-70-30Z" fill="#0f172a" />
+  <path d="M75 118v28c0 11 20 20 45 20s45-9 45-20v-28l-45 19-45-19Z" fill="#1e293b" />
+  <rect x="160" y="104" width="6" height="42" rx="3" fill="#0f172a" />
+  <circle cx="163" cy="150" r="6" fill="#fbbf24" />
+
+  <!-- sparkles -->
+  <path d="M58 64l3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8Z" fill="#fbbf24" />
+  <path d="M188 70l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z" fill="#34d399" />
+  <path d="M44 150l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z" fill="#f472b6" />
+</svg>

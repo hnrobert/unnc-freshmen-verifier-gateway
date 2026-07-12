@@ -141,3 +141,13 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+ref/
+
+# Build artifacts
+dist-cli/
+
+# Sensitive verifier source data — copy students.example.csv to students.csv
+# and fill with real records. Only the generated hashes are bundled.
+config/students.csv
+config/students.xlsx
