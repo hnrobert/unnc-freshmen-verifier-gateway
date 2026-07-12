@@ -6,7 +6,7 @@
  *
  *   pnpm test
  */
-import { parseResultHtml, rankOffsets } from '../src/lib/admissionCore'
+import { AdmissionQueryError, parseJsonBody, parseResultHtml, rankOffsets } from '../src/lib/admissionCore'
 import type { DecodedImage } from '../src/lib/png'
 
 let passed = 0
@@ -46,6 +46,17 @@ check('captcha rejected → ok=false', r4.ok === false && r4.admitted === null)
 
 const r5 = parseResultHtml('<html><body>??? nothing recognizable ???</body></html>')
 check('unrecognized page → ok=false, admitted=null', r5.ok === false && r5.admitted === null)
+
+/* ------------------------------------------------------------- parseJsonBody */
+
+check('parseJsonBody parses JSON object', JSON.stringify(await parseJsonBody('{"status":"success"}', '/x')) === '{"status":"success"}')
+check('parseJsonBody tolerates empty body', JSON.stringify(await parseJsonBody('', '/x')) === '{}')
+try {
+  await parseJsonBody('<!DOCTYPE html><html>…</html>', '/ajax/init')
+  check('parseJsonBody throws on HTML', false)
+} catch (e) {
+  check('parseJsonBody throws AdmissionQueryError on HTML', e instanceof AdmissionQueryError && /not JSON/.test((e as Error).message), (e as Error).message)
+}
 
 /* --------------------------------------------------------------- rankOffsets */
 

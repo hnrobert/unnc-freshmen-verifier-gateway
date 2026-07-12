@@ -6,7 +6,12 @@
  * `admissionCore.ts`, shared with the Node backend.
  */
 import type { GatewayConfig } from '@/shared/types'
-import { queryAdmission as coreQueryAdmission, type HttpHandlers } from './admissionCore'
+import {
+  AdmissionQueryError,
+  parseJsonBody,
+  queryAdmission as coreQueryAdmission,
+  type HttpHandlers,
+} from './admissionCore'
 import { decodeImage } from './png'
 
 const ACCEPT_LANGUAGE = 'zh-CN,zh;q=0.9,en;q=0.8'
@@ -50,14 +55,19 @@ async function gatewayFetch(
 
 function makeHttp(gateway: GatewayConfig): HttpHandlers {
   return {
+    async fetchText(path) {
+      const r = await gatewayFetch(gateway, path)
+      if (!r.ok) throw new AdmissionQueryError(`request ${path} failed: ${r.status}`)
+      return await r.text()
+    },
     async fetchJson(path) {
       const r = await gatewayFetch(gateway, path)
-      if (!r.ok) throw new Error(`request ${path} failed: ${r.status}`)
-      return (await r.json()) as Record<string, unknown>
+      if (!r.ok) throw new AdmissionQueryError(`request ${path} failed: ${r.status}`)
+      return parseJsonBody(await r.text(), path)
     },
     async fetchBytes(path) {
       const r = await gatewayFetch(gateway, path)
-      if (!r.ok) throw new Error(`request ${path} failed: ${r.status}`)
+      if (!r.ok) throw new AdmissionQueryError(`request ${path} failed: ${r.status}`)
       return await r.arrayBuffer()
     },
     async postForm(path, fields) {
@@ -67,7 +77,7 @@ function makeHttp(gateway: GatewayConfig): HttpHandlers {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
       })
-      if (!r.ok) throw new Error(`post ${path} failed: ${r.status}`)
+      if (!r.ok) throw new AdmissionQueryError(`post ${path} failed: ${r.status}`)
       return await r.text()
     },
   }

@@ -135,8 +135,8 @@ bare URLs/emails are auto-linked (TLD-agnostic) and open in a new tab.
   it), set `PORT` / `CORS_ORIGIN` via env.
 - **Browser transport + host rewrite (no server code):** keep `gateway.proxy:
   '/__portal'` and proxy at the CDN — `public/_redirects` (Netlify / Cloudflare
-  Pages) and `vercel.json` (Vercel) are included. GitHub Pages can't proxy, so it
-  needs the backend or an external proxy there.
+  Pages) is included. GitHub Pages can't proxy, so it needs the backend or an
+  external proxy there.
 
 ---
 

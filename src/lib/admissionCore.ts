@@ -16,9 +16,27 @@ export class AdmissionQueryError extends Error {}
 
 /** HTTP primitives the core needs. Implementations own URL construction + cookies. */
 export interface HttpHandlers {
+  /** GET returning response text (warmup / HTML endpoints — never parsed as JSON). */
+  fetchText(path: string): Promise<string>
+  /** GET returning parsed JSON (throws AdmissionQueryError on non-JSON/HTML). */
   fetchJson(path: string): Promise<Record<string, unknown>>
   fetchBytes(path: string): Promise<ArrayBuffer>
   postForm(path: string, fields: Record<string, string>): Promise<string>
+}
+
+/**
+ * Parse a response body as JSON, tolerating empty bodies. Throws a clear error
+ * (not a raw SyntaxError) when the gateway returns HTML or other non-JSON — e.g.
+ * a login/error/anti-bot page instead of the expected JSON.
+ */
+export async function parseJsonBody(text: string, path: string): Promise<Record<string, unknown>> {
+  if (!text) return {}
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    const snippet = text.replace(/\s+/g, ' ').slice(0, 60)
+    throw new AdmissionQueryError(`unexpected response from ${path} (not JSON: "${snippet}…")`)
+  }
 }
 
 /** Decode raw image bytes (PNG) into RGBA pixels. Environment-specific. */
@@ -247,7 +265,9 @@ export async function queryAdmission(
 
   for (let attempt = 1; attempt <= gateway.maxCaptchaRounds; attempt++) {
     try {
-      await http.fetchJson('/')
+      // Warmup: GET "/" to establish the session cookie. The portal returns an
+      // HTML page here — never parse it as JSON (see ref/client.py `_warmup`).
+      await http.fetchText('/')
       const init = await http.fetchJson('/ajax/captcha_slider.php?action=init')
       if (init.status !== 'success') {
         throw new AdmissionQueryError(String(init.message ?? 'captcha init failed'))

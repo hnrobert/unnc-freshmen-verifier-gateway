@@ -5,7 +5,12 @@
  * `ref/client.py` did with `requests.Session()`.
  */
 import type { GatewayConfig } from '../src/shared/types'
-import { queryAdmission as coreQueryAdmission, type HttpHandlers } from '../src/lib/admissionCore'
+import {
+  AdmissionQueryError,
+  parseJsonBody,
+  queryAdmission as coreQueryAdmission,
+  type HttpHandlers,
+} from '../src/lib/admissionCore'
 import { decodeImage } from './png'
 
 const ACCEPT_LANGUAGE = 'zh-CN,zh;q=0.9,en;q=0.8'
@@ -67,14 +72,19 @@ export function queryAdmission(gateway: GatewayConfig, name: string, id: string)
   }
 
   const http: HttpHandlers = {
+    async fetchText(path) {
+      const r = await raw(path)
+      if (!r.ok) throw new AdmissionQueryError(`request ${path} failed: ${r.status}`)
+      return await r.text()
+    },
     async fetchJson(path) {
       const r = await raw(path)
-      if (!r.ok) throw new Error(`request ${path} failed: ${r.status}`)
-      return (await r.json()) as Record<string, unknown>
+      if (!r.ok) throw new AdmissionQueryError(`request ${path} failed: ${r.status}`)
+      return parseJsonBody(await r.text(), path)
     },
     async fetchBytes(path) {
       const r = await raw(path)
-      if (!r.ok) throw new Error(`request ${path} failed: ${r.status}`)
+      if (!r.ok) throw new AdmissionQueryError(`request ${path} failed: ${r.status}`)
       return await r.arrayBuffer()
     },
     async postForm(path, fields) {
@@ -83,7 +93,7 @@ export function queryAdmission(gateway: GatewayConfig, name: string, id: string)
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams(fields).toString(),
       })
-      if (!r.ok) throw new Error(`post ${path} failed: ${r.status}`)
+      if (!r.ok) throw new AdmissionQueryError(`post ${path} failed: ${r.status}`)
       return await r.text()
     },
   }
