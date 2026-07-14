@@ -23,7 +23,10 @@ provide(OrgConfigKey, { config: draft })
 // Load the draft's messages into vue-i18n so the live preview shows the org's
 // labels (and re-merge on edits so the preview tracks changes live).
 const { applyOrgI18n, mergeOrgMessages } = useOrgI18n()
-applyOrgI18n(draft.value)
+const acceptLanguage = import.meta.server
+  ? (useRequestHeaders(['accept-language'])['accept-language'] ?? '')
+  : (typeof navigator !== 'undefined' ? navigator.language : '')
+applyOrgI18n(draft.value, acceptLanguage)
 watch(() => draft.value.messages, () => mergeOrgMessages(draft.value), { deep: true })
 
 const saving = ref(false)

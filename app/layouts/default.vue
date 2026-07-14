@@ -18,8 +18,13 @@ if (!config.value) throw createError({ statusCode: 404, statusMessage: 'Organiza
 provide(OrgConfigKey, { config: config as unknown as Ref<SiteConfig> })
 
 const { applyOrgI18n } = useOrgI18n()
+// Browser language for locale detection: Accept-Language on SSR, navigator on
+// client — they match, so SSR renders the right locale on first paint (no flash).
+const acceptLanguage = import.meta.server
+  ? (useRequestHeaders(['accept-language'])['accept-language'] ?? '')
+  : (typeof navigator !== 'undefined' ? navigator.language : '')
 watchEffect(() => {
-  if (config.value) applyOrgI18n(config.value)
+  if (config.value) applyOrgI18n(config.value, acceptLanguage)
 })
 
 const radius = computed(() => config.value?.theme.radius ?? '0.65rem')

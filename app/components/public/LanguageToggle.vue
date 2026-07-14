@@ -3,7 +3,9 @@ import { useI18n } from 'vue-i18n'
 import type { Locale } from '#shared/types'
 
 const { config } = useOrgConfig()
-const { locale } = useI18n()
+// useScope: 'global' → same reactive locale ref that applyOrgI18n/setLocale write,
+// so the active button always reflects the real locale.
+const { locale } = useI18n({ useScope: 'global' })
 const { setLocale } = useOrgI18n()
 
 const options = computed(() =>
