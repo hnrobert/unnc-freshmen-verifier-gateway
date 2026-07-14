@@ -64,20 +64,13 @@ export type VerifyMode = 'live' | 'mock'
 
 /**
  * Per-org live-gateway configuration. The Nitro server queries the admission
- * portal directly (no CORS server-side), so there is no transport/proxy here —
- * `proxy` is retained only for an optional remote-proxy template.
+ * portal directly (no CORS server-side), so there is no transport/proxy here.
  */
 export interface GatewayConfig {
   /** `mock` short-circuits the portal and admits any well-formed input (UI preview). */
   mode: VerifyMode
   /** Base URL of the admission portal. */
   baseUrl: string
-  /**
-   * Optional remote CORS proxy template (`{url}` / `{urlEncoded}`). The server
-   * normally calls {@link baseUrl} directly; set this only if the portal must be
-   * reached through another host.
-   */
-  proxy?: string
   /** Max captcha re-init rounds (the Python default is 6). */
   maxCaptchaRounds: number
   /** Max slider offsets tried per round (the Python default is 25). */

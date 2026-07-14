@@ -29,6 +29,22 @@ export default defineNuxtConfig({
     dbPath: process.env.DB_PATH || './data/app.db',
   },
 
+  // No-FOUC dark mode: apply the saved/system theme synchronously in <head>
+  // before first paint (matches @vueuse useColorMode's vg.theme key + logic).
+  app: {
+    head: {
+      script: [
+        {
+          tagPosition: 'head',
+          innerHTML:
+            "(function(){try{var s=localStorage.getItem('vg.theme');" +
+            "var d=s==='dark'||((s==='auto'||!s)&&matchMedia('(prefers-color-scheme: dark)').matches);" +
+            'if(d)document.documentElement.classList.add("dark");}catch(e){}})();',
+        },
+      ],
+    },
+  },
+
   typescript: {
     strict: true,
   },

@@ -18,8 +18,6 @@ const config: SiteConfig = {
     // 'live' = query the real portal; 'mock' = admit any well-formed input (UI preview)
     mode: 'live',
     baseUrl: 'https://entry.nottingham.edu.cn',
-    // Optional remote CORS proxy template; the server normally calls baseUrl directly.
-    proxy: undefined,
     maxCaptchaRounds: 6,
     maxOffsetTries: 25,
     requestTimeoutMs: 20000,

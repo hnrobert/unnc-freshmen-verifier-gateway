@@ -36,14 +36,8 @@ class CookieJar {
 }
 
 function buildUrl(gateway: GatewayConfig, path: string): string {
-  // Server-side hits the portal directly. A `/`-prefix proxy is browser-only; a
-  // `{url}` remote-proxy template is honored if set.
-  const tpl = gateway.proxy
-  const url = gateway.baseUrl.replace(/\/$/, '') + path
-  if (!tpl || tpl.startsWith('/')) return url
-  if (tpl.includes('{urlEncoded}')) return tpl.split('{urlEncoded}').join(encodeURIComponent(url))
-  if (tpl.includes('{url}')) return tpl.split('{url}').join(url)
-  return tpl.replace(/\/$/, '') + '/' + url.replace(/^https?:\/\//, '')
+  // The Nitro server calls the portal directly (no CORS server-side, no proxy).
+  return gateway.baseUrl.replace(/\/$/, '') + path
 }
 
 export function queryAdmission(gateway: GatewayConfig, name: string, id: string) {

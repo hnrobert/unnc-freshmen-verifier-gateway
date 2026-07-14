@@ -209,7 +209,6 @@ function onBackgroundImage(ref: string): void {
         <div class="grid gap-1.5"><Label>maxCaptchaRounds</Label><Input v-model.number="config.gateway.maxCaptchaRounds" type="number" /></div>
         <div class="grid gap-1.5"><Label>maxOffsetTries</Label><Input v-model.number="config.gateway.maxOffsetTries" type="number" /></div>
         <div class="grid gap-1.5"><Label>requestTimeoutMs</Label><Input v-model.number="config.gateway.requestTimeoutMs" type="number" /></div>
-        <div class="grid gap-1.5"><Label>proxy (optional)</Label><Input v-model="config.gateway.proxy" placeholder="remote {url} template" /></div>
       </div>
     </section>
 
