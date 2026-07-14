@@ -1,173 +1,95 @@
 # UNNC Freshmen Verifier Gateway
 
-A **bilingual (中文 / English), fully-customizable** verify-gateway for UNNC
-freshmen. Visitors enter a **name + ID number**; the app queries the **live UNNC
-admission portal** (a faithful TypeScript port of `ref/client.py`, slider-captcha
-solver included) and, on a match, shows a welcome page with your custom image,
-title and **Markdown** body (bare URLs and emails auto-linked).
-
-The portal can't be called from a browser directly (no CORS), so two transports
-are supported and both work:
-
-- **`backend` (default)** — the SPA calls a small **Node backend** (`/api/check`)
-  that queries the portal server-side (no CORS, a manual cookie jar for the
-  session). This is the reliable path and the static-site equivalent of
-  `ref/app.py`.
-- **`browser`** — the SPA calls the portal itself through the Vite dev/preview
-  proxy (`/__portal`) or a host rewrite / remote CORS proxy.
-
-The captcha-solving + parsing logic lives in one shared core used by both.
+A **multi-tenant** verify-gateway built with **Nuxt 4 + SQLite**. Users register,
+create **organizations** (each at `/<slug>`), and fully customize their own
+bilingual (中文 / English) verify page — i18n labels, icons, welcome image and
+Markdown body, theme, and gateway settings — through a web editor with **live
+preview**. Verification queries the **live UNNC admission portal** server-side
+(a faithful TypeScript port of `ref/client.py`, slider-captcha solver included).
 
 ---
 
 ## Tech stack
 
-TypeScript · Node 24 · Vue 3 · Vite · vue-router · vue-i18n · Tailwind CSS v4 +
-[shadcn-vue](https://shadcn-vue.com) · lucide-vue-next · markdown-it · pngjs ·
-tsup (CLI) · pnpm
+Nuxt 4 (SSR + Nitro) · SQLite (better-sqlite3) · Drizzle ORM · argon2id sessions
+(`@noble/hashes`) · vue-i18n · Tailwind CSS v4 + shadcn-vue · lucide-vue-next ·
+markdown-it · pngjs · pnpm
 
 ---
 
 ## Quick start
 
 ```bash
-pnpm install      # also runs `gen` (postinstall) to build the icon registry
-pnpm dev:all      # backend + Vite dev server, together (default transport)
+pnpm install          # installs deps + runs `nuxt prepare`
+pnpm db:generate      # generate Drizzle migrations (already committed)
+pnpm db:migrate       # apply them to ./data/app.db
+pnpm db:seed          # seed a demo user + org
+pnpm dev              # http://localhost:3000
 ```
 
-`dev:all` runs the backend (`localhost:8787`) and Vite (`localhost:5173`)
-concurrently; Vite proxies `/api` → the backend, so the SPA's default `backend`
-transport just works. Open the printed Vite URL, enter a name + 18-digit ID.
-
-Other entry points:
-
-```bash
-pnpm dev          # Vite only (use with transport 'browser', or run pnpm server separately)
-pnpm server       # the Node backend alone on :8787
-pnpm build        # static production build -> dist/
-pnpm preview      # serve dist/ locally (proxies /api and /__portal)
-pnpm test         # unit tests: captcha-ranking math + result parser
-```
-
-> **Previewing the welcome UI without the portal?** Set `gateway.mode: 'mock'` in
-> `config/site.config.ts` — any well-formed name + 18-digit ID is admitted (works
-> in both transports and the backend).
+**Demo account** (from seed): `demo@example.com` / `demo1234` · org slug `demo`
+(view at `http://localhost:3000/demo`).
 
 ---
 
-## How verification works
+## How it works
 
-`ref/client.py`'s `AdmissionClient` is ported to `src/lib/admissionCore.ts`
-(transport-agnostic): warmup → init captcha → fetch bg/piece → **rank slider
-offsets** (grayscale std-dev, edge gradient, RGB normalized cross-correlation) →
-verify offsets → submit → **parse** the result HTML. The HTTP layer and PNG
-decoder are injected:
-
-- **Browser** (`src/lib/admissionClient.ts` + `src/lib/png.ts`) — `fetch` through
-  the configured proxy, canvas PNG decode, browser-managed session cookie.
-- **Backend** (`server/admission.ts` + `server/png.ts`) — direct `fetch` to the
-  portal (no CORS server-side), a manual cookie jar, pngjs decode, a browser
-  User-Agent.
-
-| Portal outcome | Gateway behaviour |
-| --- | --- |
-| Admitted | Unlock the welcome page (with the portal's name/university/date) |
-| Not found | Localized "no admission record" error |
-| Captcha / network failure | Localized error, retryable |
-
-The backend's `POST /api/check` mirrors `ref/app.py` — body `{ username|name,
-userid|id_number }`, response `AdmissionResult` JSON.
+- **Auth**: email/password registration, argon2id-hashed, revocable server-side
+  sessions in an httpOnly cookie.
+- **Organizations**: each user creates orgs with a unique `slug`; the public
+  gateway lives at `/<slug>` (verify) and `/<slug>/welcome`.
+- **Per-org config** (`org_settings.config`, a JSON `SiteConfig`): every label,
+  icon, welcome markdown, theme radius, and gateway setting is per-org and
+  editable in the dashboard. Images are stored as **base64** in `org_images` and
+  referenced by `img:<key>` (resolved to `/api/orgs/<slug>/img/<key>` at render).
+- **Live preview**: the editor renders the real verify/welcome components with
+  the in-progress draft config (labels/i18n re-merge live as you type).
+- **Verification**: `POST /api/orgs/<slug>/check` runs the ported
+  `AdmissionClient` server-side (warmup → slider captcha → submit → parse) — no
+  CORS, since Nitro calls the portal directly. Set `gateway.mode: 'mock'` to
+  preview without the portal.
 
 ---
 
-## Customizing everything
+## Customizing (as an org owner)
 
-All customization lives in **`config/site.config.ts`** (type-checked, full
-autocomplete). After editing icons, run `pnpm gen`; after editing anything,
-`pnpm build`.
-
-### Gateway & transport
-
-```ts
-gateway: {
-  mode: 'live',            // 'live' = real portal, 'mock' = UI preview
-  transport: 'backend',    // 'backend' (SPA -> /api/check) or 'browser' (SPA -> proxy)
-  api: '/api/check',       // backend endpoint (transport 'backend'); relative or absolute
-  baseUrl: 'https://entry.nottingham.edu.cn',
-  proxy: '/__portal',      // transport 'browser' only (see below)
-  maxCaptchaRounds: 6,
-  maxOffsetTries: 25,
-  requestTimeoutMs: 20000,
-  credentials: 'include',
-}
-```
-
-`gateway.proxy` (browser transport only):
-- **`/prefix`** — same-origin prefix, handled by the Vite dev/preview proxy or a
-  host rewrite.
-- **`https://your-proxy/{url}`** / **`{urlEncoded}`** — a remote CORS proxy.
-
-### Labels & content (bilingual)
-
-Every label, error, and the welcome title/body live under `messages.zh` /
-`messages.en` — fed straight into vue-i18n; the keys are exactly what templates
-render via `t('...')`.
-
-### Icons · welcome assets · theme
-
-```ts
-icons: { brand: 'GraduationCap' /* or { img: '/crest.png' } */ }
-welcome: { image: './welcome.svg', imageMaxWidth: '12rem', imageRounded: true }
-theme: { radius: '0.65rem' }   // colors are CSS vars in src/style.css
-```
-
-Only referenced icons are bundled (`pnpm gen`). The welcome body is Markdown;
-bare URLs/emails are auto-linked (TLD-agnostic) and open in a new tab.
-
----
-
-## Production deployment
-
-- **Backend transport (default, recommended):** deploy the static `dist/` **and**
-  the Node backend (`server/`). Point `gateway.api` at the backend (same origin,
-  or an absolute URL with CORS). No CORS/proxy headaches — the backend reaches
-  the portal server-side. Run the backend with `tsx server/index.ts` (or bundle
-  it), set `PORT` / `CORS_ORIGIN` via env.
-- **Browser transport + host rewrite (no server code):** keep `gateway.proxy:
-  '/__portal'` and proxy at the CDN — `public/_redirects` (Netlify / Cloudflare
-  Pages) is included. GitHub Pages can't proxy, so it needs the backend or an
-  external proxy there.
-
----
-
-## CLI (`unnc-vg`)
-
-```bash
-pnpm cli gen        # regenerate src/generated/icons.ts from config icons
-pnpm cli validate   # check gateway config + required i18n keys
-pnpm cli help
-```
+1. Log in → **Dashboard** → **New organization** (pick a slug).
+2. **Edit** → the split-pane editor:
+   - **Locales** (zh/en + default), **Brand**, **Verify**, **Errors**,
+     **Admission**, **Welcome** (Markdown body + image upload), **Footer**.
+   - **Icons**: lucide allowlist picker (browse/search) or upload a custom image.
+   - **Gateway**: `mode` (live/mock), `baseUrl`, captcha rounds/tries/timeout.
+   - **Theme**: radius.
+   - Right pane: **Live preview** (toggle Verify / Welcome).
+3. **Save** (validates all required i18n keys first). **View ↗** opens the public
+   `/<slug>` page.
 
 ---
 
 ## Project structure
 
 ```
-config/site.config.ts        # ← edit: labels, icons, welcome content, gateway/transport
-src/
-  lib/admissionCore.ts       # shared port of ref/client.py (captcha + parse)
-  lib/admissionClient.ts     # browser wrapper (proxy + canvas decode)
-  lib/png.ts                 # browser PNG decode
-  lib/verify.ts              # routes to mock / backend / browser
-  lib/markdown.ts, icon.ts   # markdown autolink, icon resolver
-  i18n/, components/ui/, pages/, layouts/
-  cli/index.ts               # tsup-bundled CLI: gen + validate
-  generated/icons.ts         # gitignored; created by `pnpm gen`
-server/
-  index.ts                   # Node backend: POST /api/check, GET /api/health
-  admission.ts               # server wrapper (direct fetch + cookie jar)
-  png.ts                     # pngjs decode
-scripts/selftest.ts          # unit tests for captcha math + parser
+app/                         Nuxt 4 srcDir
+  pages/
+    [slug]/{index,welcome}.vue      PUBLIC per-org gateway
+    dashboard/{index,new}.vue  [slug]/edit.vue   admin
+    login.vue register.vue
+  components/
+    public/   VerifyForm, WelcomeContent, BrandMark, LanguageToggle, ThemeToggle, Icon, StatusAlert, MarkdownView
+    admin/    ConfigEditor, LivePreview, IconPicker, ImageUploader, MarkdownEditor
+    ui/       shadcn-vue (button/input/label/card)
+  composables/ useOrgConfig, useOrgI18n, useVerifier, useAuth
+  lib/         verify, icon, iconAllowlist, markdown, utils
+  plugins/     i18n, auth
+  middleware/  auth, guest, welcome-gate
+shared/                     app↔server code
+  types.ts  lib/admissionCore.ts  lib/validateConfig.ts  lib/defaultConfig.ts
+server/                     Nitro
+  api/auth/{register,login,logout,me}
+  api/orgs/  (CRUD, config get/put, validate, check, images, img/[key])
+  utils/     db, auth, orgs, config, admission, png
+  db/        schema.ts, seed.ts, migrations/
+  middleware/session.ts  plugins/01.db.ts
 ```
 
 ---
@@ -176,29 +98,36 @@ scripts/selftest.ts          # unit tests for captcha math + parser
 
 | Script | What it does |
 | --- | --- |
-| `pnpm dev:all` | backend + Vite dev server together (default) |
-| `pnpm server` | Node backend on :8787 |
-| `pnpm dev` | Vite only (proxies `/api` and `/__portal`) |
-| `pnpm build` | Static production build → `dist/` |
-| `pnpm preview` | Serve `dist/` locally (proxies active) |
-| `pnpm test` | Unit tests: captcha ranking + result parsing |
-| `pnpm gen` / `pnpm validate` | Icon registry / config validation |
-| `pnpm build:cli` | Bundle the CLI with tsup |
-| `pnpm typecheck` | `vue-tsc --noEmit` |
+| `pnpm dev` | Nuxt dev server (auto-migrates the DB on boot) |
+| `pnpm build` | Production build → `.output/` |
+| `pnpm preview` | Preview the build (`node .output/server/index.mjs`) |
+| `pnpm typecheck` | `nuxt typecheck` |
+| `pnpm test` | Unit tests for the captcha solver + parser |
+| `pnpm db:generate` / `db:migrate` / `db:seed` | Drizzle migrations + seed |
+
+---
+
+## Production deployment
+
+Nuxt SSR needs a persistent Node host (SQLite is a file). Set env vars:
+
+- `SESSION_SECRET` — cookie/session signing secret (change from the dev default).
+- `DB_PATH` — SQLite file path (on a persistent volume).
+- `SESSION_SECRET` for prod cookies (`Secure` is set when `!dev`).
+
+Build and run: `pnpm build && node .output/server/index.mjs` (set `PORT` if needed).
+The DB auto-migrates on boot. Seed an admin/org with `pnpm db:seed` if desired.
 
 ---
 
 ## Notes & caveats
 
-- **Portal reachability is environmental.** The `ENOTFOUND entry.nottingham.edu.cn`
-  you may see means the portal host isn't resolvable from the running machine
-  (DNS/network). The backend and browser transports both need to actually reach
-  `gateway.baseUrl` — set it to a reachable URL or run from a network that can
-  resolve it. Use `mode: 'mock'` to develop the UI without the portal.
-- **CORS is unavoidable for browser-direct.** A static origin can't read the
-  portal's responses without a server-side hop — that's the backend (default) or
-  a proxy/rewrite (browser transport).
-- **Browser language** is auto-detected on first visit; language/theme persist.
-  Verification state lives in `sessionStorage` (per-tab, resets on close).
+- **Captcha solver is best-effort**: the slider offset ranking (NCC/std/border)
+  is a heuristic port of the Python original; it retries up to
+  `gateway.maxCaptchaRounds`. Portal UI/anti-bot changes can break it silently.
+  Use `mode: 'mock'` for reliable UI testing; live runs are manual smoke tests.
+- **Welcome gate is UX-only**: the welcome content is in the SSR bundle; the
+  `/<slug>/welcome` route is gated client-side by a `sessionStorage` flag, not a
+  security boundary.
 - For legal/ethical use only — don't bulk-query the portal; ID numbers are
   sensitive personal data.

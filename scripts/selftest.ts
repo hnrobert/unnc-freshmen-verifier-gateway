@@ -6,8 +6,8 @@
  *
  *   pnpm test
  */
-import { AdmissionQueryError, parseJsonBody, parseResultHtml, rankOffsets } from '../src/lib/admissionCore'
-import type { DecodedImage } from '../src/lib/png'
+import { AdmissionQueryError, parseJsonBody, parseResultHtml, rankOffsets } from '../shared/lib/admissionCore'
+import type { DecodedImage } from '../shared/types'
 
 let passed = 0
 let failed = 0

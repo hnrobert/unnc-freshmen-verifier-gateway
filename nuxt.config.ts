@@ -1,0 +1,39 @@
+import tailwindcss from '@tailwindcss/vite'
+
+// Nuxt 4 full-stack config. The public per-org gateway is SSR-rendered so each
+// org's config/i18n/theme apply on first paint; auth + orgs + admission run as
+// Nitro server routes (no CORS — the portal is called server-side).
+//
+// `shared/` is Nuxt 4's app↔server dir, auto-aliased to `#shared` (used by the
+// app). Server files import shared code via relative paths (the built-in #shared
+// alias isn't always in the server tsconfig).
+export default defineNuxtConfig({
+  compatibilityDate: '2026-07-13',
+  devtools: { enabled: true },
+  ssr: true,
+  srcDir: 'app',
+
+  // Tailwind v4 + shadcn theme CSS.
+  css: ['~/assets/css/main.css'],
+  vite: {
+    plugins: [tailwindcss()],
+  },
+
+  // Auto-import components by filename (no path prefix) so shadcn-vue <Button>,
+  // <Card>, … and public <Icon> resolve without explicit imports. Only scan .vue
+  // (the ui/ `index.ts` barrels are modules, not components).
+  components: [{ path: '~/components', pathPrefix: false, extensions: ['.vue'] }],
+
+  runtimeConfig: {
+    sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
+    dbPath: process.env.DB_PATH || './data/app.db',
+  },
+
+  typescript: {
+    strict: true,
+  },
+
+  future: {
+    compatibilityVersion: 4,
+  },
+})

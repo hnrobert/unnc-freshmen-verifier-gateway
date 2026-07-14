@@ -1,28 +1,9 @@
 {
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "types": ["node"],
-    "jsx": "preserve",
-
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true,
-    "useDefineForClassFields": true,
-    "allowImportingTsExtensions": false,
-    "noEmit": true,
-
-    "paths": {
-      "@/*": ["./src/*"],
-      "@config/*": ["./config/*"]
-    }
-  },
-  "include": ["src", "config", "scripts", "server", "vite.config.ts", "tsup.config.ts"]
+  "files": [],
+  "references": [
+    { "path": "./.nuxt/tsconfig.app.json" },
+    { "path": "./.nuxt/tsconfig.server.json" },
+    { "path": "./.nuxt/tsconfig.shared.json" },
+    { "path": "./.nuxt/tsconfig.node.json" }
+  ]
 }

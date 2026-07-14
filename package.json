@@ -1,66 +1,49 @@
 {
   "name": "unnc-freshmen-verifier-gateway",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Static, fully-customizable bilingual (zh/en) verify gateway for UNNC freshmen — name + ID check that unlocks a markdown welcome page.",
+  "description": "Multi-tenant Nuxt + SQLite verify gateway — organizations register, customize their own bilingual verify page (i18n, images, welcome markdown), and verify live against the UNNC admission portal.",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "gen": "tsx src/cli/index.ts gen",
-    "validate": "tsx src/cli/index.ts validate",
-    "cli": "tsx src/cli/index.ts",
-    "dev": "pnpm run gen && vite",
-    "server": "tsx server/index.ts",
-    "dev:all": "concurrently -n server,web -c magenta,cyan \"pnpm run server\" \"pnpm run dev\"",
-    "build": "pnpm run gen && vite build",
-    "build:cli": "tsup",
-    "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit",
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx server/db/seed.ts",
     "test": "tsx scripts/selftest.ts",
-    "postinstall": "tsx src/cli/index.ts gen"
-  },
-  "files": [
-    "dist",
-    "dist-cli",
-    "src",
-    "config",
-    "README.md"
-  ],
-  "bin": {
-    "unnc-vg": "dist-cli/index.js"
+    "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@noble/hashes": "^2.2.0",
     "@vueuse/core": "^14.3.0",
+    "better-sqlite3": "^12.11.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.40.1",
     "lucide-vue-next": "^1.0.0",
     "markdown-it": "^14.3.0",
+    "nuxt": "^4.4.8",
     "pngjs": "^7.0.0",
     "tailwind-merge": "^3.6.0",
-    "vue": "^3.5.39",
-    "vue-i18n": "^11.4.6",
-    "vue-router": "^5.1.0"
+    "vue-i18n": "^11.4.6"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^26.1.1",
     "@types/pngjs": "^6.0.5",
-    "@vitejs/plugin-vue": "^6.0.7",
-    "concurrently": "^10.0.3",
+    "drizzle-kit": "^0.30.0",
     "tailwindcss": "^4.3.2",
-    "tsup": "^8.5.1",
     "tsx": "^4.23.0",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5.9.3",
-    "vite": "^8.1.4",
     "vue-tsc": "^3.3.7"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
   }
 }

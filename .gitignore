@@ -148,3 +148,10 @@ ref/
 dist-cli/
 .wrangler/
 
+
+# Nuxt
+.nuxt
+.output
+.data
+dist/
+data/
