@@ -1,7 +1,7 @@
 import type { InjectionKey, Ref } from 'vue'
 import type { SiteConfig } from '#shared/types'
 
-/** Provided by the org layout (public pages) or the LivePreview (editor). */
+/** Provided by the org layout (public pages: verify / welcome / demo). */
 export const OrgConfigKey: InjectionKey<{ config: Ref<SiteConfig> }> = Symbol('orgConfig')
 
 /** Read the active org config (provided by an ancestor). Throws if missing. */

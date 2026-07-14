@@ -67,9 +67,10 @@ function onDiscard(): void {
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 class="text-2xl font-semibold tracking-tight">Edit <code>/{{ slug }}</code></h1>
-        <p class="mt-1 text-sm text-muted-foreground">Customize labels, images, welcome content, and gateway settings. Preview updates live.</p>
+        <p class="mt-1 text-sm text-muted-foreground">Customize labels, images, welcome content, and gateway settings.</p>
       </div>
       <div class="flex items-center gap-2">
+        <a :href="`/${slug}/demo`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Demo ↗</a>
         <a :href="`/${slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">View ↗</a>
         <Button variant="outline" :disabled="saving" @click="onDiscard">Discard</Button>
         <Button :disabled="saving" @click="onSave">{{ saving ? 'Saving…' : 'Save' }}</Button>
@@ -79,9 +80,8 @@ function onDiscard(): void {
     <StatusAlert v-if="saved" variant="success" message="Saved." class="mt-4" />
     <StatusAlert v-if="errors.length" variant="error" :message="errors.join('; ')" class="mt-4" />
 
-    <div class="mt-6 grid gap-8 lg:grid-cols-2">
-      <div class="order-2 lg:order-1"><ConfigEditor /></div>
-      <div class="order-1 lg:order-2"><LivePreview /></div>
+    <div class="mt-6">
+      <ConfigEditor />
     </div>
   </div>
 </template>

@@ -2,14 +2,20 @@
 import { useI18n } from 'vue-i18n'
 import { verify, type VerifyReason } from '~/lib/verify'
 
-const props = defineProps<{ slug: string; preview?: boolean }>()
+const props = defineProps<{
+  slug: string
+  preview?: boolean
+  demo?: boolean
+  defaultName?: string
+  defaultId?: string
+}>()
 const { config } = useOrgConfig()
 const { t } = useI18n()
 const router = useRouter()
 const { setVerified } = useVerifier()
 
-const name = ref('')
-const idNumber = ref('')
+const name = ref(props.defaultName ?? '')
+const idNumber = ref(props.defaultId ?? '')
 const submitting = ref(false)
 const errorMsg = ref('')
 
@@ -24,8 +30,14 @@ const reasonKey: Record<VerifyReason, string> = {
 }
 
 async function onSubmit(): Promise<void> {
-  if (props.preview) return // visual-only in the editor preview
+  if (props.preview) return // visual-only
   errorMsg.value = ''
+  // Demo mode: skip the real portal check and jump straight to the welcome page.
+  if (props.demo) {
+    setVerified(true, { ok: true, admitted: true, message: 'demo', name: name.value || '示例姓名' })
+    await router.push(`/${props.slug}/welcome`)
+    return
+  }
   submitting.value = true
   try {
     const result = await verify(props.slug, config.value.gateway, {
