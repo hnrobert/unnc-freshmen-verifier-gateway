@@ -1,4 +1,3 @@
-import type { InjectionKey, Ref } from 'vue'
 import type { SiteConfig } from '#shared/types'
 
 /** Provided by the org layout (public pages: verify / welcome / demo). */

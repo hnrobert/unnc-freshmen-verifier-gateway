@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
 import type { SiteConfig } from '#shared/types'
 import { OrgConfigKey } from '~/composables/useOrgConfig'
 import { buttonVariants } from '~/components/ui/button'
