@@ -52,6 +52,11 @@ const config: SiteConfig = {
     imageRounded: true,
   },
 
+  // Optional full-page background (upload via the editor → img:background).
+  background: {
+    overlayOpacity: 0.5,
+  },
+
   // ---------------------------------------------------------------- messages
   messages: {
     zh: {

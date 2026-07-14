@@ -26,6 +26,13 @@ const slug = computed(() => route.params.slug as string)
 function onWelcomeImage(ref: string): void {
   config.value.welcome.image = ref
 }
+
+function onBackgroundImage(ref: string): void {
+  config.value.background = {
+    overlayOpacity: config.value.background?.overlayOpacity ?? 0.5,
+    image: ref,
+  }
+}
 </script>
 
 <template>
@@ -132,6 +139,30 @@ function onWelcomeImage(ref: string): void {
       <div class="grid gap-1.5">
         <Label>body (en) — Markdown</Label>
         <MarkdownEditor v-model="(config.messages.en as any).welcome.body" locale="en" />
+      </div>
+    </section>
+
+    <!-- Background -->
+    <section class="space-y-3">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Page background (optional)</h3>
+      <ImageUploader :slug="slug" image-key="background" label="Upload background image (base64 → DB)" @uploaded="onBackgroundImage" />
+      <div class="grid gap-1.5">
+        <Label>background image (URL or img:background)</Label>
+        <Input v-model="(config.background as any).image" placeholder="./bg.jpg  or  img:background  or  https://…" />
+      </div>
+      <div class="flex flex-wrap items-center gap-3 text-sm">
+        <Label class="mb-0">darkening overlay</Label>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          :value="(config.background as any).overlayOpacity ?? 0.5"
+          class="w-48"
+          @input="(config.background as any).overlayOpacity = Number(($event.target as HTMLInputElement).value)"
+        />
+        <span class="w-10 text-muted-foreground">{{ Math.round(((config.background as any).overlayOpacity ?? 0) * 100) }}%</span>
+        <Button v-if="(config.background as any).image" size="sm" variant="ghost" type="button" @click="(config.background as any).image = ''">Remove image</Button>
       </div>
     </section>
 

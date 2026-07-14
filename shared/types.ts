@@ -51,6 +51,14 @@ export interface WelcomeAssetsConfig {
   imageRounded?: boolean
 }
 
+/** Optional full-page background for the org's verify/welcome pages. */
+export interface BackgroundConfig {
+  /** Background image: `img:<key>` (DB image), public path, or URL. Omit/empty for no background. */
+  image?: string
+  /** Darkening overlay 0–1 (keeps text readable over busy images). */
+  overlayOpacity?: number
+}
+
 /** How verification resolves a name + ID. */
 export type VerifyMode = 'live' | 'mock'
 
@@ -113,6 +121,8 @@ export interface SiteConfig {
   icons: IconsConfig
   theme: ThemeConfig
   welcome: WelcomeAssetsConfig
+  /** Optional full-page background image for the org's pages. */
+  background?: BackgroundConfig
   /** Localized labels & content. Keys are referenced via `t('...')`. */
   messages: Record<Locale, Record<string, unknown>>
 }

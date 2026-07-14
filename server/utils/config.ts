@@ -26,5 +26,9 @@ export function resolveImageRefs(config: SiteConfig, slug: string): SiteConfig {
   if (welcome.image?.startsWith('img:')) {
     welcome.image = `/api/orgs/${slug}/img/${welcome.image.slice(4)}`
   }
-  return { ...config, icons, welcome }
+  const background = { ...config.background }
+  if (background.image?.startsWith('img:')) {
+    background.image = `/api/orgs/${slug}/img/${background.image.slice(4)}`
+  }
+  return { ...config, icons, welcome, background }
 }

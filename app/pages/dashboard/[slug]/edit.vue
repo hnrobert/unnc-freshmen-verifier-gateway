@@ -16,6 +16,8 @@ if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Organizatio
 
 // Mutable draft (deep-cloned so Discard can restore).
 const draft = ref(JSON.parse(JSON.stringify(raw.value))) as Ref<SiteConfig>
+// Backfill optional fields so the editor can bind to them (older seeded orgs).
+if (!draft.value.background) draft.value.background = { overlayOpacity: 0.5 }
 provide(OrgConfigKey, { config: draft })
 
 // Load the draft's messages into vue-i18n so the live preview shows the org's

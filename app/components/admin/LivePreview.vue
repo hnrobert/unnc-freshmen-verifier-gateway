@@ -11,6 +11,8 @@ const stubAdmission: AdmissionResult = {
   date: '2026-08-15',
   detail: '已录取',
 }
+
+const { hasBg, image, overlay } = useOrgBackground()
 </script>
 
 <template>
@@ -22,8 +24,20 @@ const stubAdmission: AdmissionResult = {
         <Button size="sm" :variant="screen === 'welcome' ? 'default' : 'outline'" @click="screen = 'welcome'">Welcome</Button>
       </div>
     </div>
-    <div class="overflow-hidden rounded-lg border bg-background shadow-sm">
-      <div class="max-h-[70vh] overflow-auto">
+    <div class="relative overflow-hidden rounded-lg border shadow-sm" :class="{ 'bg-background': !hasBg }">
+      <div
+        v-if="hasBg"
+        aria-hidden="true"
+        class="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
+        :style="{ backgroundImage: `url(${image})` }"
+      ></div>
+      <div
+        v-if="hasBg"
+        aria-hidden="true"
+        class="pointer-events-none absolute inset-0"
+        :style="{ background: `rgba(0,0,0,${overlay})` }"
+      ></div>
+      <div class="relative max-h-[70vh] overflow-auto">
         <VerifyForm v-if="screen === 'verify'" slug="" preview />
         <WelcomeContent v-else :stub-admission="stubAdmission" />
       </div>

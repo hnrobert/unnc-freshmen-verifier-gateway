@@ -24,11 +24,31 @@ watchEffect(() => {
 
 const radius = computed(() => config.value?.theme.radius ?? '0.65rem')
 useHead({ htmlAttrs: { style: () => `--radius: ${radius.value}` } })
+
+// Read the optional background straight from the local config ref (a component
+// can't inject its own provide; useOrgBackground is for descendants).
+const bgImage = computed(() => config.value?.background?.image ?? '')
+const hasBg = computed(() => !!bgImage.value)
+const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5)
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-background text-foreground">
-    <div aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+  <div class="relative min-h-screen text-foreground" :class="{ 'bg-background': !hasBg }">
+    <!-- optional page background image + darkening overlay -->
+    <div
+      v-if="hasBg"
+      aria-hidden="true"
+      class="pointer-events-none fixed inset-0 -z-20 bg-cover bg-center bg-no-repeat"
+      :style="{ backgroundImage: `url(${bgImage})` }"
+    ></div>
+    <div
+      v-if="hasBg"
+      aria-hidden="true"
+      class="pointer-events-none fixed inset-0 -z-10"
+      :style="{ background: `rgba(0,0,0,${bgOverlay})` }"
+    ></div>
+    <!-- default decorative blob (only without a background image) -->
+    <div v-else aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
       <div class="absolute -top-40 left-1/2 size-[42rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"></div>
     </div>
     <header class="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-5 py-5">
