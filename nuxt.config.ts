@@ -11,7 +11,9 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-07-13',
   devtools: { enabled: true },
   ssr: true,
-  srcDir: 'app',
+  // Flat (Nuxt 3-style) layout: pages/components/layouts/… live at the project
+  // root alongside app.vue, not under an app/ dir.
+  srcDir: '.',
 
   // Tailwind v4 + shadcn theme CSS.
   css: ['~/assets/css/main.css'],

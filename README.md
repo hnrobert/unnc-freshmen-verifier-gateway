@@ -69,19 +69,22 @@ pnpm dev              # http://localhost:3000
 ## Project structure
 
 ```
-app/                         Nuxt 4 srcDir
-  pages/
-    [slug]/{index,welcome}.vue      PUBLIC per-org gateway
-    dashboard/{index,new}.vue  [slug]/edit.vue   admin
-    login.vue register.vue
-  components/
-    public/   VerifyForm, WelcomeContent, BrandMark, LanguageToggle, ThemeToggle, Icon, StatusAlert, MarkdownView
-    admin/    ConfigEditor, LivePreview, IconPicker, ImageUploader, MarkdownEditor
-    ui/       shadcn-vue (button/input/label/card)
-  composables/ useOrgConfig, useOrgI18n, useVerifier, useAuth
-  lib/         verify, icon, iconAllowlist, markdown, utils
-  plugins/     i18n, auth
-  middleware/  auth, guest, welcome-gate
+app.vue                     root component
+nuxt.config.ts              (srcDir: '.', flat layout)
+pages/
+  [slug]/{index,welcome}.vue      PUBLIC per-org gateway
+  dashboard/{index,new}.vue  [slug]/edit.vue   admin
+  login.vue register.vue
+components/
+  public/   VerifyForm, WelcomeContent, BrandMark, LanguageToggle, ThemeToggle, Icon, StatusAlert, MarkdownView
+  admin/    ConfigEditor, LivePreview, IconPicker, ImageUploader, MarkdownEditor
+  ui/       shadcn-vue (button/input/label/card)
+composables/ useOrgConfig, useOrgI18n, useVerifier, useAuth
+lib/         verify, icon, iconAllowlist, markdown, utils
+utils/       errors (auto-imported)
+plugins/     i18n, auth
+middleware/  auth, guest, welcome-gate
+assets/      css/main.css
 shared/                     app↔server code
   types.ts  lib/admissionCore.ts  lib/validateConfig.ts  lib/defaultConfig.ts
 server/                     Nitro
