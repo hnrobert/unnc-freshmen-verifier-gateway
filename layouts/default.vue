@@ -54,7 +54,7 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
     ></div>
     <!-- default decorative blob (only without a background image) -->
     <div v-else aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <div class="absolute -top-40 left-1/2 size-[42rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"></div>
+      <div class="absolute -top-40 left-1/2 size-168 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"></div>
     </div>
     <header class="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-5 py-5">
       <BrandMark />

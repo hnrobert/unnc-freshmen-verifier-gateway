@@ -146,7 +146,7 @@
   @apply my-3.5;
 }
 .vg-prose a {
-  @apply text-primary underline underline-offset-4 hover:opacity-80 break-words;
+  @apply text-primary underline underline-offset-4 hover:opacity-80 wrap-break-word;
 }
 .vg-prose ul {
   @apply list-disc pl-5 my-3.5 space-y-1.5;
