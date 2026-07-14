@@ -59,7 +59,7 @@ const config: SiteConfig = {
   messages: {
     zh: {
       brand: {
-        title: '宁波诺定汉大学 · 录取核验',
+        title: '宁波诺丁汉大学 · 录取核验',
         subtitle: '输入姓名与身份证号，核验录取状态后查看迎新内容',
       },
       verify: {
@@ -94,7 +94,7 @@ const config: SiteConfig = {
         imageAlt: '迎新插画',
         // Full markdown supported. Bare URLs / emails are auto-linked.
         body: [
-          '# 欢迎来到宁波诺定汉大学',
+          '# 欢迎来到宁波诺丁汉大学',
           '',
           '亲爱的同学，祝贺你成为我们的一员，期待在校园里与你相遇！',
           '',
