@@ -6,7 +6,7 @@ export default defineNuxtRouteMiddleware((to) => {
   const slug = to.params.slug as string
   const { isVerified } = useVerifier()
   if (!isVerified.value) {
-    const isDemo = to.path.includes('/demo/')
+    const isDemo = to.path.split('/').filter(Boolean)[1] === 'demo'
     return navigateTo(isDemo ? `/${slug}/demo` : `/${slug}`)
   }
 })

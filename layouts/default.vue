@@ -4,7 +4,7 @@ import { OrgConfigKey } from '~/composables/useOrgConfig'
 
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
-const isDemo = computed(() => route.path.includes('/demo/'))
+const isDemo = computed(() => route.path.split('/').filter(Boolean)[1] === 'demo')
 
 // Load the org's resolved config (SSR-cached by slug). Reactive key + watch so
 // cross-org navigation refetches.
