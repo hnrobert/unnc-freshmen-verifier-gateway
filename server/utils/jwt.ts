@@ -2,16 +2,15 @@ import jwt from 'jsonwebtoken'
 import type { H3Event } from 'h3'
 
 const TRUST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
-const COOKIE = 'vg_jwt'
+const LOGIN_COOKIE = 'vg_jwt'       // issued on website login (userId-based)
+const VERIFY_COOKIE = 'vg_verify'   // issued on successful portal check (name+ID-based)
 
-export interface TrustPayload {
+// --- Login trust JWT (for registered website users) ---
+
+export interface LoginTrustPayload {
   userId: number
   email: string
-  trustedUntil: string // ISO date
-}
-
-function getSecret(): string {
-  return process.env.SESSION_SECRET || 'dev-secret-change-me'
+  trustedUntil: string
 }
 
 export function getTrustWindowMs(): number {
@@ -20,32 +19,71 @@ export function getTrustWindowMs(): number {
 
 export function signTrustJwt(userId: number, email: string, trustedUntil: Date): string {
   return jwt.sign(
-    { userId, email, trustedUntil: trustedUntil.toISOString() } satisfies TrustPayload,
+    { userId, email, trustedUntil: trustedUntil.toISOString() } satisfies LoginTrustPayload,
     getSecret(),
     { expiresIn: `${TRUST_WINDOW_MS / 1000}s` },
   )
 }
 
-export function verifyTrustJwt(event: H3Event): TrustPayload | null {
-  const token = getCookie(event, COOKIE)
+export function verifyTrustJwt(event: H3Event): LoginTrustPayload | null {
+  const token = getCookie(event, LOGIN_COOKIE)
   if (!token) return null
   try {
-    return jwt.verify(token, getSecret()) as TrustPayload
+    return jwt.verify(token, getSecret()) as LoginTrustPayload
   } catch {
     return null
   }
 }
 
 export function setTrustCookie(event: H3Event, token: string): void {
-  setCookie(event, COOKIE, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: TRUST_WINDOW_MS / 1000,
-    secure: !import.meta.dev,
+  setCookie(event, LOGIN_COOKIE, token, {
+    httpOnly: true, sameSite: 'lax', path: '/',
+    maxAge: TRUST_WINDOW_MS / 1000, secure: !import.meta.dev,
   })
 }
 
 export function clearTrustCookie(event: H3Event): void {
-  deleteCookie(event, COOKIE, { path: '/' })
+  deleteCookie(event, LOGIN_COOKIE, { path: '/' })
+}
+
+// --- Verify trust JWT (for anonymous visitors — name+ID based) ---
+
+export interface VerifyTrustPayload {
+  name: string
+  idNumber: string
+  trustedUntil: string
+}
+
+function getSecret(): string {
+  return process.env.SESSION_SECRET || 'dev-secret-change-me'
+}
+
+export function signVerifyJwt(name: string, idNumber: string): string {
+  const trustedUntil = new Date(Date.now() + TRUST_WINDOW_MS).toISOString()
+  return jwt.sign(
+    { name, idNumber, trustedUntil } satisfies VerifyTrustPayload,
+    getSecret(),
+    { expiresIn: `${TRUST_WINDOW_MS / 1000}s` },
+  )
+}
+
+export function verifyVerifyJwt(event: H3Event): VerifyTrustPayload | null {
+  const token = getCookie(event, VERIFY_COOKIE)
+  if (!token) return null
+  try {
+    return jwt.verify(token, getSecret()) as VerifyTrustPayload
+  } catch {
+    return null
+  }
+}
+
+export function setVerifyCookie(event: H3Event, token: string): void {
+  setCookie(event, VERIFY_COOKIE, token, {
+    httpOnly: true, sameSite: 'lax', path: '/',
+    maxAge: TRUST_WINDOW_MS / 1000, secure: !import.meta.dev,
+  })
+}
+
+export function clearVerifyCookie(event: H3Event): void {
+  deleteCookie(event, VERIFY_COOKIE, { path: '/' })
 }

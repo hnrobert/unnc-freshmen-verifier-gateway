@@ -1,8 +1,13 @@
 import type { AdmissionResult } from '../../../../shared/types'
 import { queryAdmission } from '../../../utils/admission'
-import { verifyTrustJwt } from '../../../utils/jwt'
-import { AppDataSource } from '../../../utils/database'
-import { Verification } from '../../../entities/verification.entity'
+import { verifyVerifyJwt, signVerifyJwt, setVerifyCookie } from '../../../utils/jwt'
+
+function normalizeName(s: string): string {
+  return s.trim().replace(/\s+/g, ' ')
+}
+function normalizeId(s: string): string {
+  return s.trim().toUpperCase()
+}
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
@@ -18,25 +23,22 @@ export default defineEventHandler(async (event) => {
   if (!username || !userid)
     return { ok: false, admitted: null, message: 'missing username/userid' } satisfies AdmissionResult
 
-  // --- Trust window: if user has a valid JWT + verified before, skip everything ---
-  const trust = verifyTrustJwt(event)
-  const trustActive = trust && new Date(trust.trustedUntil) > new Date()
-  if (trustActive) {
-    const verRepo = AppDataSource.getRepository(Verification)
-    const hasVerified = await verRepo.findOne({ where: { userId: trust.userId } })
-    if (hasVerified) {
+  const normName = normalizeName(username)
+  const normId = normalizeId(userid)
+
+  // --- Trust bypass: verify JWT (name+ID based, works for all visitors) ---
+  const verifyTrust = verifyVerifyJwt(event)
+  if (verifyTrust && new Date(verifyTrust.trustedUntil) > new Date()) {
+    if (normalizeName(verifyTrust.name) === normName && normalizeId(verifyTrust.idNumber) === normId) {
       return { ok: true, admitted: true, message: 'trusted', name: username } satisfies AdmissionResult
     }
   }
 
   // --- Mock mode ---
   if (config.gateway.mode === 'mock') {
-    const result = { ok: true, admitted: true, message: 'mock', name: username } satisfies AdmissionResult
-    if (trustActive) {
-      const verRepo = AppDataSource.getRepository(Verification)
-      await verRepo.save({ userId: trust!.userId, orgSlug: slug, name: username, idNumber: userid })
-    }
-    return result
+    const token = signVerifyJwt(normName, normId)
+    setVerifyCookie(event, token)
+    return { ok: true, admitted: true, message: 'mock', name: username } satisfies AdmissionResult
   }
 
   // --- Portal check ---
@@ -47,10 +49,10 @@ export default defineEventHandler(async (event) => {
     result = { ok: false, admitted: null, message: error instanceof Error ? error.message : String(error) }
   }
 
-  // Record successful verification for trusted users
-  if (result.ok && result.admitted === true && trustActive) {
-    const verRepo = AppDataSource.getRepository(Verification)
-    await verRepo.save({ userId: trust!.userId, orgSlug: slug, name: username, idNumber: userid })
+  // On successful admission: issue verify JWT for future cross-org trust
+  if (result.ok && result.admitted === true) {
+    const token = signVerifyJwt(normName, normId)
+    setVerifyCookie(event, token)
   }
 
   return result
