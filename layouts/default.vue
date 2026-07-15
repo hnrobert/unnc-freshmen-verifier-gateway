@@ -4,6 +4,7 @@ import { OrgConfigKey } from '~/composables/useOrgConfig'
 
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
+const isDemo = computed(() => route.path.includes('/demo/'))
 
 // Load the org's resolved config (SSR-cached by slug). Reactive key + watch so
 // cross-org navigation refetches.
@@ -58,6 +59,15 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
     <header class="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-5 py-5">
       <BrandMark />
       <div class="flex items-center gap-2">
+        <NuxtLink
+          v-if="isDemo"
+          :to="`/dashboard/${slug}/edit`"
+          class="inline-flex size-7.25 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="Edit"
+          title="Edit"
+        >
+          <Icon spec="Pencil" :size="18" />
+        </NuxtLink>
         <LanguageToggle />
         <ThemeToggle />
       </div>
