@@ -1,4 +1,3 @@
-// Runs on every request: resolve the session cookie into event.context.user.
-export default defineEventHandler((event) => {
-  event.context.user = getSessionUser(event)
+export default defineEventHandler(async (event) => {
+  event.context.user = await getSessionUser(event)
 })

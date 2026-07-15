@@ -5,10 +5,6 @@ export default defineEventHandler(async (event) => {
   requireAuth(event)
   const body = await readBody<{ config?: unknown }>(event)
   let errors: string[]
-  try {
-    errors = validateConfig(body.config as SiteConfig)
-  } catch {
-    errors = ['invalid config shape']
-  }
+  try { errors = validateConfig(body.config as SiteConfig) } catch { errors = ['invalid config shape'] }
   return { errors }
 })

@@ -1,21 +1,13 @@
-import { eq } from 'drizzle-orm'
-import { orgSettings } from '../../../db/schema'
+import { AppDataSource } from '../../../utils/database'
+import { OrgSetting } from '../../../entities/orgSetting.entity'
 
-// Public: returns the resolved SiteConfig (img: refs → URLs) for gateway rendering.
-// `?edit=1` (owner only): returns the raw stored config (img: refs intact) for the editor.
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
-
   if (getQuery(event).edit !== undefined) {
-    const org = requireOrgOwnership(event, slug)
-    const settings = useDB()
-      .select()
-      .from(orgSettings)
-      .where(eq(orgSettings.orgId, org.id))
-      .all()[0]
+    const org = await requireOrgOwnership(event, slug)
+    const settings = await AppDataSource.getRepository(OrgSetting).findOne({ where: { orgId: org.id } })
     if (!settings) throw createError({ statusCode: 404, statusMessage: 'Config not found' })
     return JSON.parse(settings.config)
   }
-
-  return loadOrgConfig(slug)
+  return await loadOrgConfig(slug)
 })

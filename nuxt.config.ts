@@ -49,6 +49,26 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
+    tsConfig: {
+      compilerOptions: {
+        experimentalDecorators: true,
+        emitDecoratorMetadata: true,
+      },
+    },
+  },
+
+  // TypeORM decorator support for the Nitro server (esbuild tsconfigRaw).
+  nitro: {
+    esbuild: {
+      options: {
+        tsconfigRaw: JSON.stringify({
+          compilerOptions: {
+            experimentalDecorators: true,
+            emitDecoratorMetadata: true,
+          },
+        }),
+      },
+    },
   },
 
   future: {

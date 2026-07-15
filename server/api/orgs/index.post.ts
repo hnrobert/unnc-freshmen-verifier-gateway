@@ -1,5 +1,6 @@
-import { eq } from 'drizzle-orm'
-import { organizations, orgSettings } from '../../db/schema'
+import { AppDataSource } from '../../utils/database'
+import { Organization } from '../../entities/organization.entity'
+import { OrgSetting } from '../../entities/orgSetting.entity'
 import defaultConfig from '../../../shared/lib/defaultConfig'
 import type { SiteConfig } from '../../../shared/types'
 
@@ -13,17 +14,16 @@ export default defineEventHandler(async (event) => {
   if (slugError) throw createError({ statusCode: 400, statusMessage: slugError })
   if (!name) throw createError({ statusCode: 400, statusMessage: 'Name is required' })
 
-  const existing = useDB().select().from(organizations).where(eq(organizations.slug, slug)).all()
-  if (existing.length) throw createError({ statusCode: 409, statusMessage: 'Slug already taken' })
+  const orgRepo = AppDataSource.getRepository(Organization)
+  const existing = await orgRepo.findOne({ where: { slug } })
+  if (existing) throw createError({ statusCode: 409, statusMessage: 'Slug already taken' })
 
-  const id = crypto.randomUUID()
-  useDB().insert(organizations).values({ id, ownerId: user.id, slug, name }).run()
+  const org = await orgRepo.save({ ownerId: user.id, slug, name })
 
-  // Seed config = defaultConfig with the brand title set to the org name.
   const cfg = structuredClone(defaultConfig) as SiteConfig
   ;(cfg.messages.zh as { brand: { title: string } }).brand.title = name
   ;(cfg.messages.en as { brand: { title: string } }).brand.title = name
-  useDB().insert(orgSettings).values({ orgId: id, config: JSON.stringify(cfg) }).run()
+  await AppDataSource.getRepository(OrgSetting).save({ orgId: org.id, config: JSON.stringify(cfg) })
 
-  return { org: { id, slug, name } }
+  return { org: { id: org.id, slug: org.slug, name: org.name } }
 })

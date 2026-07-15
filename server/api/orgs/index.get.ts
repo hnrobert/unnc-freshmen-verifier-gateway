@@ -1,14 +1,10 @@
-import { eq } from 'drizzle-orm'
-import { organizations } from '../../db/schema'
+import { AppDataSource } from '../../utils/database'
+import { Organization } from '../../entities/organization.entity'
 
 export default defineEventHandler((event) => {
   const user = requireAuth(event)
-  const orgs = useDB()
-    .select()
-    .from(organizations)
-    .where(eq(organizations.ownerId, user.id))
-    .all()
-  return {
+  return AppDataSource.getRepository(Organization
+).find({ where: { ownerId: user.id } }).then((orgs) => ({
     orgs: orgs.map((o) => ({ id: o.id, slug: o.slug, name: o.name, createdAt: o.createdAt })),
-  }
+  }))
 })

@@ -1,49 +1,54 @@
 /**
- * Seed a demo user + org so the app is usable immediately.
- *   pnpm db:seed   (email: demo@example.com  password: demo1234  org slug: demo)
+ * Seed a demo user + org. Run: pnpm db:seed
+ *   email: demo@example.com  password: demo1234  org slug: demo
  */
-import { eq } from 'drizzle-orm'
-import { createDB } from '../utils/db'
+import { AppDataSource, initDataSource, closeDataSource } from '../utils/database'
+import { User } from '../entities/user.entity'
+import { Organization } from '../entities/organization.entity'
+import { OrgSetting } from '../entities/orgSetting.entity'
 import { hashPassword } from '../utils/auth'
-import { organizations, orgSettings, users } from './schema'
 import defaultConfig from '../../shared/lib/defaultConfig'
 import type { SiteConfig } from '../../shared/types'
 
-const dbPath = process.env.DB_PATH || './data/app.db'
-const { db } = createDB(dbPath)
+async function main(): Promise<void> {
+  await initDataSource()
 
-const email = 'demo@example.com'
-const password = 'demo1234'
-const slug = 'demo'
-const orgName = 'Demo Org'
+  const userRepo = AppDataSource.getRepository(User)
+  const orgRepo = AppDataSource.getRepository(Organization)
+  const settingRepo = AppDataSource.getRepository(OrgSetting)
 
-const existingUser = db.select().from(users).where(eq(users.email, email)).all()
-const userId = existingUser[0]?.id ?? crypto.randomUUID()
-if (!existingUser.length) {
-  db.insert(users).values({ id: userId, email, passwordHash: hashPassword(password) }).run()
-  console.log(`created user ${email} (password: ${password})`)
-} else {
-  console.log(`user ${email} already exists`)
+  const email = 'demo@example.com'
+  let user = await userRepo.findOne({ where: { email } })
+  if (!user) {
+    user = await userRepo.save({ email, passwordHash: hashPassword('demo1234') })
+    console.log(`created user ${email} (password: demo1234)`)
+  } else {
+    console.log(`user ${email} already exists`)
+  }
+
+  const slug = 'demo'
+  let org = await orgRepo.findOne({ where: { slug } })
+  if (!org) {
+    org = await orgRepo.save({ ownerId: user.id, slug, name: 'Demo Org' })
+    console.log(`created org "${slug}"`)
+  } else {
+    console.log(`org "${slug}" already exists`)
+  }
+
+  const cfg = structuredClone(defaultConfig) as SiteConfig
+  ;(cfg.messages.zh as { brand: { title: string } }).brand.title = 'Demo Org'
+  ;(cfg.messages.en as { brand: { title: string } }).brand.title = 'Demo Org'
+  const existing = await settingRepo.findOne({ where: { orgId: org.id } })
+  if (existing) {
+    existing.config = JSON.stringify(cfg)
+    await settingRepo.save(existing)
+  } else {
+    await settingRepo.save({ orgId: org.id, config: JSON.stringify(cfg) })
+  }
+  console.log(`seeded org_settings for "${slug}"`)
+
+  await closeDataSource()
+  console.log('done.')
 }
 
-const existingOrg = db.select().from(organizations).where(eq(organizations.slug, slug)).all()
-const orgId = existingOrg[0]?.id ?? crypto.randomUUID()
-if (!existingOrg.length) {
-  db.insert(organizations).values({ id: orgId, ownerId: userId, slug, name: orgName }).run()
-  console.log(`created org "${slug}"`)
-} else {
-  console.log(`org "${slug}" already exists`)
-}
-
-// Seed config = defaultConfig with the brand title set to the org name.
-const cfg = structuredClone(defaultConfig) as SiteConfig
-const zh = cfg.messages.zh as { brand: { title: string } }
-const en = cfg.messages.en as { brand: { title: string } }
-zh.brand.title = orgName
-en.brand.title = orgName
-db.insert(orgSettings)
-  .values({ orgId, config: JSON.stringify(cfg) })
-  .onConflictDoUpdate({ target: orgSettings.orgId, set: { config: JSON.stringify(cfg) } })
-  .run()
-console.log(`seeded org_settings for "${slug}"`)
-console.log('done.')
+main().catch((e) => { console.error(e); process.exit(1) })

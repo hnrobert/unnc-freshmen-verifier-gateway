@@ -1,20 +1,22 @@
 import { argon2id } from '@noble/hashes/argon2.js'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { eq } from 'drizzle-orm'
 import type { H3Event } from 'h3'
-import { sessions, users } from '../db/schema'
+import { AppDataSource } from './database'
+import { Session } from '../entities/session.entity'
+import { User } from '../entities/user.entity'
 
-// argon2id — OWASP-ish params (m=19 MiB, t=2, p=1). Pure JS (@noble/hashes), no native build.
 const ARGON_OPTS = { t: 2, m: 19456, p: 1 } as const
+const SESSION_COOKIE = 'vg_session'
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30
 
-/** Hash a password → `saltHex:hashHex` for storage. */
+export interface SessionUser { id: number; email: string }
+
 export function hashPassword(password: string): string {
   const salt = randomBytes(16)
   const hash = argon2id(Buffer.from(password), salt, ARGON_OPTS)
   return `${salt.toString('hex')}:${Buffer.from(hash).toString('hex')}`
 }
 
-/** Verify a password against a stored `saltHex:hashHex`. Constant-time. */
 export function verifyPassword(password: string, stored: string): boolean {
   const [saltHex, hashHex] = stored.split(':')
   if (!saltHex || !hashHex) return false
@@ -24,54 +26,38 @@ export function verifyPassword(password: string, stored: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b)
 }
 
-/* -------------------------------------------------------------- sessions -- */
-
-const SESSION_COOKIE = 'vg_session'
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30 // 30 days
-
-export interface SessionUser {
-  id: string
-  email: string
-}
-
-/** Create a session row + set the cookie. Returns the session id. */
-export function createSession(event: H3Event, userId: string): string {
+export async function createSession(event: H3Event, userId: number): Promise<string> {
   const id = randomBytes(32).toString('hex')
-  const expiresAt = Math.floor((Date.now() + SESSION_TTL_MS) / 1000)
-  useDB().insert(sessions).values({ id, userId, expiresAt }).run()
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
+  await AppDataSource.getRepository(Session).insert({ id, userId, expiresAt })
   setCookie(event, SESSION_COOKIE, id, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    expires: new Date(Date.now() + SESSION_TTL_MS),
-    secure: !import.meta.dev,
+    httpOnly: true, sameSite: 'lax', path: '/',
+    expires: expiresAt, secure: !import.meta.dev,
   })
   return id
 }
 
-/** Delete the session row (if any) + clear the cookie. */
-export function clearAuthSession(event: H3Event): void {
+export async function clearAuthSession(event: H3Event): Promise<void> {
   const sid = getCookie(event, SESSION_COOKIE)
-  if (sid) useDB().delete(sessions).where(eq(sessions.id, sid)).run()
+  if (sid) await AppDataSource.getRepository(Session).delete({ id: sid })
   deleteCookie(event, SESSION_COOKIE, { path: '/' })
 }
 
-/** Resolve the current user from the session cookie, or null. */
-export function getSessionUser(event: H3Event): SessionUser | null {
+export async function getSessionUser(event: H3Event): Promise<SessionUser | null> {
   const sid = getCookie(event, SESSION_COOKIE)
   if (!sid) return null
-  const row = useDB().select().from(sessions).where(eq(sessions.id, sid)).all()[0]
-  if (!row) return null
-  if (row.expiresAt * 1000 < Date.now()) {
-    useDB().delete(sessions).where(eq(sessions.id, sid)).run()
+  const sessionRepo = AppDataSource.getRepository(Session)
+  const session = await sessionRepo.findOne({ where: { id: sid } })
+  if (!session) return null
+  if (session.expiresAt < new Date()) {
+    await sessionRepo.delete({ id: sid })
     return null
   }
-  const u = useDB().select().from(users).where(eq(users.id, row.userId)).all()[0]
-  if (!u) return null
-  return { id: u.id, email: u.email }
+  const user = await AppDataSource.getRepository(User).findOne({ where: { id: session.userId } })
+  if (!user) return null
+  return { id: user.id, email: user.email }
 }
 
-/** Throw 401 if not authenticated; otherwise return the user. */
 export function requireAuth(event: H3Event): SessionUser {
   const user = event.context.user as SessionUser | undefined
   if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })

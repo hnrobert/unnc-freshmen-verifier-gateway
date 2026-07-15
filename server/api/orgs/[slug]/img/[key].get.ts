@@ -1,19 +1,15 @@
-import { and, eq } from 'drizzle-orm'
-import { orgImages, organizations } from '../../../../db/schema'
+import { AppDataSource } from '../../../../utils/database'
+import { Organization } from '../../../../entities/organization.entity'
+import { OrgImage } from '../../../../entities/orgImage.entity'
 
-// Public: serve an org's stored image (base64 → bytes) with immutable caching.
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
   const key = getRouterParam(event, 'key') as string
 
-  const org = useDB().select().from(organizations).where(eq(organizations.slug, slug)).all()[0]
+  const org = await AppDataSource.getRepository(Organization).findOne({ where: { slug } })
   if (!org) throw createError({ statusCode: 404, statusMessage: 'Not found' })
 
-  const img = useDB()
-    .select()
-    .from(orgImages)
-    .where(and(eq(orgImages.orgId, org.id), eq(orgImages.key, key)))
-    .all()[0]
+  const img = await AppDataSource.getRepository(OrgImage).findOne({ where: { orgId: org.id, key } })
   if (!img) throw createError({ statusCode: 404, statusMessage: 'Not found' })
 
   setHeader(event, 'Content-Type', img.mime)

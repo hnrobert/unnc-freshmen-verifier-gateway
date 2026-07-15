@@ -1,12 +1,13 @@
-import { eq } from 'drizzle-orm'
 import type { H3Event } from 'h3'
-import { organizations, orgSettings } from '../db/schema'
+import { AppDataSource } from './database'
+import { Organization } from '../entities/organization.entity'
+import { OrgSetting } from '../entities/orgSetting.entity'
+import { OrgImage } from '../entities/orgImage.entity'
 import type { SiteConfig } from '../../shared/types'
 import { resolveImageRefs } from './config'
+import { requireAuth } from './auth'
 
-/** 3–32 chars, lowercase digits/hyphens, no leading/trailing/consecutive hyphens. */
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
-
 export const RESERVED_SLUGS = new Set([
   'api', 'dashboard', 'login', 'register', 'admin', 'new', 'www', 'static',
   'assets', '_nuxt', 'favicon.ico', 'welcome',
@@ -18,25 +19,21 @@ export function validateSlug(slug: string): string | null {
   return null
 }
 
-/* ----------------------------------------------------- per-org config cache -- */
-
 const CACHE_TTL_MS = 60_000
 const cache = new Map<string, { t: number; cfg: SiteConfig }>()
 
-/** Drop the cached config for a slug (call after config/image writes). */
 export function invalidateOrgConfig(slug: string): void {
   cache.delete(slug)
 }
 
-/** Load + resolve an org's SiteConfig by slug (cached ~60s). Throws 404 if missing. */
-export function loadOrgConfig(slug: string): SiteConfig {
+export async function loadOrgConfig(slug: string): Promise<SiteConfig> {
   const hit = cache.get(slug)
   if (hit && Date.now() - hit.t < CACHE_TTL_MS) return hit.cfg
 
-  const org = useDB().select().from(organizations).where(eq(organizations.slug, slug)).all()[0]
+  const org = await AppDataSource.getRepository(Organization).findOne({ where: { slug } })
   if (!org) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
 
-  const settings = useDB().select().from(orgSettings).where(eq(orgSettings.orgId, org.id)).all()[0]
+  const settings = await AppDataSource.getRepository(OrgSetting).findOne({ where: { orgId: org.id } })
   if (!settings) throw createError({ statusCode: 404, statusMessage: 'Organization config not found' })
 
   const raw = JSON.parse(settings.config) as SiteConfig
@@ -45,13 +42,16 @@ export function loadOrgConfig(slug: string): SiteConfig {
   return cfg
 }
 
-/* --------------------------------------------------------------- ownership -- */
-
-/** Require the current user owns the org addressed by `slug`. Returns the org row. */
-export function requireOrgOwnership(event: H3Event, slug: string) {
+export async function requireOrgOwnership(event: H3Event, slug: string) {
   const user = requireAuth(event)
-  const org = useDB().select().from(organizations).where(eq(organizations.slug, slug)).all()[0]
+  const org = await AppDataSource.getRepository(Organization).findOne({ where: { slug } })
   if (!org) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
   if (org.ownerId !== user.id) throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   return org
+}
+
+export async function deleteOrgCascade(orgId: number): Promise<void> {
+  await AppDataSource.getRepository(OrgImage).delete({ orgId })
+  await AppDataSource.getRepository(OrgSetting).delete({ orgId })
+  await AppDataSource.getRepository(Organization).delete(orgId)
 }
