@@ -14,4 +14,7 @@ export class User {
 
   @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date
+
+  @Column({ name: 'trusted_until', type: 'datetime', nullable: true })
+  trustedUntil!: Date | null
 }

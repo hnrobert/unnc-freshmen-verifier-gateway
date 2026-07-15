@@ -1,5 +1,6 @@
 import { AppDataSource } from '../../utils/database'
 import { User } from '../../entities/user.entity'
+import { signTrustJwt, setTrustCookie, getTrustWindowMs } from '../../utils/jwt'
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
@@ -14,7 +15,13 @@ export default defineEventHandler(async (event) => {
   const existing = await repo.findOne({ where: { email } })
   if (existing) throw createError({ statusCode: 409, statusMessage: 'Email already registered' })
 
-  const user = await repo.save({ email, passwordHash: hashPassword(password) })
+  const trustedUntil = new Date(Date.now() + getTrustWindowMs())
+  const user = await repo.save({ email, passwordHash: hashPassword(password), trustedUntil })
   await createSession(event, user.id)
+
+  // Issue JWT trust token
+  const token = signTrustJwt(user.id, user.email, trustedUntil)
+  setTrustCookie(event, token)
+
   return { user: { id: user.id, email: user.email } }
 })

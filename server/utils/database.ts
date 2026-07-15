@@ -7,6 +7,7 @@ import { Session } from '../entities/session.entity'
 import { Organization } from '../entities/organization.entity'
 import { OrgSetting } from '../entities/orgSetting.entity'
 import { OrgImage } from '../entities/orgImage.entity'
+import { Verification } from '../entities/verification.entity'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -15,7 +16,7 @@ const dbPath = process.env.DB_PATH || './data/app.db'
 export const AppDataSource = new DataSource({
   type: 'better-sqlite3',
   database: dbPath,
-  entities: [User, Session, Organization, OrgSetting, OrgImage],
+  entities: [User, Session, Organization, OrgSetting, OrgImage, Verification],
   migrations: [resolve(__dirname, '..', 'migrations', '*.ts')],
   synchronize: false,
 })
