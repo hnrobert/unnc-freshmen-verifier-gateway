@@ -14,7 +14,7 @@ function toggle(): void {
 <template>
   <button
     type="button"
-    class="inline-flex size-9 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+    class="inline-flex size-7.25 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
     :aria-label="t('theme.toggle')"
     :title="t('theme.toggle')"
     @click="toggle"
