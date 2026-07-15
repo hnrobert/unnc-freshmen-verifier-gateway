@@ -3,9 +3,8 @@ definePageMeta({ layout: 'auth', middleware: 'guest' })
 
 const route = useRoute()
 const { login } = useAuth()
+const { email, password } = useAuthForm()
 
-const email = ref('')
-const password = ref('')
 const error = ref('')
 const loading = ref(false)
 

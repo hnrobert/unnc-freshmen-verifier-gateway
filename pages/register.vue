@@ -2,14 +2,17 @@
 definePageMeta({ layout: 'auth', middleware: 'guest' })
 
 const { register } = useAuth()
+const { email, password, confirm } = useAuthForm()
 
-const email = ref('')
-const password = ref('')
 const error = ref('')
 const loading = ref(false)
 
 async function onSubmit() {
   error.value = ''
+  if (password.value !== confirm.value) {
+    error.value = 'Passwords do not match'
+    return
+  }
   loading.value = true
   try {
     await register(email.value, password.value)
@@ -37,6 +40,10 @@ async function onSubmit() {
         <div class="flex flex-col gap-2">
           <Label for="password">Password</Label>
           <Input id="password" v-model="password" type="password" placeholder="min 8 characters" autocomplete="new-password" :disabled="loading" />
+        </div>
+        <div class="flex flex-col gap-2">
+          <Label for="confirm">Confirm password</Label>
+          <Input id="confirm" v-model="confirm" type="password" placeholder="re-enter password" autocomplete="new-password" :disabled="loading" />
         </div>
         <StatusAlert v-if="error" variant="error" :message="error" />
         <Button type="submit" :disabled="loading" class="mt-1">
