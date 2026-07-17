@@ -41,6 +41,7 @@ const config: SiteConfig = {
 
   theme: {
     radius: '0.65rem',
+    primaryColor: '#F7D447',
   },
 
   welcome: {

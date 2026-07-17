@@ -79,8 +79,8 @@ function onDiscard(): void {
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Edit <code>/{{ slug }}</code></h1>
       <div class="flex items-center gap-2">
-        <a :href="`/${slug}/demo`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Demo ↗</a>
-        <a :href="`/${slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">View ↗</a>
+        <a :href="`/${slug}/demo`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Preview ↗</a>
+        <a :href="`/${slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Visit ↗</a>
       </div>
     </div>
 
@@ -95,7 +95,7 @@ function onDiscard(): void {
     <Transition name="savebar">
       <div
         v-if="isDirty || saved"
-        class="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 backdrop-blur"
+        class="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur lg:left-64"
       >
         <div class="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <span class="text-sm text-muted-foreground">

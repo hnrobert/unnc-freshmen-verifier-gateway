@@ -28,7 +28,22 @@ watchEffect(() => {
 })
 
 const radius = computed(() => config.value?.theme.radius ?? '0.65rem')
-useHead({ htmlAttrs: { style: () => `--radius: ${radius.value}` } })
+const primaryColor = computed(() => config.value?.theme.primaryColor ?? '#F7D447')
+
+function contrastFg(hex: string): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return '#1c1917'
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
+  return 0.299 * r + 0.587 * g + 0.114 * b > 0.55 ? '#1c1917' : '#fafafa'
+}
+
+useHead({
+  htmlAttrs: {
+    style: () =>
+      `--radius: ${radius.value}; --primary: ${primaryColor.value}; --primary-foreground: ${contrastFg(primaryColor.value)}; --ring: ${primaryColor.value}`,
+  },
+})
 
 // Read the optional background straight from the local config ref (a component
 // can't inject its own provide; useOrgBackground is for descendants).

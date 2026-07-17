@@ -40,6 +40,8 @@ export interface IconsConfig {
 export interface ThemeConfig {
   /** Base border radius, e.g. `"0.65rem"`. Drives the `--radius` CSS variable. */
   radius: string
+  /** Primary theme color (hex), drives --primary/--ring CSS variables. Default #F7D447. */
+  primaryColor?: string
 }
 
 export interface WelcomeAssetsConfig {

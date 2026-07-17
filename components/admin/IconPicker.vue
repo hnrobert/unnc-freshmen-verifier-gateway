@@ -9,6 +9,7 @@ const allNames = Object.keys(iconRegistry)
 const open = ref(false)
 const query = ref('')
 const showUpload = ref(false)
+const imgPreviewRef = ref<{ refresh: () => void } | null>(null)
 
 const isImg = computed(() => typeof props.modelValue === 'object' && !!props.modelValue.img)
 const imgRef = computed(() => (isImg.value ? (props.modelValue as { img: string }).img : ''))
@@ -33,6 +34,8 @@ function onText(name: string | number): void {
 function onUploaded(ref: string): void {
   emit('update:modelValue', { img: ref })
   showUpload.value = false
+  // Refresh the preview after a short delay (wait for DB write)
+  setTimeout(() => imgPreviewRef.value?.refresh(), 200)
 }
 </script>
 
@@ -40,7 +43,7 @@ function onUploaded(ref: string): void {
   <div class="grid gap-1.5">
     <Label>{{ slotName }}</Label>
     <div class="flex items-center gap-2">
-      <span class="flex size-8 items-center justify-center rounded-md border">
+      <span class="flex size-8 shrink-0 items-center justify-center rounded-md border">
         <Icon :spec="modelValue" :size="18" />
       </span>
       <Input
@@ -52,9 +55,21 @@ function onUploaded(ref: string): void {
       <Button size="sm" variant="outline" type="button" @click="open = !open">Browse</Button>
     </div>
 
-    <div v-if="isImg" class="text-xs text-muted-foreground">
-      Using image: <code>{{ imgRef }}</code>
-      <button type="button" class="ml-2 underline" @click="pickLucide('CircleHelp')">use icon</button>
+    <!-- Custom image preview -->
+    <div v-if="isImg && imgRef" class="flex items-center gap-2">
+      <div class="size-16 shrink-0">
+        <ImagePreview
+          ref="imgPreviewRef"
+          :slug="slug"
+          :src="imgRef"
+          :img-style="{ borderRadius: '0.5rem', width: '4rem', height: '4rem' }"
+          class="size-16 object-cover"
+        />
+      </div>
+      <div class="flex flex-col gap-1">
+        <span class="text-xs text-muted-foreground">Using image: <code>{{ imgRef }}</code></span>
+        <Button size="sm" variant="ghost" type="button" class="w-fit" @click="pickLucide('CircleHelp')">Switch to icon</Button>
+      </div>
     </div>
 
     <div v-if="open" class="max-h-44 overflow-auto rounded-md border p-2">

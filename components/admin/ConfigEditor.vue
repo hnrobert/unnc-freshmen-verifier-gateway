@@ -21,6 +21,37 @@ function toggleLocale(loc: Locale, checked: boolean): void {
 const bgPreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
 const welcomePreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
 
+// Strip/add "rem" so inputs show only numbers with unit as suffix label
+const maxWidthNum = computed({
+  get: () => parseFloat(config.value.welcome.imageMaxWidth || '12') || 0,
+  set: (v: number) => { config.value.welcome.imageMaxWidth = `${v}rem` },
+})
+const radiusNum = computed({
+  get: () => parseFloat(config.value.welcome.imageRadius || '0.5') || 0,
+  set: (v: number) => { config.value.welcome.imageRadius = `${v}rem` },
+})
+const themeRadiusNum = computed({
+  get: () => parseFloat(config.value.theme.radius || '0.65') || 0,
+  set: (v: number) => { config.value.theme.radius = `${v}rem` },
+})
+
+// Compute contrast foreground for primary color
+function contrastFg(hex: string): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return '#0a0a0a'
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
+  return 0.299 * r + 0.587 * g + 0.114 * b > 0.55 ? '#1c1917' : '#fafafa'
+}
+// Apply primary color as CSS vars (affects buttons, sliders, active states)
+watch(() => config.value.theme.primaryColor, (color) => {
+  if (typeof document === 'undefined') return
+  const c = color || '#F7D447'
+  document.documentElement.style.setProperty('--primary', c)
+  document.documentElement.style.setProperty('--primary-foreground', contrastFg(c))
+  document.documentElement.style.setProperty('--ring', c)
+}, { immediate: true })
+
 function onWelcomeImage(ref: string): void {
   config.value.welcome.image = ref
   // Force preview refresh (same src value → watcher won't fire)
@@ -40,7 +71,30 @@ const advancedOpen = ref(false)
 
 <template>
   <div class="space-y-8">
-    <!-- Locales (top — choose languages before editing) -->
+    <!-- Theme color (top — visible immediately) -->
+    <section>
+      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Theme color</h3>
+      <div class="flex items-center gap-3">
+        <input
+          type="color"
+          :value="(config.theme as any).primaryColor || '#F7D447'"
+          class="size-9 cursor-pointer rounded-lg border bg-transparent p-1"
+          @input="(config.theme as any).primaryColor = ($event.target as HTMLInputElement).value"
+        />
+        <Input
+          :model-value="(config.theme as any).primaryColor || '#F7D447'"
+          class="h-9 w-32"
+          @update:model-value="(config.theme as any).primaryColor = String($event)"
+        />
+        <Button
+          v-if="(config.theme as any).primaryColor && (config.theme as any).primaryColor !== '#F7D447'"
+          size="sm" variant="ghost" type="button"
+          @click="(config.theme as any).primaryColor = '#F7D447'"
+        >Reset</Button>
+      </div>
+    </section>
+
+    <!-- Locales -->
     <section>
       <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Locales</h3>
       <div class="flex flex-wrap items-center gap-4">
@@ -88,8 +142,14 @@ const advancedOpen = ref(false)
       <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome image</h3>
       <ImageUploader :slug="slug" image-key="welcome" label="Upload welcome image" @uploaded="onWelcomeImage" />
       <div class="flex flex-wrap gap-3 text-sm">
-        <label class="flex items-center gap-1">max width <Input v-model="config.welcome.imageMaxWidth" class="h-8 w-28" /></label>
-        <label class="flex items-center gap-1">radius <Input v-model="config.welcome.imageRadius" class="h-8 w-28" placeholder="0.5rem" /></label>
+        <label class="flex items-center gap-1">max width
+          <Input v-model.number="maxWidthNum" type="number" step="1" class="h-8 w-20" />
+          <span class="text-xs text-muted-foreground">rem</span>
+        </label>
+        <label class="flex items-center gap-1">radius
+          <Input v-model.number="radiusNum" type="number" step="0.1" class="h-8 w-20" />
+          <span class="text-xs text-muted-foreground">rem</span>
+        </label>
       </div>
       <div v-if="config.welcome.image" class="grid gap-1.5">
         <Label>preview <span class="text-xs font-normal text-muted-foreground">(actual size & radius)</span></Label>
@@ -210,7 +270,11 @@ const advancedOpen = ref(false)
         <!-- Theme -->
         <section class="space-y-3">
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Theme</h4>
-          <div class="grid gap-1.5"><Label>radius</Label><Input v-model="config.theme.radius" placeholder="0.65rem" /></div>
+          <div class="flex items-center gap-2 text-sm">
+            <Label class="mb-0">radius</Label>
+            <Input v-model.number="themeRadiusNum" type="number" step="0.05" class="h-8 w-20" />
+            <span class="text-xs text-muted-foreground">rem</span>
+          </div>
         </section>
       </div>
     </div>
