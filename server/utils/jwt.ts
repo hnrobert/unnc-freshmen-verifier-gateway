@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import type { H3Event } from 'h3'
+import { isSecureRequest } from './request'
 
 const TRUST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 const LOGIN_COOKIE = 'vg_jwt'       // issued on website login (userId-based)
@@ -38,7 +39,7 @@ export function verifyTrustJwt(event: H3Event): LoginTrustPayload | null {
 export function setTrustCookie(event: H3Event, token: string): void {
   setCookie(event, LOGIN_COOKIE, token, {
     httpOnly: true, sameSite: 'lax', path: '/',
-    maxAge: TRUST_WINDOW_MS / 1000, secure: !import.meta.dev,
+    maxAge: TRUST_WINDOW_MS / 1000, secure: isSecureRequest(event),
   })
 }
 
@@ -80,7 +81,7 @@ export function verifyVerifyJwt(event: H3Event): VerifyTrustPayload | null {
 export function setVerifyCookie(event: H3Event, token: string): void {
   setCookie(event, VERIFY_COOKIE, token, {
     httpOnly: true, sameSite: 'lax', path: '/',
-    maxAge: TRUST_WINDOW_MS / 1000, secure: !import.meta.dev,
+    maxAge: TRUST_WINDOW_MS / 1000, secure: isSecureRequest(event),
   })
 }
 

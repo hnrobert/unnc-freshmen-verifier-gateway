@@ -2,6 +2,7 @@ import { argon2id } from '@noble/hashes/argon2.js'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
+import { isSecureRequest } from './request'
 import { Session } from '../entities/session.entity'
 import { User } from '../entities/user.entity'
 
@@ -32,7 +33,7 @@ export async function createSession(event: H3Event, userId: number): Promise<str
   await AppDataSource.getRepository(Session).insert({ id, userId, expiresAt })
   setCookie(event, SESSION_COOKIE, id, {
     httpOnly: true, sameSite: 'lax', path: '/',
-    expires: expiresAt, secure: !import.meta.dev,
+    expires: expiresAt, secure: isSecureRequest(event),
   })
   return id
 }
