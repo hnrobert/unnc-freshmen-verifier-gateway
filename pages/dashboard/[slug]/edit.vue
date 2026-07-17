@@ -99,8 +99,8 @@ function previewWithoutSaving() {
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="flex flex-wrap items-center justify-between gap-3">
+    <!-- Sticky header bar -->
+    <div class="sticky top-14 z-30 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur lg:top-0 lg:-mx-6 lg:px-6">
       <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Edit <code>/{{ slug }}</code></h1>
       <div class="flex items-center gap-2">
         <Button variant="ghost" size="sm" @click="onPreviewClick">Preview ↗</Button>

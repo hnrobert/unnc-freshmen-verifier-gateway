@@ -43,7 +43,7 @@ function onUploaded(ref: string): void {
   <div class="grid gap-1.5">
     <Label>{{ slotName }}</Label>
     <div v-if="!isImg" class="flex items-center gap-2">
-      <span class="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+      <span class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border">
         <Icon :spec="modelValue" :size="18" :cover="isImg" />
       </span>
       <Input
