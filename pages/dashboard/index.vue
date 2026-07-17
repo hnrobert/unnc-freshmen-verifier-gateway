@@ -22,9 +22,9 @@ async function onDelete(slug: string) {
 
 <template>
   <div>
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Your organizations</h1>
+        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Your organizations</h1>
         <p class="mt-1 text-sm text-muted-foreground">Each org has its own verify gateway at <code>/&lt;slug&gt;</code>.</p>
       </div>
       <Button @click="navigateTo('/dashboard/new')">New organization</Button>
@@ -48,7 +48,7 @@ async function onDelete(slug: string) {
             {{ deleting === org.slug ? '…' : 'Delete' }}
           </Button>
         </div>
-        <div class="mt-3 flex gap-2">
+        <div class="mt-3 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}/edit`)">Edit</Button>
           <a :href="`/${org.slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">View ↗</a>
         </div>

@@ -69,17 +69,26 @@ function onDiscard(): void {
 
 <template>
   <div>
-    <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Edit <code>/{{ slug }}</code></h1>
-        <p class="mt-1 text-sm text-muted-foreground">Customize labels, images, welcome content, and gateway settings.</p>
+        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Edit <code>/{{ slug }}</code></h1>
+        <p class="mt-1 hidden text-sm text-muted-foreground sm:block">Customize labels, images, welcome content, and gateway settings.</p>
       </div>
       <div class="flex items-center gap-2">
         <a :href="`/${slug}/demo`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Demo ↗</a>
         <a :href="`/${slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">View ↗</a>
-        <Button variant="outline" :disabled="saving" @click="onDiscard">Discard</Button>
-        <Button :disabled="saving" @click="onSave">{{ saving ? 'Saving…' : 'Save' }}</Button>
+        <Button variant="outline" :disabled="saving" class="sm:hidden" size="sm" @click="onDiscard">Reset</Button>
+        <Button variant="outline" :disabled="saving" class="hidden sm:inline-flex" @click="onDiscard">Discard</Button>
+        <Button :disabled="saving" size="sm" class="sm:hidden" @click="onSave">{{ saving ? '…' : 'Save' }}</Button>
+        <Button :disabled="saving" class="hidden sm:inline-flex" @click="onSave">{{ saving ? 'Saving…' : 'Save' }}</Button>
       </div>
+    </div>
+
+    <!-- Sticky save bar on mobile -->
+    <div class="sticky top-0 z-10 -mx-4 mb-4 flex items-center gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur sm:hidden">
+      <span class="text-xs text-muted-foreground">/{{ slug }}</span>
+      <span class="ml-auto text-xs" :class="saved ? 'text-emerald-600' : 'text-muted-foreground'">{{ saved ? '✓ Saved' : errors.length ? `${errors.length} errors` : '' }}</span>
+      <Button :disabled="saving" size="sm" @click="onSave">{{ saving ? '…' : 'Save' }}</Button>
     </div>
 
     <StatusAlert v-if="saved" variant="success" message="Saved." class="mt-4" />

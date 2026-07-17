@@ -174,7 +174,7 @@ const msgs = computed(() => config.value.messages as Record<string, unknown>)
       <!-- Gateway -->
       <section class="space-y-3">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Gateway</h3>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div class="grid gap-1.5">
             <Label>mode</Label>
             <select v-model="config.gateway.mode" class="rounded-md border bg-transparent px-2 py-2 text-sm">

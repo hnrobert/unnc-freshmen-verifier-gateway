@@ -22,7 +22,7 @@ function setPath(locale: string, value: string): void {
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-3">
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
     <div v-if="locales.includes('zh')" class="grid gap-1.5">
       <Label>{{ label }} <span class="text-xs text-muted-foreground">zh</span></Label>
       <Input :model-value="getPath('zh')" @update:model-value="setPath('zh', String($event))" />
