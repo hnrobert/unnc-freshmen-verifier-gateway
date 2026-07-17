@@ -11,7 +11,10 @@ const brandIsImg = computed(() => isImageIcon(config.value.icons.brand))
 
 <template>
   <div class="flex min-w-0 items-center gap-3">
-    <span class="flex size-10 shrink-0 items-center justify-center rounded-md text-primary-foreground shadow-sm overflow-hidden">
+    <span
+      class="flex size-10 shrink-0 items-center justify-center rounded-md text-primary-foreground shadow-sm overflow-hidden"
+      :class="{ 'bg-primary': !brandIsImg }"
+    >
       <Icon :spec="config.icons.brand" :size="22" :cover="brandIsImg" />
     </span>
     <div class="min-w-0">

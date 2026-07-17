@@ -38,11 +38,16 @@ function contrastFg(hex: string): string {
   return 0.299 * r + 0.587 * g + 0.114 * b > 0.55 ? '#1c1917' : '#fafafa'
 }
 
-useHead({
-  htmlAttrs: {
-    style: () =>
-      `--radius: ${radius.value}; --primary: ${primaryColor.value}; --primary-foreground: ${contrastFg(primaryColor.value)}; --ring: ${primaryColor.value}`,
-  },
+// CSS vars applied directly on the root div — avoids the flash caused by
+// useHead htmlAttrs.style being applied after hydration on client refresh.
+const themeVars = computed(() => {
+  const c = primaryColor.value
+  return {
+    '--radius': radius.value,
+    '--primary': c,
+    '--primary-foreground': contrastFg(c),
+    '--ring': c,
+  } as Record<string, string>
 })
 
 // Read the optional background straight from the local config ref (a component
@@ -53,7 +58,7 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
 </script>
 
 <template>
-  <div class="relative min-h-screen text-foreground" :class="{ 'bg-background': !hasBg }">
+  <div class="relative min-h-screen text-foreground" :class="{ 'bg-background': !hasBg }" :style="themeVars">
     <!-- optional page background image + darkening overlay -->
     <div
       v-if="hasBg"

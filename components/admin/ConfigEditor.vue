@@ -120,7 +120,7 @@ const advancedOpen = ref(false)
     <section class="space-y-4">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Background image</h3>
       <ImageUploader :slug="slug" image-key="background" label="Upload background" @uploaded="onBackgroundImage" />
-      <div class="flex flex-wrap items-center gap-3 text-sm">
+      <div v-if="(config.background as any).image && ((config.background as any).image.startsWith('img:') || (config.background as any).image.startsWith('http'))" class="flex flex-wrap items-center gap-3 text-sm">
         <Label class="mb-0">overlay</Label>
         <input type="range" min="0" max="1" step="0.05" :value="(config.background as any).overlayOpacity ?? 0.5" class="w-40"
           @input="(config.background as any).overlayOpacity = Number(($event.target as HTMLInputElement).value)" />
@@ -155,14 +155,14 @@ const advancedOpen = ref(false)
     <section class="space-y-4">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome image</h3>
       <ImageUploader :slug="slug" image-key="welcome" label="Upload welcome image" @uploaded="onWelcomeImage" />
-      <div v-if="config.welcome.image" class="space-y-3">
+      <div v-if="config.welcome.image && (config.welcome.image.startsWith('img:') || config.welcome.image.startsWith('http'))" class="space-y-3">
         <div class="flex flex-wrap gap-3 text-sm">
           <label class="flex items-center gap-1">max width
-            <Input v-model.number="maxWidthNum" type="number" step="1" class="h-8 w-20" />
+            <Input v-model.number="maxWidthNum" type="number" step="1" class="w-20" />
             <span class="text-xs text-muted-foreground">rem</span>
           </label>
           <label class="flex items-center gap-1">radius
-            <Input v-model.number="radiusNum" type="number" step="0.1" class="h-8 w-20" />
+            <Input v-model.number="radiusNum" type="number" step="0.1" class="w-20" />
             <span class="text-xs text-muted-foreground">rem</span>
           </label>
         </div>
