@@ -30,7 +30,6 @@ const reasonKey: Record<VerifyReason, string> = {
 }
 
 async function onSubmit(): Promise<void> {
-  if (props.preview) return // visual-only
   errorMsg.value = ''
   const dest = props.welcomePath ?? `/${props.slug}/welcome`
   // Preview mode: skip the real portal check and jump straight to the welcome page.
@@ -82,7 +81,7 @@ async function onSubmit(): Promise<void> {
           <Input id="vg-id" v-model="idNumber" :placeholder="t('verify.idPlaceholder')" autocomplete="off" inputmode="text" maxlength="18" :disabled="submitting" />
         </div>
         <StatusAlert v-if="errorMsg" variant="error" :message="errorMsg" :icon="config.icons.error" />
-        <Button type="submit" size="lg" :disabled="submitting || props.preview" class="mt-1 w-full">
+        <Button type="submit" size="lg" :disabled="submitting" class="mt-1 w-full">
           <Icon v-if="submitting" :spec="config.icons.verifying" :size="18" class="animate-spin" />
           <Icon v-else :spec="config.icons.submit" :size="18" />
           {{ submitting ? t('verify.submitting') : t('verify.submit') }}

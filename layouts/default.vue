@@ -81,7 +81,7 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
           aria-label="Edit"
           title="Edit"
         >
-          <Icon spec="Pencil" :size="18" />
+          <Icon spec="Pencil" :size="15" />
         </NuxtLink>
         <LanguageToggle />
         <ThemeToggle />

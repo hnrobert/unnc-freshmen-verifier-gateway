@@ -71,6 +71,30 @@ function onDiscard(): void {
   draft.value = JSON.parse(JSON.stringify(raw.value))
   originalSerialized.value = JSON.stringify(raw.value)
 }
+
+// --- Preview dialog ---
+const previewDialog = ref(false)
+
+function onPreviewClick() {
+  if (isDirty.value) {
+    previewDialog.value = true
+  } else {
+    window.open(`/${slug.value}/preview`, '_blank')
+  }
+}
+
+async function saveAndPreview() {
+  previewDialog.value = false
+  await onSave()
+  if (!errors.value.length) {
+    window.open(`/${slug.value}/preview`, '_blank')
+  }
+}
+
+function previewWithoutSaving() {
+  previewDialog.value = false
+  window.open(`/${slug.value}/preview`, '_blank')
+}
 </script>
 
 <template>
@@ -79,7 +103,7 @@ function onDiscard(): void {
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Edit <code>/{{ slug }}</code></h1>
       <div class="flex items-center gap-2">
-        <a :href="`/${slug}/preview`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Preview ↗</a>
+        <Button variant="ghost" size="sm" @click="onPreviewClick">Preview ↗</Button>
         <a :href="`/${slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Visit ↗</a>
       </div>
     </div>
@@ -110,7 +134,24 @@ function onDiscard(): void {
       </div>
     </Transition>
 
-    <!-- Unsaved changes dialog -->
+    <!-- Preview with unsaved changes dialog -->
+    <Transition name="fade">
+      <div v-if="previewDialog" class="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4" @click.self="previewDialog = false">
+        <Card class="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle>Unsaved changes</CardTitle>
+            <CardDescription>You have unsaved changes. Save before previewing to see them reflected?</CardDescription>
+          </CardHeader>
+          <CardContent class="flex flex-col gap-2">
+            <Button class="w-full" :disabled="saving" @click="saveAndPreview">Save & Preview</Button>
+            <Button variant="outline" class="w-full" @click="previewWithoutSaving">Preview without saving</Button>
+            <Button variant="ghost" class="w-full" @click="previewDialog = false">Cancel</Button>
+          </CardContent>
+        </Card>
+      </div>
+    </Transition>
+
+    <!-- Unsaved changes leave dialog -->
     <Transition name="fade">
       <div v-if="confirmLeave" class="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4" @click.self="confirmLeave = false">
         <Card class="w-full max-w-sm">
