@@ -22,7 +22,7 @@ const options = computed(() =>
       type="button"
       :class="[
         'rounded-sm px-2 py-1 text-xs font-medium transition-colors',
-        locale === opt.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+        locale === opt.value ? 'bg-primary text-primary-foreground' : 'text-foreground/70 hover:text-foreground',
       ]"
       :aria-pressed="locale === opt.value"
       @click="setLocale(opt.value as Locale)"

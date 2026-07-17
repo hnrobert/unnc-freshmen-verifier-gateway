@@ -77,7 +77,7 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
         <NuxtLink
           v-if="isDemo"
           :to="`/dashboard/${slug}/edit`"
-          class="inline-flex size-7.25 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          class="inline-flex size-7.25 items-center justify-center rounded-md border text-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
           aria-label="Edit"
           title="Edit"
         >
@@ -90,7 +90,7 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
     <main class="mx-auto w-full max-w-2xl px-5 pb-16">
       <slot />
     </main>
-    <footer class="mx-auto w-full max-w-2xl px-5 pb-10 text-center text-xs leading-relaxed text-muted-foreground">
+    <footer class="mx-auto w-full max-w-2xl px-5 pb-10 text-center text-xs leading-relaxed text-foreground/60">
       {{ $t('footer') }}
     </footer>
   </div>

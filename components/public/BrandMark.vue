@@ -16,7 +16,7 @@ const brandIsImg = computed(() => isImageIcon(config.value.icons.brand))
     </span>
     <div class="min-w-0">
       <div class="truncate text-sm font-semibold leading-tight sm:text-base">{{ t('brand.title') }}</div>
-      <div class="truncate text-xs text-muted-foreground">{{ t('brand.subtitle') }}</div>
+      <div class="truncate text-xs text-foreground/60">{{ t('brand.subtitle') }}</div>
     </div>
   </div>
 </template>
