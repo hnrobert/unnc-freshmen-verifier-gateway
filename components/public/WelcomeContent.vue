@@ -37,8 +37,8 @@ const details = computed(() => {
 function goBack(): void {
   if (props.stubAdmission) return // preview — no navigation
   reset()
-  const isDemo = useRoute().path.includes('/demo/')
-  void router.push(isDemo ? `/${slug.value}/demo` : `/${slug.value}`)
+  const isPreview = useRoute().path.includes('/preview/')
+  void router.push(isPreview ? `/${slug.value}/preview` : `/${slug.value}`)
 }
 </script>
 

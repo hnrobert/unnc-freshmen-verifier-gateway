@@ -5,7 +5,6 @@ import { verify, type VerifyReason } from '~/lib/verify'
 const props = defineProps<{
   slug: string
   preview?: boolean
-  demo?: boolean
   defaultName?: string
   defaultId?: string
   welcomePath?: string
@@ -34,9 +33,9 @@ async function onSubmit(): Promise<void> {
   if (props.preview) return // visual-only
   errorMsg.value = ''
   const dest = props.welcomePath ?? `/${props.slug}/welcome`
-  // Demo mode: skip the real portal check and jump straight to the welcome page.
-  if (props.demo) {
-    setVerified(true, { ok: true, admitted: true, message: 'demo', name: name.value || '示例姓名' })
+  // Preview mode: skip the real portal check and jump straight to the welcome page.
+  if (props.preview) {
+    setVerified(true, { ok: true, admitted: true, message: 'preview', name: name.value || '示例姓名' })
     await router.push(dest)
     return
   }

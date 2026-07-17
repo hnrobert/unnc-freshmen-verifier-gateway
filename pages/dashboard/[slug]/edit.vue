@@ -79,7 +79,7 @@ function onDiscard(): void {
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Edit <code>/{{ slug }}</code></h1>
       <div class="flex items-center gap-2">
-        <a :href="`/${slug}/demo`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Preview ↗</a>
+        <a :href="`/${slug}/preview`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Preview ↗</a>
         <a :href="`/${slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Visit ↗</a>
       </div>
     </div>

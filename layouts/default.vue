@@ -4,7 +4,7 @@ import { OrgConfigKey } from '~/composables/useOrgConfig'
 
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
-const isDemo = computed(() => route.path.split('/').filter(Boolean)[1] === 'demo')
+const isDemo = computed(() => route.path.split('/').filter(Boolean)[1] === 'preview')
 
 // Load the org's resolved config (SSR-cached by slug). Reactive key + watch so
 // cross-org navigation refetches.
@@ -64,8 +64,8 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
     <div
       v-if="hasBg"
       aria-hidden="true"
-      class="pointer-events-none fixed inset-0 -z-10"
-      :style="{ background: `rgba(0,0,0,${bgOverlay})` }"
+      class="pointer-events-none fixed inset-0 -z-10 bg-white dark:bg-black"
+      :style="{ opacity: bgOverlay }"
     ></div>
     <!-- default decorative blob (only without a background image) -->
     <div v-else aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">

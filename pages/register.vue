@@ -52,7 +52,7 @@ async function onSubmit() {
       </form>
     </CardContent>
     <CardFooter class="justify-center text-sm text-muted-foreground">
-      Already have an account? <NuxtLink to="/login" class="ml-1 font-medium text-primary hover:underline">Log in</NuxtLink>
+      Already have an account? <NuxtLink to="/login" class="ml-1 font-medium text-foreground underline hover:opacity-70">Log in</NuxtLink>
     </CardFooter>
   </Card>
 </template>

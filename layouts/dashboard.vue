@@ -79,7 +79,7 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
       <!-- User -->
       <div class="border-t p-3">
         <div class="mb-2 flex items-center gap-2 px-3">
-          <span v-if="isSuperAdmin" class="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">SA</span>
+          <span v-if="isSuperAdmin" class="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">SA</span>
           <span class="min-w-0 flex-1 truncate text-sm text-muted-foreground">{{ user?.email }}</span>
         </div>
         <button

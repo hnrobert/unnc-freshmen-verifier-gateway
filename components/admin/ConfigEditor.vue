@@ -37,20 +37,23 @@ const themeRadiusNum = computed({
 
 // Compute contrast foreground for primary color
 function contrastFg(hex: string): string {
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return '#0a0a0a'
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return '#1c1917'
   const r = parseInt(hex.slice(1, 3), 16) / 255
   const g = parseInt(hex.slice(3, 5), 16) / 255
   const b = parseInt(hex.slice(5, 7), 16) / 255
   return 0.299 * r + 0.587 * g + 0.114 * b > 0.55 ? '#1c1917' : '#fafafa'
 }
-// Apply primary color as CSS vars (affects buttons, sliders, active states)
-watch(() => config.value.theme.primaryColor, (color) => {
-  if (typeof document === 'undefined') return
-  const c = color || '#F7D447'
-  document.documentElement.style.setProperty('--primary', c)
-  document.documentElement.style.setProperty('--primary-foreground', contrastFg(c))
-  document.documentElement.style.setProperty('--ring', c)
-}, { immediate: true })
+// Scoped CSS vars for org theme color — applied to the ConfigEditor root div,
+// NOT documentElement, so the dashboard sidebar/nav keeps its default color.
+const primaryVars = computed(() => {
+  const c = (config.value.theme as unknown as Record<string, unknown>).primaryColor as string || '#F7D447'
+  return {
+    '--primary': c,
+    '--primary-foreground': contrastFg(c),
+    '--ring': c,
+    'accent-color': c,
+  } as Record<string, string>
+})
 
 function onWelcomeImage(ref: string): void {
   config.value.welcome.image = ref
@@ -70,7 +73,7 @@ const advancedOpen = ref(false)
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-8" :style="primaryVars">
     <!-- Theme color (top — visible immediately) -->
     <section>
       <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Theme color</h3>
@@ -78,7 +81,7 @@ const advancedOpen = ref(false)
         <input
           type="color"
           :value="(config.theme as any).primaryColor || '#F7D447'"
-          class="size-9 cursor-pointer rounded-lg border bg-transparent p-1"
+          class="vg-color-input size-9 cursor-pointer rounded-lg border border-input"
           @input="(config.theme as any).primaryColor = ($event.target as HTMLInputElement).value"
         />
         <Input
@@ -131,17 +134,17 @@ const advancedOpen = ref(false)
         <!-- Actual preview: fixed-height div with background-image, centered, cover -->
         <div
           v-if="bgPreview?.resolved && !bgPreview?.failed"
-          class="relative h-48 overflow-hidden rounded-lg border"
+          class="relative h-144 max-h-[60vh] overflow-hidden rounded-lg"
           :style="{ backgroundImage: `url(${bgPreview.resolved})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }"
         >
           <div
-            class="pointer-events-none absolute inset-0 bg-black"
+            class="pointer-events-none absolute inset-0 bg-white dark:bg-black"
             :style="{ opacity: (config.background as any).overlayOpacity ?? 0.5 }"
           />
         </div>
         <div
           v-else-if="bgPreview?.failed"
-          class="flex h-48 items-center justify-center rounded-lg border bg-muted text-muted-foreground"
+          class="flex h-144 max-h-[60vh] items-center justify-center rounded-lg border bg-muted text-muted-foreground"
         >
           <svg viewBox="0 0 24 24" class="size-8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9" /><path d="m9 9 5 5" /><path d="M14 9v5" /><path d="M9 14h5" /></svg>
         </div>
@@ -152,17 +155,17 @@ const advancedOpen = ref(false)
     <section class="space-y-4">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome image</h3>
       <ImageUploader :slug="slug" image-key="welcome" label="Upload welcome image" @uploaded="onWelcomeImage" />
-      <div class="flex flex-wrap gap-3 text-sm">
-        <label class="flex items-center gap-1">max width
-          <Input v-model.number="maxWidthNum" type="number" step="1" class="h-8 w-20" />
-          <span class="text-xs text-muted-foreground">rem</span>
-        </label>
-        <label class="flex items-center gap-1">radius
-          <Input v-model.number="radiusNum" type="number" step="0.1" class="h-8 w-20" />
-          <span class="text-xs text-muted-foreground">rem</span>
-        </label>
-      </div>
-      <div v-if="config.welcome.image" class="grid gap-1.5">
+      <div v-if="config.welcome.image" class="space-y-3">
+        <div class="flex flex-wrap gap-3 text-sm">
+          <label class="flex items-center gap-1">max width
+            <Input v-model.number="maxWidthNum" type="number" step="1" class="h-8 w-20" />
+            <span class="text-xs text-muted-foreground">rem</span>
+          </label>
+          <label class="flex items-center gap-1">radius
+            <Input v-model.number="radiusNum" type="number" step="0.1" class="h-8 w-20" />
+            <span class="text-xs text-muted-foreground">rem</span>
+          </label>
+        </div>
         <Label>preview <span class="text-xs font-normal text-muted-foreground">(actual size & radius)</span></Label>
         <div class="flex justify-center" :style="{ maxWidth: config.welcome.imageMaxWidth || '12rem', margin: '0 auto' }">
           <ImagePreview ref="welcomePreview" :slug="slug" :src="config.welcome.image"
@@ -291,3 +294,21 @@ const advancedOpen = ref(false)
     </div>
   </div>
 </template>
+
+<style scoped>
+.vg-color-input {
+  padding: 0;
+  overflow: hidden;
+}
+.vg-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.vg-color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: calc(var(--radius) - 4px);
+}
+.vg-color-input::-moz-color-swatch {
+  border: none;
+  border-radius: calc(var(--radius) - 4px);
+}
+</style>

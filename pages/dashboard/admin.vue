@@ -45,7 +45,7 @@ async function onRoleChange(user: UserRow, role: string) {
             </div>
             <div class="flex gap-2">
               <Button size="sm" variant="outline" @click="navigateTo(`/dashboard/${org.slug}/edit`)">Edit</Button>
-              <a :href="`/${org.slug}/demo`" target="_blank" class="inline-flex h-8 items-center rounded-md px-3 text-xs font-medium border hover:bg-accent">Demo ↗</a>
+              <a :href="`/${org.slug}/preview`" target="_blank" class="inline-flex h-8 items-center rounded-md px-3 text-xs font-medium border hover:bg-accent">Preview ↗</a>
             </div>
           </div>
         </CardContent>

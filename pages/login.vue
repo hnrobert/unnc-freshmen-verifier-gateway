@@ -45,7 +45,7 @@ async function onSubmit() {
       </form>
     </CardContent>
     <CardFooter class="justify-center text-sm text-muted-foreground">
-      No account? <NuxtLink to="/register" class="ml-1 font-medium text-primary hover:underline">Register</NuxtLink>
+      No account? <NuxtLink to="/register" class="ml-1 font-medium text-foreground underline hover:opacity-70">Register</NuxtLink>
     </CardFooter>
   </Card>
 </template>
