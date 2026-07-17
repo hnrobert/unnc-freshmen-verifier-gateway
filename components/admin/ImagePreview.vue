@@ -2,34 +2,58 @@
 import { iconRegistry } from '~/lib/iconAllowlist'
 
 const ImageOffIcon = iconRegistry['ImageOff']!
-const props = defineProps<{ slug: string; src: string }>()
+const props = defineProps<{ slug: string; src: string; imgStyle?: Record<string, string> }>()
 const resolved = ref('')
 const failed = ref(false)
 
-watch(() => props.src, (val) => {
+const _imgCache = new Map<string, string>()
+
+async function load(val: string) {
   failed.value = false
   resolved.value = ''
   if (!val) { failed.value = true; return }
   if (!val.startsWith('img:')) { resolved.value = val; return }
-  $fetch<{ mime: string; base64: string }>(`/api/orgs/${props.slug}/img/${val.slice(4)}`)
-    .then((res) => { resolved.value = `data:${res.mime};base64,${res.base64}` })
-    .catch(() => { failed.value = true })
-}, { immediate: true })
+  const key = val.slice(4)
+  const cacheKey = `${props.slug}:${key}`
+  const cached = _imgCache.get(cacheKey)
+  if (cached) { resolved.value = cached; return }
+  try {
+    const res = await $fetch<{ mime: string; base64: string }>(
+      `/api/orgs/${props.slug}/img/${key}`,
+      { query: { _t: Date.now() } },
+    )
+    const dataUrl = `data:${res.mime};base64,${res.base64}`
+    _imgCache.set(cacheKey, dataUrl)
+    resolved.value = dataUrl
+  } catch {
+    failed.value = true
+  }
+}
+
+watch(() => props.src, (val) => load(val), { immediate: true })
+
+defineExpose({
+  refresh: () => {
+    if (props.src?.startsWith('img:')) _imgCache.delete(`${props.slug}:${props.src.slice(4)}`)
+    load(props.src)
+  },
+  failed: computed(() => failed.value),
+})
 </script>
 
 <template>
-  <!-- Image loaded -->
   <img
     v-if="resolved && !failed"
     :src="resolved"
-    class="h-32 w-full rounded-lg border"
+    class="w-full border object-contain"
+    :style="imgStyle"
     :class="$attrs.class as string"
     @error="failed = true"
   />
-  <!-- Placeholder -->
   <div
     v-else
-    class="flex h-32 w-full items-center justify-center rounded-lg border bg-muted text-muted-foreground"
+    class="flex min-h-32 w-full items-center justify-center border bg-muted text-muted-foreground"
+    :style="imgStyle"
     :class="$attrs.class as string"
   >
     <component :is="ImageOffIcon" :size="32" :stroke-width="1.5" />

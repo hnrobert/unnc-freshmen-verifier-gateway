@@ -17,9 +17,18 @@ function toggleLocale(loc: Locale, checked: boolean): void {
   }
 }
 
-function onWelcomeImage(ref: string): void { config.value.welcome.image = ref }
+// Template refs for refreshing preview after re-upload
+const bgPreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
+const welcomePreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
+
+function onWelcomeImage(ref: string): void {
+  config.value.welcome.image = ref
+  // Force preview refresh (same src value → watcher won't fire)
+  setTimeout(() => welcomePreview.value?.refresh(), 100)
+}
 function onBackgroundImage(ref: string): void {
   config.value.background = { overlayOpacity: config.value.background?.overlayOpacity ?? 0.5, image: ref }
+  setTimeout(() => bgPreview.value?.refresh(), 100)
 }
 
 const otherIconSlots = ['nameField', 'idField', 'submit', 'verifying', 'welcome', 'back', 'toggleLanguage', 'toggleTheme', 'error', 'success'] as const
@@ -31,6 +40,25 @@ const advancedOpen = ref(false)
 
 <template>
   <div class="space-y-8">
+    <!-- Locales (top — choose languages before editing) -->
+    <section>
+      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Locales</h3>
+      <div class="flex flex-wrap items-center gap-4">
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" :checked="config.locales.includes('zh')" @change="toggleLocale('zh', ($event.target as HTMLInputElement).checked)" /> 中文 (zh)
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" :checked="config.locales.includes('en')" @change="toggleLocale('en', ($event.target as HTMLInputElement).checked)" /> English (en)
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+          default:
+          <select v-model="config.defaultLocale" class="rounded-md border bg-transparent px-2 py-1 text-sm">
+            <option v-for="l in config.locales" :key="l" :value="l">{{ l }}</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
     <!-- Background image -->
     <section class="space-y-4">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Background image</h3>
@@ -43,8 +71,15 @@ const advancedOpen = ref(false)
         <Button v-if="(config.background as any).image" size="sm" variant="ghost" type="button" @click="(config.background as any).image = ''">Remove</Button>
       </div>
       <div v-if="(config.background as any).image" class="grid gap-1.5">
-        <Label>preview</Label>
-        <ImagePreview :slug="slug" :src="(config.background as any).image" class="object-cover" />
+        <Label>preview <span class="text-xs font-normal text-muted-foreground">(with overlay)</span></Label>
+        <div class="relative overflow-hidden rounded-lg border" style="max-height: 50vh">
+          <ImagePreview ref="bgPreview" :slug="slug" :src="(config.background as any).image" class="block" />
+          <div
+            v-if="!bgPreview?.failed"
+            class="pointer-events-none absolute inset-0 bg-black"
+            :style="{ opacity: (config.background as any).overlayOpacity ?? 0.5 }"
+          />
+        </div>
       </div>
     </section>
 
@@ -57,8 +92,12 @@ const advancedOpen = ref(false)
         <label class="flex items-center gap-1">radius <Input v-model="config.welcome.imageRadius" class="h-8 w-28" placeholder="0.5rem" /></label>
       </div>
       <div v-if="config.welcome.image" class="grid gap-1.5">
-        <Label>preview</Label>
-        <ImagePreview :slug="slug" :src="config.welcome.image" class="object-contain" />
+        <Label>preview <span class="text-xs font-normal text-muted-foreground">(actual size & radius)</span></Label>
+        <div class="flex justify-center" :style="{ maxWidth: config.welcome.imageMaxWidth || '12rem', margin: '0 auto' }">
+          <ImagePreview ref="welcomePreview" :slug="slug" :src="config.welcome.image"
+            :img-style="{ borderRadius: config.welcome.imageRadius || '0.5rem' }"
+            class="shadow-sm" />
+        </div>
       </div>
     </section>
 
@@ -101,30 +140,11 @@ const advancedOpen = ref(false)
       </button>
 
       <div v-show="advancedOpen" class="space-y-8 border-t p-4">
-        <!-- Welcome extras -->
+        <!-- Welcome extras
         <section class="space-y-3">
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome page (extra)</h4>
           <LocaleField label="image alt" :locales="config.locales" :messages="msgs" path="welcome.imageAlt" />
           <LocaleField label="back" :locales="config.locales" :messages="msgs" path="welcome.back" />
-        </section>
-
-        <!-- Locales -->
-        <section>
-          <h4 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Locales</h4>
-          <div class="flex flex-wrap items-center gap-4">
-            <label class="flex items-center gap-2 text-sm">
-              <input type="checkbox" :checked="config.locales.includes('zh')" @change="toggleLocale('zh', ($event.target as HTMLInputElement).checked)" /> 中文 (zh)
-            </label>
-            <label class="flex items-center gap-2 text-sm">
-              <input type="checkbox" :checked="config.locales.includes('en')" @change="toggleLocale('en', ($event.target as HTMLInputElement).checked)" /> English (en)
-            </label>
-            <label class="flex items-center gap-2 text-sm">
-              default:
-              <select v-model="config.defaultLocale" class="rounded-md border bg-transparent px-2 py-1 text-sm">
-                <option v-for="l in config.locales" :key="l" :value="l">{{ l }}</option>
-              </select>
-            </label>
-          </div>
         </section>
 
         <!-- Verify -->
