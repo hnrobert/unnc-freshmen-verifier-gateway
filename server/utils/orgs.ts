@@ -11,7 +11,7 @@ import { requireAuth } from './auth'
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
 export const RESERVED_SLUGS = new Set([
   'api', 'dashboard', 'login', 'register', 'admin', 'new', 'www', 'static',
-  'assets', '_nuxt', 'favicon.ico', 'welcome',
+  'assets', '_nuxt', 'favicon.png', 'welcome',
 ])
 
 export function validateSlug(slug: string): string | null {

@@ -30,6 +30,26 @@ watchEffect(() => {
 const radius = computed(() => config.value?.theme.radius ?? '0.65rem')
 const primaryColor = computed(() => config.value?.theme.primaryColor ?? '#F7D447')
 
+// Per-org favicon: the org's brand icon. Image brands are already resolved to
+// a data: / http URL by loadOrgConfig → resolveImageRefs, so link them directly;
+// lucide brand names render to SVG via /api/icon.svg (in the org primary color).
+const faviconHref = computed(() => {
+  const brand = config.value?.icons.brand
+  if (brand && typeof brand === 'object' && brand.img) return brand.img
+  const name = typeof brand === 'string' ? brand : (brand?.lucide ?? 'GraduationCap')
+  const params = new URLSearchParams({ name, color: primaryColor.value, strokeWidth: '2' })
+  return `/api/icon.svg?${params}`
+})
+const faviconType = computed(() => {
+  const href = faviconHref.value
+  if (href.startsWith('data:')) return href.slice(5).split(';')[0] // e.g. image/png
+  if (href.startsWith('/api/icon.svg')) return 'image/svg+xml'
+  return undefined // remote/local image: let the browser sniff
+})
+useHead({
+  link: [{ key: 'favicon', rel: 'icon', href: faviconHref, type: faviconType }],
+})
+
 function contrastFg(hex: string): string {
   if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return '#1c1917'
   const r = parseInt(hex.slice(1, 3), 16) / 255

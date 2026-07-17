@@ -35,6 +35,10 @@ export default defineNuxtConfig({
   // before first paint (matches @vueuse useColorMode's vg.theme key + logic).
   app: {
     head: {
+      // Default favicon for non-org pages (homepage, auth, dashboard). Org
+      // pages override this same key in layouts/default.vue with the org's
+      // brand icon.
+      link: [{ key: 'favicon', rel: 'icon', type: 'image/jpeg', href: '/favicon.png' }],
       script: [
         {
           tagPosition: 'head',
