@@ -37,7 +37,7 @@ export async function loadOrgConfig(slug: string): Promise<SiteConfig> {
   if (!settings) throw createError({ statusCode: 404, statusMessage: 'Organization config not found' })
 
   const raw = JSON.parse(settings.config) as SiteConfig
-  const cfg = resolveImageRefs(raw, org.slug)
+  const cfg = await resolveImageRefs(raw, org.slug, org.id)
   cache.set(slug, { t: Date.now(), cfg })
   return cfg
 }
@@ -46,7 +46,9 @@ export async function requireOrgOwnership(event: H3Event, slug: string) {
   const user = requireAuth(event)
   const org = await AppDataSource.getRepository(Organization).findOne({ where: { slug } })
   if (!org) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
-  if (org.ownerId !== user.id) throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
+  // Superadmin can access any org; others must own it
+  if (user.role !== 'superadmin' && org.ownerId !== user.id)
+    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   return org
 }
 

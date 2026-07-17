@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { isImageIcon, resolveIcon } from '~/lib/icon'
 import type { IconRef } from '#shared/types'
@@ -14,19 +14,30 @@ const slug = computed(() => route.params.slug as string | undefined)
 
 const isImg = computed(() => isImageIcon(props.spec))
 const rawImg = computed(() => (isImg.value ? (props.spec as { img: string }).img : ''))
-
-// Resolve img:<key> refs to serving URLs (in the editor, config has raw refs;
-// in public pages, refs are already resolved server-side).
-const imgSrc = computed(() => {
-  if (!rawImg.value) return ''
-  if (rawImg.value.startsWith('img:') && slug.value) {
-    return `/api/orgs/${slug.value}/img/${rawImg.value.slice(4)}`
-  }
-  return rawImg.value
-})
-
 const comp = computed(() => (isImg.value ? null : resolveIcon(props.spec)))
 const sizePx = computed(() => (typeof props.size === 'number' ? `${props.size}px` : props.size))
+
+// Resolve img source: data URLs and regular URLs pass through; img:key refs
+// are fetched as base64 JSON and converted to data URLs on the frontend.
+const imgSrc = ref('')
+watch(rawImg, (val) => {
+  if (!val) { imgSrc.value = ''; return }
+  if (!val.startsWith('img:')) { imgSrc.value = val; return }
+  const key = val.slice(4)
+  const s = slug.value
+  if (!s) return
+  // Check cache first
+  const cached = (globalThis as Record<string, unknown>).__imgCache as Map<string, string> | undefined
+  const cacheKey = `${s}:${key}`
+  if (cached?.has(cacheKey)) { imgSrc.value = cached.get(cacheKey)!; return }
+  // Fetch base64 JSON from the endpoint
+  $fetch<{ mime: string; base64: string }>(`/api/orgs/${s}/img/${key}`)
+    .then((res) => {
+      const dataUrl = `data:${res.mime};base64,${res.base64}`
+      imgSrc.value = dataUrl
+    })
+    .catch(() => {})
+}, { immediate: true })
 </script>
 
 <template>

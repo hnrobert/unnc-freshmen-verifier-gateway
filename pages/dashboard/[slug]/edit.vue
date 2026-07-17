@@ -6,27 +6,25 @@ import { buttonVariants } from '~/components/ui/button'
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
+const user = useState<{ role: string } | null>('user')
+const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
+const editorTab = ref<'content' | 'advanced'>('content')
 
-// Owner-only raw config (cookie forwarded on SSR via useRequestFetch).
 const { data: raw } = await useAsyncData(`org-edit:${slug.value}`, () =>
   useRequestFetch()<SiteConfig>(`/api/orgs/${slug.value}/config?edit=1`),
 )
 if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
 
-// Mutable draft (deep-cloned so Discard can restore).
 const draft = ref(JSON.parse(JSON.stringify(raw.value))) as Ref<SiteConfig>
-// Backfill optional fields so the editor can bind to them (older seeded orgs).
-if (!draft.value.background) draft.value.background = { overlayOpacity: 0.5 }
 const wAny = draft.value.welcome as Record<string, unknown>
 if (wAny.imageRounded !== undefined && wAny.imageRadius === undefined) {
   wAny.imageRadius = wAny.imageRounded ? '50%' : '0.5rem'
   delete wAny.imageRounded
 }
 if (!wAny.imageRadius) wAny.imageRadius = '0.5rem'
+if (!draft.value.background) draft.value.background = { overlayOpacity: 0.5 }
 provide(OrgConfigKey, { config: draft })
 
-// Load the draft's messages into vue-i18n so the live preview shows the org's
-// labels (and re-merge on edits so the preview tracks changes live).
 const { applyOrgI18n, mergeOrgMessages } = useOrgI18n()
 const acceptLanguage = import.meta.server
   ? (useRequestHeaders(['accept-language'])['accept-language'] ?? '')
@@ -37,6 +35,20 @@ watch(() => draft.value.messages, () => mergeOrgMessages(draft.value), { deep: t
 const saving = ref(false)
 const saved = ref(false)
 const errors = ref<string[]>([])
+
+// --- Dirty tracking (Discord-style) ---
+const serializedDraft = computed(() => JSON.stringify(draft.value))
+const originalSerialized = ref(JSON.stringify(raw.value))
+const isDirty = computed(() => serializedDraft.value !== originalSerialized.value)
+
+// --- Navigation guard ---
+const confirmLeave = ref(false)
+onBeforeRouteLeave(() => {
+  if (isDirty.value && !saving.value && !saved.value) {
+    confirmLeave.value = true
+    return false
+  }
+})
 
 async function onSave(): Promise<void> {
   saving.value = true
@@ -52,6 +64,7 @@ async function onSave(): Promise<void> {
       return
     }
     await $fetch(`/api/orgs/${slug.value}/config`, { method: 'PUT', body: { config: draft.value } })
+    originalSerialized.value = JSON.stringify(draft.value)
     saved.value = true
     setTimeout(() => (saved.value = false), 2000)
   } catch (e) {
@@ -62,40 +75,104 @@ async function onSave(): Promise<void> {
 }
 
 function onDiscard(): void {
-  if (!confirm('Discard unsaved changes?')) return
   draft.value = JSON.parse(JSON.stringify(raw.value))
+  originalSerialized.value = JSON.stringify(raw.value)
 }
 </script>
 
 <template>
   <div>
+    <!-- Header -->
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Edit <code>/{{ slug }}</code></h1>
-        <p class="mt-1 hidden text-sm text-muted-foreground sm:block">Customize labels, images, welcome content, and gateway settings.</p>
       </div>
       <div class="flex items-center gap-2">
         <a :href="`/${slug}/demo`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Demo ↗</a>
         <a :href="`/${slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">View ↗</a>
-        <Button variant="outline" :disabled="saving" class="sm:hidden" size="sm" @click="onDiscard">Reset</Button>
-        <Button variant="outline" :disabled="saving" class="hidden sm:inline-flex" @click="onDiscard">Discard</Button>
-        <Button :disabled="saving" size="sm" class="sm:hidden" @click="onSave">{{ saving ? '…' : 'Save' }}</Button>
-        <Button :disabled="saving" class="hidden sm:inline-flex" @click="onSave">{{ saving ? 'Saving…' : 'Save' }}</Button>
       </div>
-    </div>
-
-    <!-- Sticky save bar on mobile -->
-    <div class="sticky top-0 z-10 -mx-4 mb-4 flex items-center gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur sm:hidden">
-      <span class="text-xs text-muted-foreground">/{{ slug }}</span>
-      <span class="ml-auto text-xs" :class="saved ? 'text-emerald-600' : 'text-muted-foreground'">{{ saved ? '✓ Saved' : errors.length ? `${errors.length} errors` : '' }}</span>
-      <Button :disabled="saving" size="sm" @click="onSave">{{ saving ? '…' : 'Save' }}</Button>
     </div>
 
     <StatusAlert v-if="saved" variant="success" message="Saved." class="mt-4" />
     <StatusAlert v-if="errors.length" variant="error" :message="errors.join('; ')" class="mt-4" />
 
-    <div class="mt-6">
-      <ConfigEditor />
+    <!-- Tabs -->
+    <div class="mt-4 flex gap-1 border-b">
+      <button
+        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors"
+        :class="editorTab === 'content' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'"
+        @click="editorTab = 'content'"
+      >Content</button>
+      <button
+        v-if="isSuperAdmin"
+        class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors"
+        :class="editorTab === 'advanced' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'"
+        @click="editorTab = 'advanced'"
+      >
+        Advanced
+        <span class="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">SA</span>
+      </button>
     </div>
+
+    <div class="mt-6 pb-24">
+      <ConfigEditor v-show="editorTab === 'content'" mode="admin" />
+      <ConfigEditor v-if="isSuperAdmin" v-show="editorTab === 'advanced'" mode="superadmin" />
+    </div>
+
+    <!-- Discord-style save bar (slides up from bottom when dirty) -->
+    <Transition name="savebar">
+      <div
+        v-if="isDirty || saved"
+        class="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 backdrop-blur"
+      >
+        <div class="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <span class="text-sm text-muted-foreground">
+            <template v-if="saved">✓ Saved</template>
+            <template v-else>You have unsaved changes</template>
+          </span>
+          <div class="flex items-center gap-2">
+            <Button variant="outline" size="sm" :disabled="saving || saved" @click="onDiscard">Discard</Button>
+            <Button size="sm" :disabled="saving || saved" @click="onSave">{{ saving ? 'Saving…' : saved ? 'Saved' : 'Save changes' }}</Button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Unsaved changes leave dialog -->
+    <Transition name="fade">
+      <div v-if="confirmLeave" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" @click.self="confirmLeave = false">
+        <Card class="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle>Unsaved changes</CardTitle>
+            <CardDescription>You have unsaved changes. Save or discard before leaving?</CardDescription>
+          </CardHeader>
+          <CardContent class="flex gap-2">
+            <Button variant="outline" class="flex-1" @click="confirmLeave = false">Stay</Button>
+            <Button variant="outline" class="flex-1" @click="() => { onDiscard(); confirmLeave = false }">Discard</Button>
+            <Button class="flex-1" :disabled="saving" @click="async () => { await onSave(); confirmLeave = false }">Save & leave</Button>
+          </CardContent>
+        </Card>
+      </div>
+    </Transition>
   </div>
 </template>
+
+<style scoped>
+.savebar-enter-active,
+.savebar-leave-active {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s;
+}
+.savebar-enter-from,
+.savebar-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

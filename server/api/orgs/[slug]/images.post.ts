@@ -25,5 +25,6 @@ export default defineEventHandler(async (event) => {
   } else {
     await repo.insert({ orgId: org.id, key, mime, base64 })
   }
+  invalidateImageCache(org.id)
   return { ok: true, key, ref: `img:${key}` }
 })

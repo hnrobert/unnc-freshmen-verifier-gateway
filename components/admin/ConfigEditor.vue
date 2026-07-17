@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { Locale } from '#shared/types'
 
+const props = defineProps<{ mode: 'admin' | 'superadmin' }>()
 const { config } = useOrgConfig()
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
-const user = useState<{ role: string } | null>('user')
-const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
+const isSuper = computed(() => props.mode === 'superadmin')
 
 function toggleLocale(loc: Locale, checked: boolean): void {
   const locales = config.value.locales
@@ -24,7 +24,6 @@ function onBackgroundImage(ref: string): void {
   config.value.background = { overlayOpacity: config.value.background?.overlayOpacity ?? 0.5, image: ref }
 }
 
-const adminIconSlots = ['brand'] as const
 const otherIconSlots = ['nameField', 'idField', 'submit', 'verifying', 'welcome', 'back', 'toggleLanguage', 'toggleTheme', 'error', 'success'] as const
 const errorKeys = ['emptyName', 'badIdFormat', 'notAdmitted', 'captcha', 'network', 'generic']
 const admissionKeys = ['title', 'name', 'university', 'date', 'detail']
@@ -33,75 +32,69 @@ const msgs = computed(() => config.value.messages as Record<string, unknown>)
 
 <template>
   <div class="space-y-8">
-    <!-- ===== ADMIN SECTION (visible to all) ===== -->
+    <!-- ===== ADMIN MODE ===== -->
+    <template v-if="!isSuper">
+      <!-- Background image -->
+      <section class="space-y-4">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Background image</h3>
+        <ImageUploader :slug="slug" image-key="background" label="Upload background" @uploaded="onBackgroundImage" />
+        <Input v-model="(config.background as any).image" placeholder="./bg.jpg  or  img:background" class="h-9" />
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+          <Label class="mb-0">overlay</Label>
+          <input type="range" min="0" max="1" step="0.05" :value="(config.background as any).overlayOpacity ?? 0.5" class="w-40"
+            @input="(config.background as any).overlayOpacity = Number(($event.target as HTMLInputElement).value)" />
+          <span class="w-10 text-muted-foreground">{{ Math.round(((config.background as any).overlayOpacity ?? 0) * 100) }}%</span>
+          <Button v-if="(config.background as any).image" size="sm" variant="ghost" type="button" @click="(config.background as any).image = ''">Remove</Button>
+        </div>
+        <div v-if="(config.background as any).image" class="grid gap-1.5">
+          <Label>preview</Label>
+          <ImagePreview :slug="slug" :src="(config.background as any).image" class="object-cover" />
+        </div>
+      </section>
 
-    <!-- Background image -->
-    <section class="space-y-4">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Background image</h3>
-      <ImageUploader :slug="slug" image-key="background" label="Upload background" @uploaded="onBackgroundImage" />
-      <Input v-model="(config.background as any).image" placeholder="./bg.jpg  or  img:background" class="h-9" />
-      <div class="flex flex-wrap items-center gap-3 text-sm">
-        <Label class="mb-0">overlay</Label>
-        <input type="range" min="0" max="1" step="0.05" :value="(config.background as any).overlayOpacity ?? 0.5" class="w-40"
-          @input="(config.background as any).overlayOpacity = Number(($event.target as HTMLInputElement).value)" />
-        <span class="w-10 text-muted-foreground">{{ Math.round(((config.background as any).overlayOpacity ?? 0) * 100) }}%</span>
-        <Button v-if="(config.background as any).image" size="sm" variant="ghost" type="button" @click="(config.background as any).image = ''">Remove</Button>
-      </div>
-      <div v-if="(config.background as any).image" class="grid gap-1.5">
-        <Label>preview</Label>
-        <img :src="(config.background as any).image.startsWith('img:') ? `/api/orgs/${slug}/img/${(config.background as any).image.slice(4)}` : (config.background as any).image" class="h-32 w-full rounded-lg border object-cover" />
-      </div>
-    </section>
+      <!-- Welcome image -->
+      <section class="space-y-4">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome image</h3>
+        <ImageUploader :slug="slug" image-key="welcome" label="Upload welcome image" @uploaded="onWelcomeImage" />
+        <Input v-model="config.welcome.image" placeholder="./welcome.svg  or  img:welcome" class="h-9" />
+        <div class="flex flex-wrap gap-3 text-sm">
+          <label class="flex items-center gap-1">max width <Input v-model="config.welcome.imageMaxWidth" class="h-8 w-28" /></label>
+          <label class="flex items-center gap-1">radius <Input v-model="config.welcome.imageRadius" class="h-8 w-28" placeholder="0.5rem" /></label>
+        </div>
+        <div v-if="config.welcome.image" class="grid gap-1.5">
+          <Label>preview</Label>
+          <ImagePreview :slug="slug" :src="config.welcome.image" class="object-contain" />
+        </div>
+      </section>
 
-    <!-- Welcome image -->
-    <section class="space-y-4">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome image</h3>
-      <ImageUploader :slug="slug" image-key="welcome" label="Upload welcome image" @uploaded="onWelcomeImage" />
-      <Input v-model="config.welcome.image" placeholder="./welcome.svg  or  img:welcome" class="h-9" />
-      <div class="flex flex-wrap gap-3 text-sm">
-        <label class="flex items-center gap-1">max width <Input v-model="config.welcome.imageMaxWidth" class="h-8 w-28" /></label>
-        <label class="flex items-center gap-1">radius <Input v-model="config.welcome.imageRadius" class="h-8 w-28" placeholder="0.5rem" /></label>
-      </div>
-      <div v-if="config.welcome.image" class="grid gap-1.5">
-        <Label>preview</Label>
-        <img :src="config.welcome.image.startsWith('img:') ? `/api/orgs/${slug}/img/${config.welcome.image.slice(4)}` : config.welcome.image" class="h-32 rounded-lg border object-contain" :style="{ borderRadius: config.welcome.imageRadius || '0.5rem' }" />
-      </div>
-    </section>
+      <!-- Brand -->
+      <section class="space-y-3">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Brand</h3>
+        <LocaleField label="title" :locales="config.locales" :messages="msgs" path="brand.title" />
+        <LocaleField label="subtitle" :locales="config.locales" :messages="msgs" path="brand.subtitle" />
+        <IconPicker :slug="slug" slot-name="brand"
+          :model-value="(config.icons as any).brand"
+          @update:model-value="(config.icons as any).brand = $event" />
+      </section>
 
-    <!-- Brand -->
-    <section class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Brand</h3>
-      <LocaleField label="title" :locales="config.locales" :messages="msgs" path="brand.title" />
-      <LocaleField label="subtitle" :locales="config.locales" :messages="msgs" path="brand.subtitle" />
-      <!-- Brand icon (admin-accessible) -->
-      <IconPicker :slug="slug" slot-name="brand"
-        :model-value="(config.icons as any).brand"
-        @update:model-value="(config.icons as any).brand = $event" />
-    </section>
+      <!-- Welcome page (badge + title + body) -->
+      <section class="space-y-3">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome page</h3>
+        <LocaleField label="badge" :locales="config.locales" :messages="msgs" path="welcome.badge" />
+        <LocaleField label="title" :locales="config.locales" :messages="msgs" path="welcome.title" />
+        <div v-if="config.locales.includes('zh')" class="grid gap-1.5">
+          <Label>body <span class="text-xs text-muted-foreground">zh</span> — Markdown</Label>
+          <MarkdownEditor :model-value="(msgs.zh as any).welcome?.body ?? ''" @update:model-value="((msgs.zh as any).welcome ??= {}).body = $event" locale="zh" />
+        </div>
+        <div v-if="config.locales.includes('en')" class="grid gap-1.5">
+          <Label>body <span class="text-xs text-muted-foreground">en</span> — Markdown</Label>
+          <MarkdownEditor :model-value="(msgs.en as any).welcome?.body ?? ''" @update:model-value="((msgs.en as any).welcome ??= {}).body = $event" locale="en" />
+        </div>
+      </section>
+    </template>
 
-    <!-- Welcome page (badge + title + body only for admin) -->
-    <section class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome page</h3>
-      <LocaleField label="badge" :locales="config.locales" :messages="msgs" path="welcome.badge" />
-      <LocaleField label="title" :locales="config.locales" :messages="msgs" path="welcome.title" />
-      <div v-if="config.locales.includes('zh')" class="grid gap-1.5">
-        <Label>body <span class="text-xs text-muted-foreground">zh</span> — Markdown</Label>
-        <MarkdownEditor :model-value="(msgs.zh as any).welcome?.body ?? ''" @update:model-value="((msgs.zh as any).welcome ??= {}).body = $event" locale="zh" />
-      </div>
-      <div v-if="config.locales.includes('en')" class="grid gap-1.5">
-        <Label>body <span class="text-xs text-muted-foreground">en</span> — Markdown</Label>
-        <MarkdownEditor :model-value="(msgs.en as any).welcome?.body ?? ''" @update:model-value="((msgs.en as any).welcome ??= {}).body = $event" locale="en" />
-      </div>
-    </section>
-
-    <!-- ===== SUPERADMIN SECTION ===== -->
-
-    <!-- Divider -->
-    <div v-if="isSuperAdmin" class="border-t pt-6">
-      <p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Superadmin settings</p>
-    </div>
-
-    <template v-if="isSuperAdmin">
+    <!-- ===== SUPERADMIN MODE ===== -->
+    <template v-else>
       <!-- Welcome page extras -->
       <section class="space-y-3">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome page (extra)</h3>
@@ -178,8 +171,7 @@ const msgs = computed(() => config.value.messages as Record<string, unknown>)
           <div class="grid gap-1.5">
             <Label>mode</Label>
             <select v-model="config.gateway.mode" class="rounded-md border bg-transparent px-2 py-2 text-sm">
-              <option value="live">live</option>
-              <option value="mock">mock</option>
+              <option value="live">live</option><option value="mock">mock</option>
             </select>
           </div>
           <div class="grid gap-1.5"><Label>baseUrl</Label><Input v-model="config.gateway.baseUrl" /></div>
