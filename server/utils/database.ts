@@ -1,4 +1,5 @@
 import 'reflect-metadata'
+import 'better-sqlite3'
 import { DataSource } from 'typeorm'
 import { User } from '../entities/user.entity'
 import { Session } from '../entities/session.entity'
