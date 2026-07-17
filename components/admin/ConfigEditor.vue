@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { Locale } from '#shared/types'
 
 const { config } = useOrgConfig()
+const { t } = useI18n()
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
@@ -66,9 +68,7 @@ function onBackgroundImage(ref: string): void {
 }
 
 const otherIconSlots = ['nameField', 'idField', 'submit', 'verifying', 'welcome', 'back', 'toggleLanguage', 'toggleTheme', 'error', 'success'] as const
-const errorKeys = ['Empty Name', 'Bad ID Format', 'Not Admitted', 'Captcha', 'Network', 'Generic']
 const errorPaths = ['emptyName', 'badIdFormat', 'notAdmitted', 'captcha', 'network', 'generic']
-const admissionKeys = ['Title', 'Name', 'University', 'Date', 'Detail']
 const admissionPaths = ['title', 'name', 'university', 'date', 'detail']
 const msgs = computed(() => config.value.messages as Record<string, unknown>)
 const advancedOpen = ref(false)
@@ -78,7 +78,7 @@ const advancedOpen = ref(false)
   <div class="space-y-8" :style="primaryVars">
     <!-- Theme color (top — visible immediately) -->
     <section>
-      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Theme color</h3>
+      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.themeColor') }}</h3>
       <div class="flex items-center gap-3">
         <input
           type="color"
@@ -95,13 +95,13 @@ const advancedOpen = ref(false)
           v-if="(config.theme as any).primaryColor && (config.theme as any).primaryColor !== '#F7D447'"
           size="sm" variant="ghost" type="button"
           @click="(config.theme as any).primaryColor = '#F7D447'"
-        >Reset</Button>
+        >{{ t('editor.reset') }}</Button>
       </div>
     </section>
 
     <!-- Locales -->
     <section>
-      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Locales</h3>
+      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.locales') }}</h3>
       <div class="flex flex-wrap items-center gap-4">
         <label class="flex items-center gap-2 text-sm">
           <input type="checkbox" :checked="config.locales.includes('zh')" @change="toggleLocale('zh', ($event.target as HTMLInputElement).checked)" /> 中文 (zh)
@@ -110,7 +110,7 @@ const advancedOpen = ref(false)
           <input type="checkbox" :checked="config.locales.includes('en')" @change="toggleLocale('en', ($event.target as HTMLInputElement).checked)" /> English (en)
         </label>
         <label class="flex items-center gap-2 text-sm">
-          default:
+          {{ t('editor.defaultLocale') }}:
           <select v-model="config.defaultLocale" class="h-9 rounded-md border bg-transparent px-2 text-sm">
             <option v-for="l in config.locales" :key="l" :value="l">{{ l }}</option>
           </select>
@@ -120,14 +120,14 @@ const advancedOpen = ref(false)
 
     <!-- Background image -->
     <section class="space-y-4">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Background image</h3>
-      <ImageUploader :slug="slug" image-key="background" label="Upload background" @uploaded="onBackgroundImage" />
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.backgroundImage') }}</h3>
+      <ImageUploader :slug="slug" image-key="background" :label="t('editor.uploadBackground')" @uploaded="onBackgroundImage" />
       <div v-if="(config.background as any).image && ((config.background as any).image.startsWith('img:') || (config.background as any).image.startsWith('http'))" class="flex flex-wrap items-center gap-3 text-sm">
-        <Label class="mb-0">Overlay</Label>
+        <Label class="mb-0">{{ t('editor.overlay') }}</Label>
         <input type="range" min="0" max="1" step="0.05" :value="(config.background as any).overlayOpacity ?? 0.5" class="w-40"
           @input="(config.background as any).overlayOpacity = Number(($event.target as HTMLInputElement).value)" />
         <span class="w-10 text-muted-foreground">{{ Math.round(((config.background as any).overlayOpacity ?? 0) * 100) }}%</span>
-        <Button v-if="(config.background as any).image" size="sm" variant="ghost" type="button" @click="(config.background as any).image = ''">Remove</Button>
+        <Button v-if="(config.background as any).image" size="sm" variant="ghost" type="button" @click="(config.background as any).image = ''">{{ t('editor.remove') }}</Button>
       </div>
       <div v-if="(config.background as any).image" class="grid gap-1.5">
         <Label>Preview <span class="text-xs font-normal text-muted-foreground">(background-cover + overlay)</span></Label>
@@ -155,11 +155,11 @@ const advancedOpen = ref(false)
 
     <!-- Welcome image -->
     <section class="space-y-4">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome image</h3>
-      <ImageUploader :slug="slug" image-key="welcome" label="Upload welcome image" @uploaded="onWelcomeImage" />
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.welcomeImage') }}</h3>
+      <ImageUploader :slug="slug" image-key="welcome" :label="t('editor.uploadWelcome')" @uploaded="onWelcomeImage" />
       <div v-if="config.welcome.image && (config.welcome.image.startsWith('img:') || config.welcome.image.startsWith('http'))" class="space-y-3">
         <div class="flex flex-wrap gap-3 text-sm">
-          <label class="flex items-center gap-1">max width
+          <label class="flex items-center gap-1">{{ t('editor.maxWidth') }}
             <Input v-model.number="maxWidthNum" type="number" step="1" class="w-20" />
             <span class="text-xs text-muted-foreground">rem</span>
           </label>
@@ -179,9 +179,9 @@ const advancedOpen = ref(false)
 
     <!-- Brand -->
     <section class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Brand</h3>
-      <LocaleField label="Title" :locales="config.locales" :messages="msgs" path="brand.title" />
-      <LocaleField label="Subtitle" :locales="config.locales" :messages="msgs" path="brand.subtitle" />
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.brand') }}</h3>
+      <LocaleField :label="t('editor.brandTitle')" :locales="config.locales" :messages="msgs" path="brand.title" />
+      <LocaleField :label="t('editor.brandSubtitle')" :locales="config.locales" :messages="msgs" path="brand.subtitle" />
       <IconPicker :slug="slug" slot-name="brand"
         :model-value="(config.icons as any).brand"
         @update:model-value="(config.icons as any).brand = $event" />
@@ -189,9 +189,9 @@ const advancedOpen = ref(false)
 
     <!-- Welcome page -->
     <section class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome page</h3>
-      <LocaleField label="Badge" :locales="config.locales" :messages="msgs" path="welcome.badge" />
-      <LocaleField label="Title" :locales="config.locales" :messages="msgs" path="welcome.title" />
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.welcomePage') }}</h3>
+      <LocaleField :label="t('editor.welcomeBadge')" :locales="config.locales" :messages="msgs" path="welcome.badge" />
+      <LocaleField :label="t('editor.brandTitle')" :locales="config.locales" :messages="msgs" path="welcome.title" />
       <div v-if="config.locales.includes('zh')" class="grid gap-1.5">
         <Label>body <span class="text-xs text-muted-foreground">zh</span> — Markdown</Label>
         <MarkdownEditor :model-value="(msgs.zh as any).welcome?.body ?? ''" @update:model-value="((msgs.zh as any).welcome ??= {}).body = $event" locale="zh" />
@@ -218,47 +218,47 @@ const advancedOpen = ref(false)
       <div v-show="advancedOpen" class="space-y-8 border-t p-4">
         <!-- Welcome extras
         <section class="space-y-3">
-          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome page (extra)</h4>
-          <LocaleField label="Image Alt" :locales="config.locales" :messages="msgs" path="welcome.imageAlt" />
-          <LocaleField label="Back" :locales="config.locales" :messages="msgs" path="welcome.back" />
+          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.welcomeExtra') }}</h4>
+          <LocaleField :label="t('editor.welcomeImageAlt')" :locales="config.locales" :messages="msgs" path="welcome.imageAlt" />
+          <LocaleField :label="t('editor.welcomeBack')" :locales="config.locales" :messages="msgs" path="welcome.back" />
         </section>
 
         <!-- Verify -->
         <section class="space-y-3">
-          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Verify page</h4>
-          <LocaleField label="Heading" :locales="config.locales" :messages="msgs" path="verify.heading" />
-          <LocaleField label="Subheading" :locales="config.locales" :messages="msgs" path="verify.subheading" />
-          <LocaleField label="Name Label" :locales="config.locales" :messages="msgs" path="verify.nameLabel" />
-          <LocaleField label="Name Placeholder" :locales="config.locales" :messages="msgs" path="verify.namePlaceholder" />
-          <LocaleField label="ID Label" :locales="config.locales" :messages="msgs" path="verify.idLabel" />
-          <LocaleField label="ID Placeholder" :locales="config.locales" :messages="msgs" path="verify.idPlaceholder" />
-          <LocaleField label="Submit" :locales="config.locales" :messages="msgs" path="verify.submit" />
-          <LocaleField label="Hint" :locales="config.locales" :messages="msgs" path="verify.hint" />
+          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.verifyPage') }}</h4>
+          <LocaleField :label="t('editor.verifyHeading')" :locales="config.locales" :messages="msgs" path="verify.heading" />
+          <LocaleField :label="t('editor.verifySubheading')" :locales="config.locales" :messages="msgs" path="verify.subheading" />
+          <LocaleField :label="t('editor.verifyNameLabel')" :locales="config.locales" :messages="msgs" path="verify.nameLabel" />
+          <LocaleField :label="t('editor.verifyNamePlaceholder')" :locales="config.locales" :messages="msgs" path="verify.namePlaceholder" />
+          <LocaleField :label="t('editor.verifyIdLabel')" :locales="config.locales" :messages="msgs" path="verify.idLabel" />
+          <LocaleField :label="t('editor.verifyIdPlaceholder')" :locales="config.locales" :messages="msgs" path="verify.idPlaceholder" />
+          <LocaleField :label="t('editor.verifySubmit')" :locales="config.locales" :messages="msgs" path="verify.submit" />
+          <LocaleField :label="t('editor.verifyHint')" :locales="config.locales" :messages="msgs" path="verify.hint" />
         </section>
 
         <!-- Errors -->
         <section class="space-y-3">
-          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Errors</h4>
-          <LocaleField v-for="(label, i) in errorKeys" :key="label" :label="label" :locales="config.locales" :messages="msgs" :path="`errors.${errorPaths[i]}`" />
+          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.errorsSection') }}</h4>
+          <LocaleField v-for="p in errorPaths" :key="p" :label="t(`editor.error${(p[0] || '').toUpperCase()}${p.slice(1)}`)" :locales="config.locales" :messages="msgs" :path="`errors.${p}`" />
         </section>
 
         <!-- Admission -->
         <section class="space-y-3">
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Admission details</h4>
-          <LocaleField v-for="(label, i) in admissionKeys" :key="label" :label="label" :locales="config.locales" :messages="msgs" :path="`admission.${admissionPaths[i]}`" />
+          <LocaleField v-for="p in admissionPaths" :key="p" :label="t(`editor.admission${(p[0] || '').toUpperCase()}${p.slice(1)}`)" :locales="config.locales" :messages="msgs" :path="`admission.${p}`" />
         </section>
 
         <!-- Footer & misc -->
         <section class="space-y-3">
-          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Footer &amp; misc</h4>
-          <LocaleField label="Footer" :locales="config.locales" :messages="msgs" path="footer" />
-          <LocaleField label="Theme Toggle" :locales="config.locales" :messages="msgs" path="theme.toggle" />
-          <LocaleField label="Language Label" :locales="config.locales" :messages="msgs" path="lang.label" />
+          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.footerMisc') }}</h4>
+          <LocaleField :label="t('editor.footer')" :locales="config.locales" :messages="msgs" path="footer" />
+          <LocaleField :label="t('editor.themeToggle')" :locales="config.locales" :messages="msgs" path="theme.toggle" />
+          <LocaleField :label="t('editor.languageLabel')" :locales="config.locales" :messages="msgs" path="lang.label" />
         </section>
 
         <!-- Other icons -->
         <section class="space-y-3">
-          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Icons (other)</h4>
+          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.iconsOther') }}</h4>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <IconPicker v-for="slot in otherIconSlots" :key="slot" :slug="slug" :slot-name="slot"
               :model-value="(config.icons as any)[slot]"
@@ -268,26 +268,26 @@ const advancedOpen = ref(false)
 
         <!-- Gateway -->
         <section class="space-y-3">
-          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Gateway</h4>
+          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.gateway') }}</h4>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="grid gap-1.5">
-              <Label>Mode</Label>
+              <Label>{{ t('editor.gatewayMode') }}<</Label>
               <select v-model="config.gateway.mode" class="h-9 rounded-md border bg-transparent px-2 text-sm">
                 <option value="live">live</option><option value="mock">mock</option>
               </select>
             </div>
-            <div class="grid gap-1.5"><Label>Base URL</Label><Input v-model="config.gateway.baseUrl" /></div>
-            <div class="grid gap-1.5"><Label>Max Captcha Rounds</Label><Input v-model.number="config.gateway.maxCaptchaRounds" type="number" /></div>
-            <div class="grid gap-1.5"><Label>Max Offset Tries</Label><Input v-model.number="config.gateway.maxOffsetTries" type="number" /></div>
-            <div class="grid gap-1.5"><Label>Request Timeout (ms)</Label><Input v-model.number="config.gateway.requestTimeoutMs" type="number" /></div>
+            <div class="grid gap-1.5"><Label>{{ t('editor.gatewayBaseUrl') }}<</Label><Input v-model="config.gateway.baseUrl" /></div>
+            <div class="grid gap-1.5"><Label>{{ t('editor.gatewayMaxCaptchaRounds') }}<</Label><Input v-model.number="config.gateway.maxCaptchaRounds" type="number" /></div>
+            <div class="grid gap-1.5"><Label>{{ t('editor.gatewayMaxOffsetTries') }}<</Label><Input v-model.number="config.gateway.maxOffsetTries" type="number" /></div>
+            <div class="grid gap-1.5"><Label>{{ t('editor.gatewayRequestTimeoutMs') }}<</Label><Input v-model.number="config.gateway.requestTimeoutMs" type="number" /></div>
           </div>
         </section>
 
         <!-- Theme -->
         <section class="space-y-3">
-          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Theme</h4>
+          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.theme') }}</h4>
           <div class="flex items-center gap-2 text-sm">
-            <Label class="mb-0">Radius</Label>
+            <Label class="mb-0">{{ t('editor.themeRadius') }}<</Label>
             <Input v-model.number="themeRadiusNum" type="number" step="0.05" class="h-8 w-20" />
             <span class="text-xs text-muted-foreground">rem</span>
           </div>
