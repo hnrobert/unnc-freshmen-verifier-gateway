@@ -66,8 +66,10 @@ function onBackgroundImage(ref: string): void {
 }
 
 const otherIconSlots = ['nameField', 'idField', 'submit', 'verifying', 'welcome', 'back', 'toggleLanguage', 'toggleTheme', 'error', 'success'] as const
-const errorKeys = ['emptyName', 'badIdFormat', 'notAdmitted', 'captcha', 'network', 'generic']
-const admissionKeys = ['title', 'name', 'university', 'date', 'detail']
+const errorKeys = ['Empty Name', 'Bad ID Format', 'Not Admitted', 'Captcha', 'Network', 'Generic']
+const errorPaths = ['emptyName', 'badIdFormat', 'notAdmitted', 'captcha', 'network', 'generic']
+const admissionKeys = ['Title', 'Name', 'University', 'Date', 'Detail']
+const admissionPaths = ['title', 'name', 'university', 'date', 'detail']
 const msgs = computed(() => config.value.messages as Record<string, unknown>)
 const advancedOpen = ref(false)
 </script>
@@ -121,14 +123,14 @@ const advancedOpen = ref(false)
       <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Background image</h3>
       <ImageUploader :slug="slug" image-key="background" label="Upload background" @uploaded="onBackgroundImage" />
       <div v-if="(config.background as any).image && ((config.background as any).image.startsWith('img:') || (config.background as any).image.startsWith('http'))" class="flex flex-wrap items-center gap-3 text-sm">
-        <Label class="mb-0">overlay</Label>
+        <Label class="mb-0">Overlay</Label>
         <input type="range" min="0" max="1" step="0.05" :value="(config.background as any).overlayOpacity ?? 0.5" class="w-40"
           @input="(config.background as any).overlayOpacity = Number(($event.target as HTMLInputElement).value)" />
         <span class="w-10 text-muted-foreground">{{ Math.round(((config.background as any).overlayOpacity ?? 0) * 100) }}%</span>
         <Button v-if="(config.background as any).image" size="sm" variant="ghost" type="button" @click="(config.background as any).image = ''">Remove</Button>
       </div>
       <div v-if="(config.background as any).image" class="grid gap-1.5">
-        <Label>preview <span class="text-xs font-normal text-muted-foreground">(background-cover + overlay)</span></Label>
+        <Label>Preview <span class="text-xs font-normal text-muted-foreground">(background-cover + overlay)</span></Label>
         <!-- Hidden ImagePreview just to fetch the base64 -->
         <ImagePreview v-show="false" ref="bgPreview" :slug="slug" :src="(config.background as any).image" />
         <!-- Actual preview: fixed-height div with background-image, centered, cover -->
@@ -166,7 +168,7 @@ const advancedOpen = ref(false)
             <span class="text-xs text-muted-foreground">rem</span>
           </label>
         </div>
-        <Label>preview <span class="text-xs font-normal text-muted-foreground">(actual size & radius)</span></Label>
+        <Label>Preview <span class="text-xs font-normal text-muted-foreground">(actual size & radius)</span></Label>
         <div class="flex justify-center" :style="{ maxWidth: config.welcome.imageMaxWidth || '12rem', margin: '0 auto' }">
           <ImagePreview ref="welcomePreview" :slug="slug" :src="config.welcome.image"
             :img-style="{ borderRadius: config.welcome.imageRadius || '0.5rem' }"
@@ -178,8 +180,8 @@ const advancedOpen = ref(false)
     <!-- Brand -->
     <section class="space-y-3">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Brand</h3>
-      <LocaleField label="title" :locales="config.locales" :messages="msgs" path="brand.title" />
-      <LocaleField label="subtitle" :locales="config.locales" :messages="msgs" path="brand.subtitle" />
+      <LocaleField label="Title" :locales="config.locales" :messages="msgs" path="brand.title" />
+      <LocaleField label="Subtitle" :locales="config.locales" :messages="msgs" path="brand.subtitle" />
       <IconPicker :slug="slug" slot-name="brand"
         :model-value="(config.icons as any).brand"
         @update:model-value="(config.icons as any).brand = $event" />
@@ -188,8 +190,8 @@ const advancedOpen = ref(false)
     <!-- Welcome page -->
     <section class="space-y-3">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome page</h3>
-      <LocaleField label="badge" :locales="config.locales" :messages="msgs" path="welcome.badge" />
-      <LocaleField label="title" :locales="config.locales" :messages="msgs" path="welcome.title" />
+      <LocaleField label="Badge" :locales="config.locales" :messages="msgs" path="welcome.badge" />
+      <LocaleField label="Title" :locales="config.locales" :messages="msgs" path="welcome.title" />
       <div v-if="config.locales.includes('zh')" class="grid gap-1.5">
         <Label>body <span class="text-xs text-muted-foreground">zh</span> — Markdown</Label>
         <MarkdownEditor :model-value="(msgs.zh as any).welcome?.body ?? ''" @update:model-value="((msgs.zh as any).welcome ??= {}).body = $event" locale="zh" />
@@ -217,41 +219,41 @@ const advancedOpen = ref(false)
         <!-- Welcome extras
         <section class="space-y-3">
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Welcome page (extra)</h4>
-          <LocaleField label="image alt" :locales="config.locales" :messages="msgs" path="welcome.imageAlt" />
-          <LocaleField label="back" :locales="config.locales" :messages="msgs" path="welcome.back" />
+          <LocaleField label="Image Alt" :locales="config.locales" :messages="msgs" path="welcome.imageAlt" />
+          <LocaleField label="Back" :locales="config.locales" :messages="msgs" path="welcome.back" />
         </section>
 
         <!-- Verify -->
         <section class="space-y-3">
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Verify page</h4>
-          <LocaleField label="heading" :locales="config.locales" :messages="msgs" path="verify.heading" />
-          <LocaleField label="subheading" :locales="config.locales" :messages="msgs" path="verify.subheading" />
-          <LocaleField label="name label" :locales="config.locales" :messages="msgs" path="verify.nameLabel" />
-          <LocaleField label="name placeholder" :locales="config.locales" :messages="msgs" path="verify.namePlaceholder" />
-          <LocaleField label="id label" :locales="config.locales" :messages="msgs" path="verify.idLabel" />
-          <LocaleField label="id placeholder" :locales="config.locales" :messages="msgs" path="verify.idPlaceholder" />
-          <LocaleField label="submit" :locales="config.locales" :messages="msgs" path="verify.submit" />
-          <LocaleField label="hint" :locales="config.locales" :messages="msgs" path="verify.hint" />
+          <LocaleField label="Heading" :locales="config.locales" :messages="msgs" path="verify.heading" />
+          <LocaleField label="Subheading" :locales="config.locales" :messages="msgs" path="verify.subheading" />
+          <LocaleField label="Name Label" :locales="config.locales" :messages="msgs" path="verify.nameLabel" />
+          <LocaleField label="Name Placeholder" :locales="config.locales" :messages="msgs" path="verify.namePlaceholder" />
+          <LocaleField label="ID Label" :locales="config.locales" :messages="msgs" path="verify.idLabel" />
+          <LocaleField label="ID Placeholder" :locales="config.locales" :messages="msgs" path="verify.idPlaceholder" />
+          <LocaleField label="Submit" :locales="config.locales" :messages="msgs" path="verify.submit" />
+          <LocaleField label="Hint" :locales="config.locales" :messages="msgs" path="verify.hint" />
         </section>
 
         <!-- Errors -->
         <section class="space-y-3">
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Errors</h4>
-          <LocaleField v-for="k in errorKeys" :key="k" :label="k" :locales="config.locales" :messages="msgs" :path="`errors.${k}`" />
+          <LocaleField v-for="(label, i) in errorKeys" :key="label" :label="label" :locales="config.locales" :messages="msgs" :path="`errors.${errorPaths[i]}`" />
         </section>
 
         <!-- Admission -->
         <section class="space-y-3">
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Admission details</h4>
-          <LocaleField v-for="k in admissionKeys" :key="k" :label="k" :locales="config.locales" :messages="msgs" :path="`admission.${k}`" />
+          <LocaleField v-for="(label, i) in admissionKeys" :key="label" :label="label" :locales="config.locales" :messages="msgs" :path="`admission.${admissionPaths[i]}`" />
         </section>
 
         <!-- Footer & misc -->
         <section class="space-y-3">
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Footer &amp; misc</h4>
-          <LocaleField label="footer" :locales="config.locales" :messages="msgs" path="footer" />
-          <LocaleField label="theme toggle" :locales="config.locales" :messages="msgs" path="theme.toggle" />
-          <LocaleField label="language label" :locales="config.locales" :messages="msgs" path="lang.label" />
+          <LocaleField label="Footer" :locales="config.locales" :messages="msgs" path="footer" />
+          <LocaleField label="Theme Toggle" :locales="config.locales" :messages="msgs" path="theme.toggle" />
+          <LocaleField label="Language Label" :locales="config.locales" :messages="msgs" path="lang.label" />
         </section>
 
         <!-- Other icons -->
@@ -269,15 +271,15 @@ const advancedOpen = ref(false)
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Gateway</h4>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="grid gap-1.5">
-              <Label>mode</Label>
+              <Label>Mode</Label>
               <select v-model="config.gateway.mode" class="h-9 rounded-md border bg-transparent px-2 text-sm">
                 <option value="live">live</option><option value="mock">mock</option>
               </select>
             </div>
-            <div class="grid gap-1.5"><Label>baseUrl</Label><Input v-model="config.gateway.baseUrl" /></div>
-            <div class="grid gap-1.5"><Label>maxCaptchaRounds</Label><Input v-model.number="config.gateway.maxCaptchaRounds" type="number" /></div>
-            <div class="grid gap-1.5"><Label>maxOffsetTries</Label><Input v-model.number="config.gateway.maxOffsetTries" type="number" /></div>
-            <div class="grid gap-1.5"><Label>requestTimeoutMs</Label><Input v-model.number="config.gateway.requestTimeoutMs" type="number" /></div>
+            <div class="grid gap-1.5"><Label>Base URL</Label><Input v-model="config.gateway.baseUrl" /></div>
+            <div class="grid gap-1.5"><Label>Max Captcha Rounds</Label><Input v-model.number="config.gateway.maxCaptchaRounds" type="number" /></div>
+            <div class="grid gap-1.5"><Label>Max Offset Tries</Label><Input v-model.number="config.gateway.maxOffsetTries" type="number" /></div>
+            <div class="grid gap-1.5"><Label>Request Timeout (ms)</Label><Input v-model.number="config.gateway.requestTimeoutMs" type="number" /></div>
           </div>
         </section>
 
@@ -285,7 +287,7 @@ const advancedOpen = ref(false)
         <section class="space-y-3">
           <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Theme</h4>
           <div class="flex items-center gap-2 text-sm">
-            <Label class="mb-0">radius</Label>
+            <Label class="mb-0">Radius</Label>
             <Input v-model.number="themeRadiusNum" type="number" step="0.05" class="h-8 w-20" />
             <span class="text-xs text-muted-foreground">rem</span>
           </div>
