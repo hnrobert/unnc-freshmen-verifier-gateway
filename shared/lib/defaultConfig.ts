@@ -47,7 +47,7 @@ const config: SiteConfig = {
     // Place an image in `public/` and reference it here, or use any remote URL.
     image: './welcome.svg',
     imageMaxWidth: '12rem',
-    imageRounded: true,
+    imageRadius: '0.5rem',
   },
 
   // Optional full-page background (upload via the editor → img:background).

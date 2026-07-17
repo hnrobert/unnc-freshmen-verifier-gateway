@@ -17,6 +17,12 @@ if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Organizatio
 const draft = ref(JSON.parse(JSON.stringify(raw.value))) as Ref<SiteConfig>
 // Backfill optional fields so the editor can bind to them (older seeded orgs).
 if (!draft.value.background) draft.value.background = { overlayOpacity: 0.5 }
+const wAny = draft.value.welcome as Record<string, unknown>
+if (wAny.imageRounded !== undefined && wAny.imageRadius === undefined) {
+  wAny.imageRadius = wAny.imageRounded ? '50%' : '0.5rem'
+  delete wAny.imageRounded
+}
+if (!wAny.imageRadius) wAny.imageRadius = '0.5rem'
 provide(OrgConfigKey, { config: draft })
 
 // Load the draft's messages into vue-i18n so the live preview shows the org's

@@ -47,8 +47,8 @@ export interface WelcomeAssetsConfig {
   image?: string
   /** CSS length constraining the image width, e.g. `"14rem"` or `"100%"`. */
   imageMaxWidth?: string
-  /** Whether the image should be circular (avatar style). */
-  imageRounded?: boolean
+  /** CSS border-radius for the welcome image, e.g. `"0.5rem"` or `"50%"`. */
+  imageRadius?: string
 }
 
 /** Optional full-page background for the org's verify/welcome pages. */

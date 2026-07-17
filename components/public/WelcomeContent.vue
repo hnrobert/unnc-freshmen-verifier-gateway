@@ -19,7 +19,7 @@ const body = computed(() => {
 })
 const image = computed(() => config.value.welcome.image)
 const imageMaxWidth = computed(() => config.value.welcome.imageMaxWidth ?? '12rem')
-const imageRounded = computed(() => config.value.welcome.imageRounded ?? false)
+const imageRadius = computed(() => config.value.welcome.imageRadius ?? '0.5rem')
 
 const details = computed(() => {
   const a = props.stubAdmission ?? admission.value
@@ -51,7 +51,7 @@ function goBack(): void {
         :src="image"
         :alt="t('welcome.imageAlt')"
         class="w-full shadow-sm"
-        :class="imageRounded ? 'rounded-full' : 'rounded-2xl'"
+        :style="{ borderRadius: imageRadius }"
       />
     </span>
 
