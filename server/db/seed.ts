@@ -20,8 +20,13 @@ async function main(): Promise<void> {
   const email = 'demo@example.com'
   let user = await userRepo.findOne({ where: { email } })
   if (!user) {
-    user = await userRepo.save({ email, passwordHash: hashPassword('demo1234') })
-    console.log(`created user ${email} (password: demo1234)`)
+    const userCount = await userRepo.count()
+    user = await userRepo.save({
+      email,
+      passwordHash: hashPassword('demo1234'),
+      role: userCount === 0 ? 'superadmin' : 'admin',
+    })
+    console.log(`created user ${email} (password: demo1234, role: ${user.role})`)
   } else {
     console.log(`user ${email} already exists`)
   }

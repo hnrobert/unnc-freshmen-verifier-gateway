@@ -1,6 +1,7 @@
 interface AuthUser {
-  id: string
+  id: number
   email: string
+  role: string
 }
 
 export function useAuth() {

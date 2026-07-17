@@ -1,10 +1,9 @@
 interface AuthUser {
-  id: string
+  id: number
   email: string
+  role: string
 }
 
-// Populate the shared `user` state on boot. During SSR, forward the browser
-// cookie so /api/auth/me can resolve the session.
 export default defineNuxtPlugin(async () => {
   const user = useState<AuthUser | null>('user', () => null)
   const headers = useRequestHeaders(['cookie'])

@@ -9,7 +9,7 @@ const ARGON_OPTS = { t: 2, m: 19456, p: 1 } as const
 const SESSION_COOKIE = 'vg_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30
 
-export interface SessionUser { id: number; email: string }
+export interface SessionUser { id: number; email: string; role: string }
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16)
@@ -55,11 +55,17 @@ export async function getSessionUser(event: H3Event): Promise<SessionUser | null
   }
   const user = await AppDataSource.getRepository(User).findOne({ where: { id: session.userId } })
   if (!user) return null
-  return { id: user.id, email: user.email }
+  return { id: user.id, email: user.email, role: user.role }
 }
 
 export function requireAuth(event: H3Event): SessionUser {
   const user = event.context.user as SessionUser | undefined
   if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+  return user
+}
+
+export function requireSuperAdmin(event: H3Event): SessionUser {
+  const user = requireAuth(event)
+  if (user.role !== 'superadmin') throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   return user
 }

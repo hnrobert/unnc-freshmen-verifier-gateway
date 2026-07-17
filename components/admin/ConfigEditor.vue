@@ -4,6 +4,8 @@ import type { Locale } from '#shared/types'
 const { config } = useOrgConfig()
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
+const user = useState<{ role: string } | null>('user')
+const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
 
 function toggleLocale(loc: Locale, checked: boolean): void {
   const locales = config.value.locales
@@ -158,8 +160,8 @@ const msgs = computed(() => config.value.messages as Record<string, unknown>)
       </div>
     </section>
 
-    <!-- Gateway -->
-    <section class="space-y-3">
+    <!-- Gateway (superadmin only) -->
+    <section v-if="isSuperAdmin" class="space-y-3">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Gateway</h3>
       <div class="grid grid-cols-2 gap-3">
         <div class="grid gap-1.5">

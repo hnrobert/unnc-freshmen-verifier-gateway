@@ -14,11 +14,10 @@ export default defineEventHandler(async (event) => {
 
   await createSession(event, user.id)
 
-  // Issue JWT trust token (7-day window, resets on each login)
   const trustedUntil = new Date(Date.now() + getTrustWindowMs())
   await userRepo.update(user.id, { trustedUntil })
   const token = signTrustJwt(user.id, user.email, trustedUntil)
   setTrustCookie(event, token)
 
-  return { user: { id: user.id, email: user.email } }
+  return { user: { id: user.id, email: user.email, role: user.role } }
 })

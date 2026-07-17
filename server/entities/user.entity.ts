@@ -17,4 +17,7 @@ export class User {
 
   @Column({ name: 'trusted_until', type: 'datetime', nullable: true })
   trustedUntil!: Date | null
+
+  @Column({ type: 'text', default: 'admin' })
+  role!: string
 }

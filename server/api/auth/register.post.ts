@@ -15,13 +15,16 @@ export default defineEventHandler(async (event) => {
   const existing = await repo.findOne({ where: { email } })
   if (existing) throw createError({ statusCode: 409, statusMessage: 'Email already registered' })
 
+  // First registered user becomes superadmin; all others are admin.
+  const userCount = await repo.count()
+  const role = userCount === 0 ? 'superadmin' : 'admin'
+
   const trustedUntil = new Date(Date.now() + getTrustWindowMs())
-  const user = await repo.save({ email, passwordHash: hashPassword(password), trustedUntil })
+  const user = await repo.save({ email, passwordHash: hashPassword(password), trustedUntil, role })
   await createSession(event, user.id)
 
-  // Issue JWT trust token
   const token = signTrustJwt(user.id, user.email, trustedUntil)
   setTrustCookie(event, token)
 
-  return { user: { id: user.id, email: user.email } }
+  return { user: { id: user.id, email: user.email, role: user.role } }
 })
