@@ -125,14 +125,25 @@ const advancedOpen = ref(false)
         <Button v-if="(config.background as any).image" size="sm" variant="ghost" type="button" @click="(config.background as any).image = ''">Remove</Button>
       </div>
       <div v-if="(config.background as any).image" class="grid gap-1.5">
-        <Label>preview <span class="text-xs font-normal text-muted-foreground">(with overlay)</span></Label>
-        <div class="relative overflow-hidden rounded-lg border" style="max-height: 50vh">
-          <ImagePreview ref="bgPreview" :slug="slug" :src="(config.background as any).image" class="block" />
+        <Label>preview <span class="text-xs font-normal text-muted-foreground">(background-cover + overlay)</span></Label>
+        <!-- Hidden ImagePreview just to fetch the base64 -->
+        <ImagePreview v-show="false" ref="bgPreview" :slug="slug" :src="(config.background as any).image" />
+        <!-- Actual preview: fixed-height div with background-image, centered, cover -->
+        <div
+          v-if="bgPreview?.resolved && !bgPreview?.failed"
+          class="relative h-48 overflow-hidden rounded-lg border"
+          :style="{ backgroundImage: `url(${bgPreview.resolved})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }"
+        >
           <div
-            v-if="!bgPreview?.failed"
             class="pointer-events-none absolute inset-0 bg-black"
             :style="{ opacity: (config.background as any).overlayOpacity ?? 0.5 }"
           />
+        </div>
+        <div
+          v-else-if="bgPreview?.failed"
+          class="flex h-48 items-center justify-center rounded-lg border bg-muted text-muted-foreground"
+        >
+          <svg viewBox="0 0 24 24" class="size-8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9" /><path d="m9 9 5 5" /><path d="M14 9v5" /><path d="M9 14h5" /></svg>
         </div>
       </div>
     </section>

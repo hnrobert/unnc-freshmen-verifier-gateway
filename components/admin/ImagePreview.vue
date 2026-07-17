@@ -38,6 +38,7 @@ defineExpose({
     load(props.src)
   },
   failed: computed(() => failed.value),
+  resolved: computed(() => resolved.value),
 })
 </script>
 

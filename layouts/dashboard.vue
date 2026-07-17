@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { useColorMode } from '@vueuse/core'
+
 const { user, logout } = useAuth()
 const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
 const sidebarOpen = ref(false)
 const route = useRoute()
 
 watch(() => route.path, () => { sidebarOpen.value = false })
+
+// Dashboard theme toggle (standalone — no org config needed)
+const mode = useColorMode({ storageKey: 'vg.theme' })
+function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
 </script>
 
 <template>
@@ -26,7 +32,15 @@ watch(() => route.path, () => { sidebarOpen.value = false })
         <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10 12 5 2 10l10 5 10-5Z" /><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" /></svg>
         </span>
-        <span class="text-sm font-semibold leading-tight">UNNC Freshmen<br />Verifier Gateway</span>
+        <span class="flex-1 text-sm font-semibold leading-tight">UNNC Freshmen<br />Verifier Gateway</span>
+        <button
+          class="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"
+          :title="mode === 'dark' ? 'Light mode' : 'Dark mode'"
+          @click="toggleTheme"
+        >
+          <svg v-if="mode === 'dark'" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
+          <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>
+        </button>
       </div>
 
       <!-- Nav -->
@@ -89,6 +103,14 @@ watch(() => route.path, () => { sidebarOpen.value = false })
           <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6" /><line x1="3" x2="21" y1="12" y2="12" /><line x1="3" x2="21" y1="18" y2="18" /></svg>
         </button>
         <span class="text-sm font-semibold">UNNC VG</span>
+        <!-- Theme toggle -->
+        <button
+          class="ml-auto flex size-8 items-center justify-center rounded-lg border text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"
+          @click="toggleTheme"
+        >
+          <svg v-if="mode === 'dark'" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
+          <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>
+        </button>
       </header>
 
       <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
