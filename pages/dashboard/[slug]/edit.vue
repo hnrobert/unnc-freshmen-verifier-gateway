@@ -6,9 +6,6 @@ import { buttonVariants } from '~/components/ui/button'
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
-const user = useState<{ role: string } | null>('user')
-const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
-const editorTab = ref<'content' | 'advanced'>('content')
 
 const { data: raw } = await useAsyncData(`org-edit:${slug.value}`, () =>
   useRequestFetch()<SiteConfig>(`/api/orgs/${slug.value}/config?edit=1`),
@@ -36,10 +33,9 @@ const saving = ref(false)
 const saved = ref(false)
 const errors = ref<string[]>([])
 
-// --- Dirty tracking (Discord-style) ---
-const serializedDraft = computed(() => JSON.stringify(draft.value))
+// --- Dirty tracking ---
 const originalSerialized = ref(JSON.stringify(raw.value))
-const isDirty = computed(() => serializedDraft.value !== originalSerialized.value)
+const isDirty = computed(() => JSON.stringify(draft.value) !== originalSerialized.value)
 
 // --- Navigation guard ---
 const confirmLeave = ref(false)
@@ -59,10 +55,7 @@ async function onSave(): Promise<void> {
       method: 'POST',
       body: { config: draft.value },
     })
-    if (v.errors.length) {
-      errors.value = v.errors
-      return
-    }
+    if (v.errors.length) { errors.value = v.errors; return }
     await $fetch(`/api/orgs/${slug.value}/config`, { method: 'PUT', body: { config: draft.value } })
     originalSerialized.value = JSON.stringify(draft.value)
     saved.value = true
@@ -84,9 +77,7 @@ function onDiscard(): void {
   <div>
     <!-- Header -->
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Edit <code>/{{ slug }}</code></h1>
-      </div>
+      <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Edit <code>/{{ slug }}</code></h1>
       <div class="flex items-center gap-2">
         <a :href="`/${slug}/demo`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Demo ↗</a>
         <a :href="`/${slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">View ↗</a>
@@ -96,36 +87,17 @@ function onDiscard(): void {
     <StatusAlert v-if="saved" variant="success" message="Saved." class="mt-4" />
     <StatusAlert v-if="errors.length" variant="error" :message="errors.join('; ')" class="mt-4" />
 
-    <!-- Tabs -->
-    <div class="mt-4 flex gap-1 border-b">
-      <button
-        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors"
-        :class="editorTab === 'content' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="editorTab = 'content'"
-      >Content</button>
-      <button
-        v-if="isSuperAdmin"
-        class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors"
-        :class="editorTab === 'advanced' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="editorTab = 'advanced'"
-      >
-        Advanced
-        <span class="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">SA</span>
-      </button>
-    </div>
-
     <div class="mt-6 pb-24">
-      <ConfigEditor v-show="editorTab === 'content'" mode="admin" />
-      <ConfigEditor v-if="isSuperAdmin" v-show="editorTab === 'advanced'" mode="superadmin" />
+      <ConfigEditor />
     </div>
 
-    <!-- Discord-style save bar (slides up from bottom when dirty) -->
+    <!-- Discord-style save bar -->
     <Transition name="savebar">
       <div
         v-if="isDirty || saved"
         class="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 backdrop-blur"
       >
-        <div class="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <div class="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <span class="text-sm text-muted-foreground">
             <template v-if="saved">✓ Saved</template>
             <template v-else>You have unsaved changes</template>
@@ -138,13 +110,13 @@ function onDiscard(): void {
       </div>
     </Transition>
 
-    <!-- Unsaved changes leave dialog -->
+    <!-- Unsaved changes dialog -->
     <Transition name="fade">
-      <div v-if="confirmLeave" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" @click.self="confirmLeave = false">
+      <div v-if="confirmLeave" class="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4" @click.self="confirmLeave = false">
         <Card class="w-full max-w-sm">
           <CardHeader>
             <CardTitle>Unsaved changes</CardTitle>
-            <CardDescription>You have unsaved changes. Save or discard before leaving?</CardDescription>
+            <CardDescription>Save or discard before leaving?</CardDescription>
           </CardHeader>
           <CardContent class="flex gap-2">
             <Button variant="outline" class="flex-1" @click="confirmLeave = false">Stay</Button>
@@ -158,21 +130,8 @@ function onDiscard(): void {
 </template>
 
 <style scoped>
-.savebar-enter-active,
-.savebar-leave-active {
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s;
-}
-.savebar-enter-from,
-.savebar-leave-to {
-  transform: translateY(100%);
-  opacity: 0;
-}
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.savebar-enter-active, .savebar-leave-active { transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s; }
+.savebar-enter-from, .savebar-leave-to { transform: translateY(100%); opacity: 0; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

@@ -4,7 +4,12 @@ definePageMeta({ layout: 'dashboard', middleware: ['auth', 'superadmin'] })
 interface UserRow { id: number; email: string; role: string; createdAt: string }
 interface OrgRow { id: number; slug: string; name: string; createdAt: string; ownerEmail: string }
 
-const tab = ref<'users' | 'orgs'>('users')
+const route = useRoute()
+const tab = computed({
+  get: () => (route.query.tab === 'users' ? 'users' : 'orgs') as 'users' | 'orgs',
+  set: (v) => navigateTo({ path: '/dashboard/admin', query: { tab: v } }),
+})
+
 const { data: users, refresh: refreshUsers } = await useFetch<UserRow[]>('/api/admin/users')
 const { data: orgs } = await useFetch<OrgRow[]>('/api/admin/orgs')
 const saving = ref<Record<number, boolean>>({})
@@ -25,20 +30,30 @@ async function onRoleChange(user: UserRow, role: string) {
 
 <template>
   <div>
-    <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Admin panel</h1>
+    <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">
+      {{ tab === 'users' ? 'Users' : 'All Organizations' }}
+    </h1>
 
-    <!-- Tabs -->
-    <div class="mt-4 flex gap-1 border-b">
-      <button
-        v-for="t in [{ k: 'users', label: 'Users' }, { k: 'orgs', label: 'Organizations' }]" :key="t.k"
-        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors"
-        :class="tab === t.k ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="tab = t.k"
-      >{{ t.label }}</button>
+    <!-- Orgs tab -->
+    <div v-if="tab === 'orgs'" class="mt-6 space-y-3">
+      <Card v-for="org in orgs" :key="org.id">
+        <CardContent>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-medium">{{ org.name }}</div>
+              <div class="text-xs text-muted-foreground">/{{ org.slug }} · {{ org.ownerEmail }}</div>
+            </div>
+            <div class="flex gap-2">
+              <Button size="sm" variant="outline" @click="navigateTo(`/dashboard/${org.slug}/edit`)">Edit</Button>
+              <a :href="`/${org.slug}/demo`" target="_blank" class="inline-flex h-8 items-center rounded-md px-3 text-xs font-medium border hover:bg-accent">Demo ↗</a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
 
     <!-- Users tab -->
-    <div v-if="tab === 'users'" class="mt-6">
+    <div v-else class="mt-6">
       <Card class="hidden sm:block">
         <CardContent>
           <table class="w-full text-sm">
@@ -78,24 +93,6 @@ async function onRoleChange(user: UserRow, role: string) {
           </CardContent>
         </Card>
       </div>
-    </div>
-
-    <!-- Orgs tab -->
-    <div v-else class="mt-6 space-y-3">
-      <Card v-for="org in orgs" :key="org.id">
-        <CardContent>
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="min-w-0">
-              <div class="font-medium">{{ org.name }}</div>
-              <div class="text-xs text-muted-foreground">/{{ org.slug }} · {{ org.ownerEmail }}</div>
-            </div>
-            <div class="flex gap-2">
-              <Button size="sm" variant="outline" @click="navigateTo(`/dashboard/${org.slug}/edit`)">Edit</Button>
-              <a :href="`/${org.slug}/demo`" target="_blank" class="inline-flex h-8 items-center rounded-md px-3 text-xs font-medium border hover:bg-accent">Demo ↗</a>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   </div>
 </template>
