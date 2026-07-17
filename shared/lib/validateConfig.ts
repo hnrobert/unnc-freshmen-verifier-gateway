@@ -77,7 +77,8 @@ export function validateConfig(config: SiteConfig): string[] {
     }
     for (const key of REQUIRED_KEYS) {
       const value = deepGet(messages, key)
-      if (value === undefined || value === null || value === '') {
+      // Only undefined/null = missing. Empty string = "use default" (valid).
+      if (value === undefined || value === null) {
         errors.push(`messages.${loc}.${key} is missing`)
       }
     }

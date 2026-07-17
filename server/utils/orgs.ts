@@ -5,6 +5,7 @@ import { OrgSetting } from '../entities/orgSetting.entity'
 import { OrgImage } from '../entities/orgImage.entity'
 import type { SiteConfig } from '../../shared/types'
 import { resolveImageRefs } from './config'
+import { applyDefaults } from '../../shared/lib/applyDefaults'
 import { requireAuth } from './auth'
 
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
@@ -37,7 +38,9 @@ export async function loadOrgConfig(slug: string): Promise<SiteConfig> {
   if (!settings) throw createError({ statusCode: 404, statusMessage: 'Organization config not found' })
 
   const raw = JSON.parse(settings.config) as SiteConfig
-  const cfg = await resolveImageRefs(raw, org.slug, org.id)
+  // Apply defaults (fill empty strings) so the public page always renders fully.
+  const filled = applyDefaults(raw)
+  const cfg = await resolveImageRefs(filled, org.slug, org.id)
   cache.set(slug, { t: Date.now(), cfg })
   return cfg
 }
