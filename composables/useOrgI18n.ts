@@ -1,5 +1,6 @@
 import { useI18n } from 'vue-i18n'
 import type { Locale, SiteConfig } from '#shared/types'
+import { escapeI18nMessages } from '#shared/lib/escapeMessage'
 
 const LOCALE_COOKIE = 'vg.locale'
 
@@ -26,7 +27,11 @@ export function useOrgI18n() {
   /** Merge an org's messages without changing the active locale (for live preview). */
   function mergeOrgMessages(config: SiteConfig): void {
     for (const loc of config.locales) {
-      i18n.mergeLocaleMessage(loc, config.messages[loc] as Record<string, unknown>)
+      // Escape transiently: org messages are user text that may contain i18n
+      // metacharacters (e.g. `@` in an email) which would crash vue-i18n's
+      // compiler at render time. config.messages itself stays pristine.
+      const safe = escapeI18nMessages(config.messages[loc])
+      i18n.mergeLocaleMessage(loc, safe as Record<string, unknown>)
     }
   }
 
