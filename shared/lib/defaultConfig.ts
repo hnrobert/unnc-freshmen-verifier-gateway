@@ -121,7 +121,7 @@ const config: SiteConfig = {
       },
       verify: {
         heading: 'Admission Status Verification',
-        subheading: 'Fill in the form below. We verify your admission status live via the official portal.',
+        subheading: 'Fill in the form below. We will verify your admission status via the official portal.',
         nameLabel: 'Name',
         namePlaceholder: 'Enter your name',
         idLabel: 'ID Number',
@@ -164,9 +164,9 @@ const config: SiteConfig = {
         ].join('\n'),
         back: 'Check another',
       },
-      theme: { toggle: 'Toggle theme' },
+      theme: { toggle: 'Toggle dark/light theme' },
       lang: { label: 'Language' },
-      footer: 'For admission verification demo only. Please use responsibly — do not bulk-query.',
+      footer: 'Made with heart by HNRobert',
     },
   },
 }

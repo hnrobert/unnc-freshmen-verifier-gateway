@@ -66,7 +66,7 @@ async function onRoleChange(user: UserRow, role: string) {
                 <td class="py-3 text-muted-foreground">{{ u.id }}</td>
                 <td class="py-3 font-medium">{{ u.email }}</td>
                 <td class="py-3">
-                  <select :value="u.role" :disabled="saving[u.id]" class="rounded-md border bg-transparent px-2 py-1 text-sm"
+                  <select :value="u.role" :disabled="saving[u.id]" class="h-9 rounded-md border bg-transparent px-2 text-sm"
                     @change="onRoleChange(u, ($event.target as HTMLSelectElement).value)">
                     <option value="admin">admin</option><option value="superadmin">superadmin</option>
                   </select>
@@ -85,7 +85,7 @@ async function onRoleChange(user: UserRow, role: string) {
                 <div class="truncate font-medium">{{ u.email }}</div>
                 <div class="text-xs text-muted-foreground">ID {{ u.id }}</div>
               </div>
-              <select :value="u.role" :disabled="saving[u.id]" class="shrink-0 rounded-md border bg-transparent px-2 py-1 text-xs"
+              <select :value="u.role" :disabled="saving[u.id]" class="h-9 shrink-0 rounded-md border bg-transparent px-2 text-xs"
                 @change="onRoleChange(u, ($event.target as HTMLSelectElement).value)">
                 <option value="admin">admin</option><option value="superadmin">superadmin</option>
               </select>

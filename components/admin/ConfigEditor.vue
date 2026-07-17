@@ -109,7 +109,7 @@ const advancedOpen = ref(false)
         </label>
         <label class="flex items-center gap-2 text-sm">
           default:
-          <select v-model="config.defaultLocale" class="rounded-md border bg-transparent px-2 py-1 text-sm">
+          <select v-model="config.defaultLocale" class="h-9 rounded-md border bg-transparent px-2 text-sm">
             <option v-for="l in config.locales" :key="l" :value="l">{{ l }}</option>
           </select>
         </label>
@@ -270,7 +270,7 @@ const advancedOpen = ref(false)
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="grid gap-1.5">
               <Label>mode</Label>
-              <select v-model="config.gateway.mode" class="rounded-md border bg-transparent px-2 py-2 text-sm">
+              <select v-model="config.gateway.mode" class="h-9 rounded-md border bg-transparent px-2 text-sm">
                 <option value="live">live</option><option value="mock">mock</option>
               </select>
             </div>

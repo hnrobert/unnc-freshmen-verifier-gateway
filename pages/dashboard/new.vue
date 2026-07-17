@@ -41,11 +41,11 @@ async function onSubmit() {
         <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
           <div class="flex flex-col gap-2">
             <Label for="name">Organization name</Label>
-            <Input id="name" v-model="name" placeholder="e.g. UNNC Freshmen 2026" :disabled="loading" />
+            <Input id="name" v-model="name" placeholder="e.g. Computer Psycho Union" :disabled="loading" />
           </div>
           <div class="flex flex-col gap-2">
             <Label for="slug">Slug</Label>
-            <Input id="slug" v-model="slug" placeholder="unnc-2026" :disabled="loading" />
+            <Input id="slug" v-model="slug" placeholder="cpu" :disabled="loading" />
             <p v-if="slugHint" class="text-xs" :class="slugHint === 'looks good' ? 'text-emerald-600' : 'text-muted-foreground'">
               {{ slugHint }}
             </p>
