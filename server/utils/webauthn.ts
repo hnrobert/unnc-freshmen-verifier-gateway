@@ -20,10 +20,16 @@ const RP_NAME = 'UNNC Freshmen Verifier Gateway'
 export function getRelyingParty(event: H3Event): { rpID: string; rpName: string; origin: string } {
   const xfh = getRequestHeader(event, 'x-forwarded-host')?.split(',')[0]?.trim()
   const hostHeader = getRequestHeader(event, 'host') ?? ''
-  const host = (xfh || hostHeader).replace(/:\d+$/, '')
-  const rpID = process.env.WEBAUTHN_RP_ID || host || 'localhost'
+  // host[:port] exactly as the browser reached us. The WebAuthn ORIGIN must
+  // include the port (e.g. http://localhost:3000) — it's compared verbatim
+  // against the authenticator response's origin — while the RP ID is always
+  // port-less (just the registrable domain / "localhost"). Building origin
+  // from the full host instead of the port-stripped rpID is what keeps
+  // non-default ports (dev :3000, tunnels, prod :8443) from failing verify.
+  const fullHost = xfh || hostHeader || 'localhost'
+  const rpID = process.env.WEBAUTHN_RP_ID || fullHost.replace(/:\d+$/, '')
   const proto = isSecureRequest(event) ? 'https' : 'http'
-  const origin = process.env.WEBAUTHN_ORIGIN || `${proto}://${rpID}`
+  const origin = process.env.WEBAUTHN_ORIGIN || `${proto}://${fullHost}`
   return { rpID, rpName: RP_NAME, origin }
 }
 
@@ -40,8 +46,11 @@ function signChallenge(challenge: string): string {
 /** Store the options challenge in a short-lived signed cookie (stateless; no DB row). */
 export function setChallengeCookie(event: H3Event, challenge: string): void {
   setCookie(event, CHALLENGE_COOKIE, signChallenge(challenge), {
-    httpOnly: true, sameSite: 'lax', path: '/',
-    maxAge: CHALLENGE_TTL_S, secure: isSecureRequest(event),
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: CHALLENGE_TTL_S,
+    secure: isSecureRequest(event),
   })
 }
 

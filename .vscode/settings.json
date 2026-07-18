@@ -1,17 +1,21 @@
 {
-    "cSpell.words": [
-        "FOUC",
-        "lucide",
-        "Ningbo",
-        "Nuxt",
-        "refetches",
-        "savebar",
-        "selftest",
-        "simplewebauthn",
-        "superadmin",
-        "Superadmins",
-        "vars",
-        "vueuse",
-        "webauthn"
-    ]
+  "cSpell.words": [
+    "FOUC",
+    "gitflow",
+    "honors",
+    "lucide",
+    "Ningbo",
+    "Nuxt",
+    "passwordless",
+    "refetches",
+    "savebar",
+    "selftest",
+    "simplewebauthn",
+    "superadmin",
+    "Superadmins",
+    "usernameless",
+    "vars",
+    "vueuse",
+    "webauthn"
+  ]
 }
