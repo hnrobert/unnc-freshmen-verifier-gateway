@@ -10,6 +10,9 @@ import { OrgImage } from '../entities/orgImage.entity'
 import { Passkey } from '../entities/passkey.entity'
 import { Verification } from '../entities/verification.entity'
 import { AppSetting } from '../entities/appSetting.entity'
+import { OrgMember } from '../entities/orgMember.entity'
+import { OrgEvent } from '../entities/orgEvent.entity'
+import { OrgDailyStat } from '../entities/orgDailyStat.entity'
 
 const dbPath = process.env.DB_PATH || './data/app.db'
 
@@ -41,7 +44,19 @@ class StartupLogger implements Logger {
 export const AppDataSource = new DataSource({
   type: 'better-sqlite3',
   database: dbPath,
-  entities: [User, Session, Organization, OrgSetting, OrgImage, Verification, AppSetting, Passkey],
+  entities: [
+    User,
+    Session,
+    Organization,
+    OrgSetting,
+    OrgImage,
+    Verification,
+    AppSetting,
+    Passkey,
+    OrgMember,
+    OrgEvent,
+    OrgDailyStat,
+  ],
   // synchronize stays false in config; initDataSource() calls synchronize()
   // explicitly (additive — creates missing tables/columns, never drops data).
   // Migrations are owned by the CLI (tsx); the runtime uses synchronize because

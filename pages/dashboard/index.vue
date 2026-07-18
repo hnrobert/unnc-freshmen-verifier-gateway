@@ -47,10 +47,23 @@ async function onDelete(slug: string) {
       <li v-for="org in data.orgs" :key="org.id" class="rounded-lg border p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <div class="font-medium">{{ org.name }}</div>
+            <div class="flex items-center gap-2">
+              <span class="font-medium">{{ org.name }}</span>
+              <span
+                v-if="org.role === 'owner'"
+                class="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary-foreground"
+                >owner</span
+              >
+              <span
+                v-else
+                class="rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                >shared · {{ org.role }}</span
+              >
+            </div>
             <div class="text-sm text-muted-foreground">/{{ org.slug }}</div>
           </div>
           <Button
+            v-if="org.role === 'owner'"
             variant="outline"
             size="sm"
             :disabled="deleting === org.slug"
@@ -62,6 +75,16 @@ async function onDelete(slug: string) {
         <div class="mt-3 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}/edit`)"
             >Edit</Button
+          >
+          <Button
+            v-if="org.role === 'owner' || org.role === 'manager'"
+            variant="outline"
+            size="sm"
+            @click="navigateTo(`/dashboard/${org.slug}/members`)"
+            >Members</Button
+          >
+          <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}/stats`)"
+            >Stats</Button
           >
           <a
             :href="`/${org.slug}`"

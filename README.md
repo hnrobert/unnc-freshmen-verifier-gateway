@@ -15,7 +15,8 @@ solver included).
 Nuxt 4 (SSR + Nitro) · SQLite (better-sqlite3) · **TypeORM** (entities +
 migrations) · argon2id passwords (`@noble/hashes`) · revocable server-side
 sessions + JWT trust cookies (`jsonwebtoken`) · vue-i18n · Tailwind CSS v4 +
-shadcn-vue · lucide-vue-next · markdown-it · pngjs · pnpm
+shadcn-vue · lucide-vue-next · markdown-it · pngjs · Chart.js/vue-chartjs ·
+ua-parser-js · vue-sonner · pnpm
 
 > Node **>= 24** is required (the Docker image uses `node:24-slim`).
 
@@ -111,38 +112,82 @@ portal directly. Resolution order:
 3. **Live mode** — query the portal; on a successful admission, issue a verify
    cookie for future cross-org trust.
 
+### Org sharing
+
+An org's owner can **share** it with other registered users so they can also
+view/manage that org's data. Roles (low → high): **viewer** (read config +
+stats) · **editor** (edit config/images) · **manager** (also manage members) ·
+**owner** · **superadmin** (bypasses). Access is rank-checked by `requireOrgRole`
+in `server/utils/members.ts`.
+
+- **Invite by email link**: owner/manager enters an email → a pending
+  `org_members` row + one-time token is created → recipient opens `/invite/<token>`
+  and must **sign in with that exact email** to claim. Managers can invite
+  viewers/editors; **only the owner** can invite managers or **transfer ownership**.
+- `GET /api/orgs` returns **owned ∪ shared** orgs, each tagged with the caller's
+  role; the dashboard badges shared orgs. Any member can self-leave.
+
+### Statistics
+
+Per-org analytics live in SQLite: page views + unique visitors, verification
+outcomes (admitted / not-found / error) + modes (live / mock / trusted), and a
+visitor profile (locale+region, device/browser/OS, referer). Two tables:
+
+- **`org_events`** — raw event log, **retained 90 days** then pruned.
+- **`org_daily_stats`** — permanent daily rollup (powers trend charts long-term).
+
+**Privacy:** the visitor name is stored plaintext, but the **ID number and IP are
+stored only as salted SHA-256 hashes** (`id_hash`, `ip_hash`) — never raw. Region
+is inferred from the Accept-Language suffix (no GeoIP DB shipped). Views are
+counted via a public `POST /api/orgs/<slug>/track` beacon; each verification is
+recorded inside `check`. Charts render at `/dashboard/<slug>/stats` via
+Chart.js/vue-chartjs.
+
 ---
 
 ## API surface
 
-| Area | Method · Path | Auth | Notes |
-| --- | --- | --- | --- |
-| Auth | `POST /api/auth/register` | public | first user → `superadmin` |
-| | `POST /api/auth/login` | public | |
-| | `POST /api/auth/logout` | — | clears session + both JWT cookies |
-| | `GET /api/auth/me` | session | current user |
-| | `PATCH /api/auth/me` | session | change email and/or password |
-| | `GET /api/auth/passkey` | session | list own passkeys |
-| | `GET /api/auth/passkey/register-options` | session | add-passkey ceremony (options) |
-| | `POST /api/auth/passkey/register-verify` | session | verify + store credential |
-| | `GET /api/auth/passkey/login-options` | public | passkey-login ceremony (options) |
-| | `POST /api/auth/passkey/login-verify` | public | verify → create session |
-| | `DELETE /api/auth/passkey/<id>` | session | remove own passkey |
-| Orgs | `GET /api/orgs` | session | list **own** orgs |
-| | `POST /api/orgs` | session | create org |
-| | `POST /api/orgs/validate` | session | slug validation |
-| | `GET /api/orgs/<slug>/config` | — | resolved public config (used by SSR) |
-| | `PUT /api/orgs/<slug>/config` | owner/SA | save edited config |
-| | `DELETE /api/orgs/<slug>` | owner/SA | cascade-deletes settings + images |
-| | `POST /api/orgs/<slug>/check` | — | run verification (see above) |
-| | `POST /api/orgs/<slug>/images` | owner/SA | upload image → `img:<key>` |
-| | `GET /api/orgs/<slug>/img/<key>` | — | serve stored image |
-| Admin | `GET /api/admin/users` | superadmin | |
-| | `PATCH /api/admin/users/<id>` | superadmin | set role |
-| | `GET /api/admin/orgs` | superadmin | all orgs + owner emails |
-| Misc | `GET /api/icon.svg` | — | lucide name → SVG in an org color |
+| Area    | Method · Path                            | Auth       | Notes                                         |
+| ------- | ---------------------------------------- | ---------- | --------------------------------------------- |
+| Auth    | `POST /api/auth/register`                | public     | first user → `superadmin`                     |
+|         | `POST /api/auth/login`                   | public     |                                               |
+|         | `POST /api/auth/logout`                  | —          | clears session + both JWT cookies             |
+|         | `GET /api/auth/me`                       | session    | current user                                  |
+|         | `PATCH /api/auth/me`                     | session    | change email and/or password                  |
+|         | `GET /api/auth/passkey`                  | session    | list own passkeys                             |
+|         | `GET /api/auth/passkey/register-options` | session    | add-passkey ceremony (options)                |
+|         | `POST /api/auth/passkey/register-verify` | session    | verify + store credential                     |
+|         | `GET /api/auth/passkey/login-options`    | public     | passkey-login ceremony (options)              |
+|         | `POST /api/auth/passkey/login-verify`    | public     | verify → create session                       |
+|         | `DELETE /api/auth/passkey/<id>`          | session    | remove own passkey                            |
+| Orgs    | `GET /api/orgs`                          | session    | list accessible orgs (owned ∪ shared)         |
+|         | `POST /api/orgs`                         | session    | create org                                    |
+|         | `POST /api/orgs/validate`                | session    | slug validation                               |
+|         | `GET /api/orgs/<slug>/config`            | —          | resolved public config (used by SSR)          |
+|         | `GET /api/orgs/<slug>/config?edit`       | viewer+    | raw config for the editor                     |
+|         | `PUT /api/orgs/<slug>/config`            | editor+    | save edited config                            |
+|         | `POST /api/orgs/<slug>/images`           | editor+    | upload image → `img:<key>`                    |
+|         | `DELETE /api/orgs/<slug>`                | owner/SA   | cascade-deletes settings/images/members/stats |
+|         | `POST /api/orgs/<slug>/check`            | —          | run verification (records a stats event)      |
+|         | `POST /api/orgs/<slug>/track`            | —          | public page-view beacon                       |
+|         | `GET /api/orgs/<slug>/img/<key>`         | —          | serve stored image                            |
+|         | `GET /api/orgs/<slug>/stats`             | viewer+    | totals + daily series + breakdowns            |
+|         | `GET /api/orgs/<slug>/access`            | viewer+    | caller's role on this org                     |
+| Sharing | `GET /api/orgs/<slug>/members`           | manager+   | list members + owner                          |
+|         | `POST /api/orgs/<slug>/members`          | manager+   | invite by email → invite link                 |
+|         | `PATCH /api/orgs/<slug>/members/<id>`    | manager+   | change role (owner-only → manager)            |
+|         | `DELETE /api/orgs/<slug>/members/<id>`   | manager+   | remove (or self-leave)                        |
+|         | `POST /api/orgs/<slug>/transfer`         | owner+     | transfer ownership                            |
+|         | `GET /api/invites/<token>`               | —          | invite details (landing page)                 |
+|         | `POST /api/invites/<token>/claim`        | session    | claim invite (email must match)               |
+| Admin   | `GET /api/admin/users`                   | superadmin |                                               |
+|         | `PATCH /api/admin/users/<id>`            | superadmin | set role                                      |
+|         | `GET /api/admin/orgs`                    | superadmin | all orgs + owner emails                       |
+| Misc    | `GET /api/icon.svg`                      | —          | lucide name → SVG in an org color             |
 
-"owner/SA" = the org's owner or any superadmin (`requireOrgOwnership`).
+Roles: viewer < editor < manager < owner < superadmin, enforced by
+`requireOrgRole` (`server/utils/members.ts`). "viewer+" / "editor+" / "manager+"
+/ "owner+" = minimum rank; "owner/SA" = owner or superadmin.
 
 ---
 
@@ -170,21 +215,21 @@ keep it in sync:
   (creates missing tables/columns, never drops data).
 - **Managed migrations** in `server/migrations/` (currently `Init`,
   `AddJwtTrust`, `AddUserRole`, `AddPasskeys`), applied via the TypeORM CLI
-  wrappers below. *(Note: `synchronize()` is what actually provisions the schema
+  wrappers below. _(Note: `synchronize()` is what actually provisions the schema
   at runtime; the DataSource does not currently register a `migrations` array, so
   `db:run` reports none pending. The migration files remain as convention and
-  satisfy the pre-commit guard.)*
+  satisfy the pre-commit guard.)_
 - **Pre-commit guard** (`pnpm db:check`): refuses a commit that changes
   `server/entities` without an accompanying new migration (bypass by including
   `bypass migration check` in the commit message).
 
-| Script | What it does |
-| --- | --- |
-| `pnpm db:run` | Run pending migrations (`migration:run`) |
-| `pnpm db:revert` | Revert the last migration |
+| Script                              | What it does                             |
+| ----------------------------------- | ---------------------------------------- |
+| `pnpm db:run`                       | Run pending migrations (`migration:run`) |
+| `pnpm db:revert`                    | Revert the last migration                |
 | `pnpm db:generate -- --name=<Name>` | Generate a migration from entity changes |
-| `pnpm db:check` | Pre-commit entity↔migration guard |
-| `pnpm db:seed` | Seed the demo user + org |
+| `pnpm db:check`                     | Pre-commit entity↔migration guard        |
+| `pnpm db:seed`                      | Seed the demo user + org                 |
 
 > There is **no `db:migrate`** script — use `db:run` to apply migrations.
 
@@ -192,13 +237,13 @@ keep it in sync:
 
 ## Scripts
 
-| Script | What it does |
-| --- | --- |
-| `pnpm dev` | Nuxt dev server (auto-syncs schema on boot) |
-| `pnpm build` | Production build → `.output/` |
-| `pnpm preview` | Preview the build (`node .output/server/index.mjs`) |
-| `pnpm typecheck` | `nuxt typecheck` |
-| `pnpm test` | Self-test for the captcha solver + parser (`scripts/selftest.ts`) |
+| Script           | What it does                                                      |
+| ---------------- | ----------------------------------------------------------------- |
+| `pnpm dev`       | Nuxt dev server (auto-syncs schema on boot)                       |
+| `pnpm build`     | Production build → `.output/`                                     |
+| `pnpm preview`   | Preview the build (`node .output/server/index.mjs`)               |
+| `pnpm typecheck` | `nuxt typecheck`                                                  |
+| `pnpm test`      | Self-test for the captcha solver + parser (`scripts/selftest.ts`) |
 
 ---
 
@@ -279,7 +324,7 @@ server/                       # Nitro
   utils/                      # database · auth · jwt · orgs · config · admission · webauthn · registration · request · png
   middleware/                 # session.ts (resolves session → event.context.user)
   plugins/                    # 01.db.ts (init DataSource + synchronize on boot)
-  migrations/                 # Init · AddJwtTrust · AddUserRole · AddPasskeys
+  migrations/                 # Init · AddJwtTrust · AddUserRole · AddPasskeys · OrgSharingStats
   scripts/                    # runMigration · revertMigration · generateMigration · checkMigration
   db/                         # seed.ts
 ```
@@ -296,7 +341,7 @@ server/                       # Nitro
   `/<slug>/welcome` route is gated client-side by a `sessionStorage` flag, not a
   security boundary.
 - **Verify trust is convenience, not identity**: the `vg_verify` cookie lets a
-  verified name+ID skip the portal across orgs; it authenticates the *fact of
-  prior admission*, not a user account.
+  verified name+ID skip the portal across orgs; it authenticates the _fact of
+  prior admission_, not a user account.
 - For legal/ethical use only — don't bulk-query the portal; ID numbers are
   sensitive personal data.

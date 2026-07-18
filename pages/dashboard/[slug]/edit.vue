@@ -7,6 +7,18 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
+// Caller's role on this org — gates Members (manager+) and editing (editor+).
+const { data: access } = await useFetch<{ role: string | null }>(
+  () => `/api/orgs/${slug.value}/access`,
+  { watch: [slug] },
+)
+const isManager = computed(() =>
+  ['owner', 'manager', 'superadmin'].includes(access.value?.role ?? ''),
+)
+const canEdit = computed(() =>
+  ['owner', 'manager', 'editor', 'superadmin'].includes(access.value?.role ?? ''),
+)
+
 const { data: raw } = await useAsyncData(`org-edit:${slug.value}`, () =>
   useRequestFetch()<SiteConfig>(`/api/orgs/${slug.value}/config?edit=1`),
 )
@@ -111,6 +123,16 @@ function previewWithoutSaving() {
         Edit <code>/{{ slug }}</code>
       </h1>
       <div class="flex items-center gap-2">
+        <Button
+          v-if="isManager"
+          variant="ghost"
+          size="sm"
+          @click="navigateTo(`/dashboard/${slug}/members`)"
+          >Members</Button
+        >
+        <Button variant="ghost" size="sm" @click="navigateTo(`/dashboard/${slug}/stats`)"
+          >Stats</Button
+        >
         <Button variant="ghost" size="sm" @click="onPreviewClick">Preview ↗</Button>
         <a
           :href="`/${slug}`"
@@ -125,8 +147,22 @@ function previewWithoutSaving() {
       <ConfigEditor />
     </div>
 
-    <!-- Sticky save/discard bar (dirty tracking + save logic live in this page) -->
-    <SaveBar :dirty="isDirty" :saving="saving" :saved="saved" @save="onSave" @discard="onDiscard" />
+    <!-- Read-only notice for viewers (editing is server-enforced regardless) -->
+    <StatusAlert
+      v-if="access && !canEdit"
+      variant="error"
+      message="You have view-only access to this organization. Changes can't be saved."
+    />
+
+    <!-- Sticky save/discard bar — only for users who can edit (dirty tracking + save logic live here) -->
+    <SaveBar
+      v-if="canEdit"
+      :dirty="isDirty"
+      :saving="saving"
+      :saved="saved"
+      @save="onSave"
+      @discard="onDiscard"
+    />
 
     <!-- Preview with unsaved changes dialog -->
     <Transition name="fade">
