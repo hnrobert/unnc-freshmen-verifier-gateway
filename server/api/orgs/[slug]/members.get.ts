@@ -1,6 +1,6 @@
-import { AppDataSource } from '../../../utils/database'
-import { OrgMember } from '../../../entities/orgMember.entity'
-import { User } from '../../../entities/user.entity'
+import { AppDataSource } from '#server/utils/database'
+import { OrgMember } from '#server/entities/orgMember.entity'
+import { User } from '#server/entities/user.entity'
 
 /** List the org's members (active + pending invites) + the owner. Manager+. */
 export default defineEventHandler(async (event) => {

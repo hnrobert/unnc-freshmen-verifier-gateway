@@ -1,8 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
-import { Organization } from '../entities/organization.entity'
-import { OrgMember } from '../entities/orgMember.entity'
+import { Organization } from '#server/entities/organization.entity'
+import { OrgMember } from '#server/entities/orgMember.entity'
 import { isSecureRequest } from './request'
 import type { SessionUser } from './auth'
 

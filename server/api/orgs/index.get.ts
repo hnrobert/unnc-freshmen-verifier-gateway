@@ -1,4 +1,4 @@
-import { listAccessibleOrgs } from '../../utils/members'
+import { listAccessibleOrgs } from '#server/utils/members'
 
 /** List every org the caller can access (owned ∪ actively shared), each tagged with role. */
 export default defineEventHandler(async (event) => {

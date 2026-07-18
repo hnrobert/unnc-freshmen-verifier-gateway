@@ -1,8 +1,13 @@
 import { generateRegistrationOptions } from '@simplewebauthn/server'
-import { AppDataSource } from '../../../utils/database'
-import { User } from '../../../entities/user.entity'
-import { Passkey } from '../../../entities/passkey.entity'
-import { getRelyingParty, parseTransports, setChallengeCookie, webauthnUserId } from '../../../utils/webauthn'
+import { AppDataSource } from '#server/utils/database'
+import { User } from '#server/entities/user.entity'
+import { Passkey } from '#server/entities/passkey.entity'
+import {
+  getRelyingParty,
+  parseTransports,
+  setChallengeCookie,
+  webauthnUserId,
+} from '#server/utils/webauthn'
 
 /**
  * Registration options for adding a passkey to the logged-in account. Stores the
@@ -25,7 +30,7 @@ export default defineEventHandler(async (event) => {
     userDisplayName: user.email,
     userID: webauthnUserId(user.id),
     attestationType: 'none',
-    excludeCredentials: existing.map(p => ({
+    excludeCredentials: existing.map((p) => ({
       id: p.credentialId,
       transports: parseTransports(p.transports),
     })),

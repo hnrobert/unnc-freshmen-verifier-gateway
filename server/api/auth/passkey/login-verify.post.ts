@@ -1,10 +1,16 @@
 import { verifyAuthenticationResponse } from '@simplewebauthn/server'
 import type { AuthenticationResponseJSON, WebAuthnCredential } from '@simplewebauthn/server'
-import { AppDataSource } from '../../../utils/database'
-import { User } from '../../../entities/user.entity'
-import { Passkey } from '../../../entities/passkey.entity'
-import { signTrustJwt, setTrustCookie, getTrustWindowMs } from '../../../utils/jwt'
-import { bufferToUint8, clearChallengeCookie, getChallengeCookie, getRelyingParty, parseTransports } from '../../../utils/webauthn'
+import { AppDataSource } from '#server/utils/database'
+import { User } from '#server/entities/user.entity'
+import { Passkey } from '#server/entities/passkey.entity'
+import { signTrustJwt, setTrustCookie, getTrustWindowMs } from '#server/utils/jwt'
+import {
+  bufferToUint8,
+  clearChallengeCookie,
+  getChallengeCookie,
+  getRelyingParty,
+  parseTransports,
+} from '#server/utils/webauthn'
 
 /**
  * Verify a discoverable-login response: look up the credential by the id in the

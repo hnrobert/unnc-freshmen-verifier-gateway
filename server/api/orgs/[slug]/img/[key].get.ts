@@ -1,6 +1,6 @@
-import { AppDataSource } from '../../../../utils/database'
-import { Organization } from '../../../../entities/organization.entity'
-import { OrgImage } from '../../../../entities/orgImage.entity'
+import { AppDataSource } from '#server/utils/database'
+import { Organization } from '#server/entities/organization.entity'
+import { OrgImage } from '#server/entities/orgImage.entity'
 
 // Returns raw base64 + mime as JSON. The frontend constructs the data URL.
 export default defineEventHandler(async (event) => {

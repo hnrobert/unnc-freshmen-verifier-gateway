@@ -1,6 +1,6 @@
-import type { IconRef, SiteConfig } from '../../shared/types'
+import type { IconRef, SiteConfig } from '#shared/types'
 import { AppDataSource } from './database'
-import { OrgImage } from '../entities/orgImage.entity'
+import { OrgImage } from '#server/entities/orgImage.entity'
 
 /** In-process cache: orgId+key → data URL (avoids re-fetching on every request). */
 const dataUrlCache = new Map<string, string>()
@@ -11,8 +11,7 @@ async function toDataUrl(orgId: number, key: string): Promise<string | null> {
   const cached = dataUrlCache.get(cacheKey)
   if (cached) return cached
 
-  const img = await AppDataSource.getRepository(OrgImage)
-    .findOne({ where: { orgId, key } })
+  const img = await AppDataSource.getRepository(OrgImage).findOne({ where: { orgId, key } })
   if (!img) return null
 
   const url = `data:${img.mime};base64,${img.base64}`
@@ -46,7 +45,11 @@ export function invalidateImageCache(orgId: number): void {
  * Resolve all `img:<key>` references by fetching base64 from DB and constructing
  * `data:` URLs — the backend sends base64, the frontend just renders `<img src>`.
  */
-export async function resolveImageRefs(config: SiteConfig, slug: string, orgId: number): Promise<SiteConfig> {
+export async function resolveImageRefs(
+  config: SiteConfig,
+  slug: string,
+  orgId: number,
+): Promise<SiteConfig> {
   const icons = { ...config.icons }
   for (const key of Object.keys(icons) as (keyof typeof icons)[]) {
     icons[key] = (await resolveRef(icons[key], orgId)) as IconRef

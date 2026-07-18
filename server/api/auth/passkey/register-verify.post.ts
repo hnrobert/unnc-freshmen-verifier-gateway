@@ -1,8 +1,8 @@
 import { verifyRegistrationResponse } from '@simplewebauthn/server'
 import type { RegistrationResponseJSON } from '@simplewebauthn/server'
-import { AppDataSource } from '../../../utils/database'
-import { Passkey } from '../../../entities/passkey.entity'
-import { clearChallengeCookie, getChallengeCookie, getRelyingParty } from '../../../utils/webauthn'
+import { AppDataSource } from '#server/utils/database'
+import { Passkey } from '#server/entities/passkey.entity'
+import { clearChallengeCookie, getChallengeCookie, getRelyingParty } from '#server/utils/webauthn'
 
 /**
  * Verify the browser's registration response and store the new credential.
@@ -39,9 +39,10 @@ export default defineEventHandler(async (event) => {
     if (existing) {
       throw createError({
         statusCode: 409,
-        statusMessage: existing.userId === me.id
-          ? 'Credential already registered'
-          : 'Credential already registered to another account',
+        statusMessage:
+          existing.userId === me.id
+            ? 'Credential already registered'
+            : 'Credential already registered to another account',
       })
     }
 

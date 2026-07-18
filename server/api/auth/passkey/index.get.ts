@@ -1,5 +1,5 @@
-import { AppDataSource } from '../../../utils/database'
-import { Passkey } from '../../../entities/passkey.entity'
+import { AppDataSource } from '#server/utils/database'
+import { Passkey } from '#server/entities/passkey.entity'
 
 /** List the caller's own passkeys (never exposes the public key or counter). */
 export default defineEventHandler(async (event) => {
@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     order: { id: 'ASC' },
   })
   return {
-    passkeys: passkeys.map(p => ({
+    passkeys: passkeys.map((p) => ({
       id: p.id,
       nickname: p.nickname,
       deviceType: p.deviceType,

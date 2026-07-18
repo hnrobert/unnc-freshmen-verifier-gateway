@@ -1,14 +1,14 @@
 import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
-import { Organization } from '../entities/organization.entity'
-import { OrgSetting } from '../entities/orgSetting.entity'
-import { OrgImage } from '../entities/orgImage.entity'
-import { OrgMember } from '../entities/orgMember.entity'
-import { OrgEvent } from '../entities/orgEvent.entity'
-import { OrgDailyStat } from '../entities/orgDailyStat.entity'
-import type { SiteConfig } from '../../shared/types'
+import { Organization } from '#server/entities/organization.entity'
+import { OrgSetting } from '#server/entities/orgSetting.entity'
+import { OrgImage } from '#server/entities/orgImage.entity'
+import { OrgMember } from '#server/entities/orgMember.entity'
+import { OrgEvent } from '#server/entities/orgEvent.entity'
+import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
+import type { SiteConfig } from '#shared/types'
 import { resolveImageRefs } from './config'
-import { applyDefaults } from '../../shared/lib/applyDefaults'
+import { applyDefaults } from '#shared/lib/applyDefaults'
 
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
 export const RESERVED_SLUGS = new Set([

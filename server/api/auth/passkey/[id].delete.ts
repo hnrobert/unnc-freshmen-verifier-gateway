@@ -1,5 +1,5 @@
-import { AppDataSource } from '../../../utils/database'
-import { Passkey } from '../../../entities/passkey.entity'
+import { AppDataSource } from '#server/utils/database'
+import { Passkey } from '#server/entities/passkey.entity'
 
 /** Remove one of the caller's own passkeys. Returns 404 (not 403) for passkeys
  * owned by others so ownership can't be probed. */

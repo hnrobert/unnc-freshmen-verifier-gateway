@@ -1,5 +1,5 @@
 import { generateAuthenticationOptions } from '@simplewebauthn/server'
-import { getRelyingParty, setChallengeCookie } from '../../../utils/webauthn'
+import { getRelyingParty, setChallengeCookie } from '#server/utils/webauthn'
 
 /**
  * Authentication options for passwordless login. `allowCredentials: []` makes

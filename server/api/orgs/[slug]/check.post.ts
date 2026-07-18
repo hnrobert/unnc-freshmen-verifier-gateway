@@ -1,6 +1,6 @@
-import type { AdmissionResult } from '../../../../shared/types'
-import { queryAdmission } from '../../../utils/admission'
-import { verifyVerifyJwt, signVerifyJwt, setVerifyCookie } from '../../../utils/jwt'
+import type { AdmissionResult } from '#shared/types'
+import { queryAdmission } from '#server/utils/admission'
+import { verifyVerifyJwt, signVerifyJwt, setVerifyCookie } from '#server/utils/jwt'
 
 function normalizeName(s: string): string {
   return s.trim().replace(/\s+/g, ' ')

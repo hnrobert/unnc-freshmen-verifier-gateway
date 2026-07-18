@@ -1,5 +1,5 @@
-import { AppDataSource } from '../../../utils/database'
-import { OrgSetting } from '../../../entities/orgSetting.entity'
+import { AppDataSource } from '#server/utils/database'
+import { OrgSetting } from '#server/entities/orgSetting.entity'
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string

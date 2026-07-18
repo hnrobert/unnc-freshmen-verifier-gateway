@@ -4,13 +4,13 @@
  * session persists across the captcha flow. This is what the original
  * `ref/client.py` did with `requests.Session()`.
  */
-import type { GatewayConfig } from '../../shared/types'
+import type { GatewayConfig } from '#shared/types'
 import {
   AdmissionQueryError,
   parseJsonBody,
   queryAdmission as coreQueryAdmission,
   type HttpHandlers,
-} from '../../shared/lib/admissionCore'
+} from '#shared/lib/admissionCore'
 import { decodeImage } from './png'
 
 const ACCEPT_LANGUAGE = 'zh-CN,zh;q=0.9,en;q=0.8'

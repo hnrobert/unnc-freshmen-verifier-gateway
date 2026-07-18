@@ -1,5 +1,5 @@
-import { AppDataSource } from '../../../../utils/database'
-import { OrgMember } from '../../../../entities/orgMember.entity'
+import { AppDataSource } from '#server/utils/database'
+import { OrgMember } from '#server/entities/orgMember.entity'
 
 /**
  * Remove a member. Manager+ — OR any member removing their own membership

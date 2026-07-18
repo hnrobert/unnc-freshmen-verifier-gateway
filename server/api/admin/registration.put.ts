@@ -1,4 +1,4 @@
-import { setEmailWhitelist } from '../../utils/registration'
+import { setEmailWhitelist } from '#server/utils/registration'
 
 export default defineEventHandler(async (event) => {
   requireSuperAdmin(event)

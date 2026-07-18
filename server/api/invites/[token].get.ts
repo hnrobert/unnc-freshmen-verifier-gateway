@@ -1,6 +1,6 @@
-import { AppDataSource } from '../../utils/database'
-import { OrgMember } from '../../entities/orgMember.entity'
-import { Organization } from '../../entities/organization.entity'
+import { AppDataSource } from '#server/utils/database'
+import { OrgMember } from '#server/entities/orgMember.entity'
+import { Organization } from '#server/entities/organization.entity'
 
 /** Public invite details for the landing page (no sensitive data). */
 export default defineEventHandler(async (event) => {

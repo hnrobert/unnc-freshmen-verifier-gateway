@@ -1,6 +1,6 @@
-import { AppDataSource } from '../../../utils/database'
-import { Organization } from '../../../entities/organization.entity'
-import { OrgMember } from '../../../entities/orgMember.entity'
+import { AppDataSource } from '#server/utils/database'
+import { Organization } from '#server/entities/organization.entity'
+import { OrgMember } from '#server/entities/orgMember.entity'
 
 /**
  * Transfer ownership to an active member. Owner+ (superadmin may do it without

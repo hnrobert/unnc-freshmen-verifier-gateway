@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto'
 import { UAParser } from 'ua-parser-js'
 import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
-import { OrgEvent } from '../entities/orgEvent.entity'
-import { OrgDailyStat } from '../entities/orgDailyStat.entity'
+import { OrgEvent } from '#server/entities/orgEvent.entity'
+import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
 
 const RETENTION_DAYS = 90
 const RANGES = new Set([7, 30, 90, 0]) // 0 == all

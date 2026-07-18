@@ -1,13 +1,15 @@
-import { AppDataSource } from '../../utils/database'
-import { User } from '../../entities/user.entity'
-import { signTrustJwt, setTrustCookie, getTrustWindowMs } from '../../utils/jwt'
-import { getEmailWhitelist, emailMatchesWhitelist } from '../../utils/registration'
+import { AppDataSource } from '#server/utils/database'
+import { User } from '#server/entities/user.entity'
+import { signTrustJwt, setTrustCookie, getTrustWindowMs } from '#server/utils/jwt'
+import { getEmailWhitelist, emailMatchesWhitelist } from '#server/utils/registration'
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ email?: unknown; password?: unknown }>(event)
-  const email = String(body?.email ?? '').trim().toLowerCase()
+  const email = String(body?.email ?? '')
+    .trim()
+    .toLowerCase()
   const password = String(body?.password ?? '')
   if (!EMAIL_RE.test(email) || password.length < 8)
     throw createError({ statusCode: 400, statusMessage: 'Invalid email or password (min 8 chars)' })
@@ -25,7 +27,10 @@ export default defineEventHandler(async (event) => {
   if (userCount > 0) {
     const wl = await getEmailWhitelist()
     if (wl.enabled && !emailMatchesWhitelist(email, wl.patterns)) {
-      throw createError({ statusCode: 403, statusMessage: 'This email domain is not allowed to register' })
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'This email domain is not allowed to register',
+      })
     }
   }
 

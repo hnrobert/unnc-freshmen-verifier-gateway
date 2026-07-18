@@ -1,6 +1,6 @@
 import picomatch from 'picomatch'
 import { AppDataSource } from './database'
-import { AppSetting } from '../entities/appSetting.entity'
+import { AppSetting } from '#server/entities/appSetting.entity'
 
 /**
  * Superadmin-controlled registration email whitelist. Glob patterns (picomatch)
@@ -31,7 +31,10 @@ export async function getEmailWhitelist(): Promise<WhitelistConfig> {
 /** Persist the whitelist and invalidate the cache. */
 export async function setEmailWhitelist(cfg: WhitelistConfig): Promise<void> {
   const normalized = normalize(JSON.stringify(cfg))
-  await AppDataSource.getRepository(AppSetting).save({ key: SETTING_KEY, value: JSON.stringify(normalized) })
+  await AppDataSource.getRepository(AppSetting).save({
+    key: SETTING_KEY,
+    value: JSON.stringify(normalized),
+  })
   cache = null
 }
 

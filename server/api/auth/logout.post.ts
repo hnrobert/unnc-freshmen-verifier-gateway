@@ -1,4 +1,4 @@
-import { clearTrustCookie, clearVerifyCookie } from '../../utils/jwt'
+import { clearTrustCookie, clearVerifyCookie } from '#server/utils/jwt'
 
 export default defineEventHandler(async (event) => {
   await clearAuthSession(event)

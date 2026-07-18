@@ -1,7 +1,7 @@
-import { AppDataSource } from '../../../utils/database'
-import { OrgSetting } from '../../../entities/orgSetting.entity'
-import type { SiteConfig } from '../../../../shared/types'
-import { validateConfig } from '../../../../shared/lib/validateConfig'
+import { AppDataSource } from '#server/utils/database'
+import { OrgSetting } from '#server/entities/orgSetting.entity'
+import type { SiteConfig } from '#shared/types'
+import { validateConfig } from '#shared/lib/validateConfig'
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string

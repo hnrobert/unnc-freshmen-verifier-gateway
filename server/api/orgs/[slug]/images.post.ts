@@ -1,5 +1,5 @@
-import { AppDataSource } from '../../../utils/database'
-import { OrgImage } from '../../../entities/orgImage.entity'
+import { AppDataSource } from '#server/utils/database'
+import { OrgImage } from '#server/entities/orgImage.entity'
 
 const MAX_BASE64 = 1_500_000
 const KEY_RE = /^[a-zA-Z0-9_-]{1,40}$/
