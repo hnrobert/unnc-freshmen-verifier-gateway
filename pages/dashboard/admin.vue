@@ -72,7 +72,7 @@ const wlDirty = computed(
     wlPatternsText.value !== wlOriginal.value.patternsText,
 )
 // Unsaved-changes prompt on leave (registration whitelist).
-const { confirmLeave } = useUnsavedLeaveGuard(wlDirty, wlSaving)
+const { confirmLeave, proceed } = useUnsavedLeaveGuard(wlDirty, wlSaving)
 async function saveWhitelist() {
   wlSaving.value = true
   wlSaved.value = false
@@ -256,13 +256,13 @@ function discardWhitelist() {
       @discard="
         () => {
           discardWhitelist()
-          confirmLeave = false
+          proceed()
         }
       "
       @save="
         async () => {
           await saveWhitelist()
-          confirmLeave = false
+          proceed()
         }
       "
     />

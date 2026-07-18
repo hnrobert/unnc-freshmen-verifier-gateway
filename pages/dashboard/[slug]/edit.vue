@@ -43,7 +43,7 @@ const originalSerialized = ref(JSON.stringify(raw.value))
 const isDirty = computed(() => JSON.stringify(draft.value) !== originalSerialized.value)
 
 // --- Navigation guard (unsaved-changes prompt on leave) ---
-const { confirmLeave } = useUnsavedLeaveGuard(isDirty, saving)
+const { confirmLeave, proceed } = useUnsavedLeaveGuard(isDirty, saving)
 
 // Returns true on a successful save (used by saveAndPreview to open the preview).
 async function onSave(): Promise<boolean> {
@@ -164,13 +164,13 @@ function previewWithoutSaving() {
       @discard="
         () => {
           onDiscard()
-          confirmLeave = false
+          proceed()
         }
       "
       @save="
         async () => {
           await onSave()
-          confirmLeave = false
+          proceed()
         }
       "
     />

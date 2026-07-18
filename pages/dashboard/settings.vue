@@ -19,7 +19,7 @@ const isDirty = computed(
 )
 
 // Unsaved-changes prompt on leave (matches the config editor).
-const { confirmLeave } = useUnsavedLeaveGuard(isDirty, saving)
+const { confirmLeave, proceed } = useUnsavedLeaveGuard(isDirty, saving)
 
 async function onSave(): Promise<void> {
   if (draft.value.newPassword !== draft.value.confirm) {
@@ -211,13 +211,13 @@ onMounted(loadPasskeys)
       @discard="
         () => {
           onDiscard()
-          confirmLeave = false
+          proceed()
         }
       "
       @save="
         async () => {
           await onSave()
-          confirmLeave = false
+          proceed()
         }
       "
     />
