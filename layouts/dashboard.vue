@@ -133,6 +133,7 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
           <slot />
         </div>
       </main>
+      <SiteFooter />
     </div>
   </div>
 </template>

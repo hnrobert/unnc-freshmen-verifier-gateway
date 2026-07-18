@@ -108,31 +108,14 @@ function previewWithoutSaving() {
       </div>
     </div>
 
-    <StatusAlert v-if="saved" variant="success" message="Saved." class="mt-4" />
     <StatusAlert v-if="errors.length" variant="error" :message="errors.join('; ')" class="mt-4" />
 
     <div class="mt-6 pb-24">
       <ConfigEditor />
     </div>
 
-    <!-- Discord-style save bar -->
-    <Transition name="savebar">
-      <div
-        v-if="isDirty || saved"
-        class="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur lg:left-64"
-      >
-        <div class="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <span class="text-sm text-muted-foreground">
-            <template v-if="saved">✓ Saved</template>
-            <template v-else>You have unsaved changes</template>
-          </span>
-          <div class="flex items-center gap-2">
-            <Button variant="outline" size="sm" :disabled="saving || saved" @click="onDiscard">Discard</Button>
-            <Button size="sm" :disabled="saving || saved" @click="onSave">{{ saving ? 'Saving…' : saved ? 'Saved' : 'Save changes' }}</Button>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <!-- Sticky save/discard bar (dirty tracking + save logic live in this page) -->
+    <SaveBar :dirty="isDirty" :saving="saving" :saved="saved" @save="onSave" @discard="onDiscard" />
 
     <!-- Preview with unsaved changes dialog -->
     <Transition name="fade">
@@ -171,8 +154,6 @@ function previewWithoutSaving() {
 </template>
 
 <style scoped>
-.savebar-enter-active, .savebar-leave-active { transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s; }
-.savebar-enter-from, .savebar-leave-to { transform: translateY(100%); opacity: 0; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

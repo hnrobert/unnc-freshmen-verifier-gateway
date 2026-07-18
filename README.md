@@ -61,7 +61,18 @@ need to run migrations locally. The seed is also optional.
 - **Roles**: `superadmin` (the first account) or `admin`. Superadmins get an
   **admin panel** — browse/edit every org and change any user's role.
 - **Account settings** (`/dashboard/settings`): change email and/or password
-  (password change requires the current password).
+  (password change requires the current password), and manage **passkeys**.
+- **Passkeys (WebAuthn)**: an optional passwordless login. Users add a passkey
+  (Face ID / Touch ID / security key) in account settings; the login page shows a
+  **"Sign in with passkey"** button. Login is **discoverable (usernameless)** —
+  the chosen credential's id identifies the account, so no email is needed.
+  Challenges are stored in a signed short-lived `vg_pk_challenge` cookie (always
+  cleared after verify to prevent replay). The RP id/origin are derived per-request
+  (localhost / HTTPS tunnels / prod), with optional `WEBAUTHN_RP_ID` /
+  `WEBAUTHN_ORIGIN` overrides. **WebAuthn requires a secure context**, so passkeys
+  only work over **HTTPS or `http://localhost`** (not plain-HTTP tunnels). Uses
+  `@simplewebauthn/server` + `@simplewebauthn/browser` (v13); credentials live in
+  the `passkeys` table (one user → many passkeys).
 
 ### Organizations
 
@@ -111,6 +122,12 @@ portal directly. Resolution order:
 | | `POST /api/auth/logout` | — | clears session + both JWT cookies |
 | | `GET /api/auth/me` | session | current user |
 | | `PATCH /api/auth/me` | session | change email and/or password |
+| | `GET /api/auth/passkey` | session | list own passkeys |
+| | `GET /api/auth/passkey/register-options` | session | add-passkey ceremony (options) |
+| | `POST /api/auth/passkey/register-verify` | session | verify + store credential |
+| | `GET /api/auth/passkey/login-options` | public | passkey-login ceremony (options) |
+| | `POST /api/auth/passkey/login-verify` | public | verify → create session |
+| | `DELETE /api/auth/passkey/<id>` | session | remove own passkey |
 | Orgs | `GET /api/orgs` | session | list **own** orgs |
 | | `POST /api/orgs` | session | create org |
 | | `POST /api/orgs/validate` | session | slug validation |
@@ -152,7 +169,11 @@ keep it in sync:
 - **Dev / boot**: `initDataSource()` runs `synchronize()` — additive only
   (creates missing tables/columns, never drops data).
 - **Managed migrations** in `server/migrations/` (currently `Init`,
-  `AddJwtTrust`, `AddUserRole`), applied via the TypeORM CLI wrappers below.
+  `AddJwtTrust`, `AddUserRole`, `AddPasskeys`), applied via the TypeORM CLI
+  wrappers below. *(Note: `synchronize()` is what actually provisions the schema
+  at runtime; the DataSource does not currently register a `migrations` array, so
+  `db:run` reports none pending. The migration files remain as convention and
+  satisfy the pre-commit guard.)*
 - **Pre-commit guard** (`pnpm db:check`): refuses a commit that changes
   `server/entities` without an accompanying new migration (bypass by including
   `bypass migration check` in the commit message).
@@ -215,43 +236,52 @@ The DB auto-migrates on boot. Seed an admin/org with `pnpm db:seed` if desired.
 ## Project structure
 
 ```bash
-app.vue                     # root component (landing → /dashboard)
-nuxt.config.ts              # Nuxt 4 flat layout (srcDir: '.'), SSR, Tailwind v4
+# App shell — Nuxt 4 flat layout (srcDir: '.'), SSR, Tailwind v4
+app.vue                     # <NuxtLayout><NuxtPage/></NuxtLayout>
+nuxt.config.ts              # SSR + Tailwind v4; per-org favicon, decorator opts
+
 pages/
-  index.vue                       # landing (redirects to /dashboard)
-  login.vue register.vue          # auth (auth layout, guest middleware)
-  [slug]/{index,welcome}.vue      # PUBLIC per-org gateway (default layout)
-  [slug]/preview/{index,welcome}.vue   # auth+ownership-gated preview
-  dashboard/{index,new,settings}.vue   # user dashboard
-  dashboard/[slug]/edit.vue       # org config editor
-  dashboard/admin.vue             # SUPERADMIN: all orgs + user roles
+  index.vue                            # landing (redirects → /dashboard)
+  login.vue  register.vue              # auth (auth layout, guest middleware)
+  [slug]/
+    index.vue  welcome.vue             # PUBLIC per-org gateway (default layout)
+    preview/{index,welcome}.vue        # auth+ownership-gated live preview
+  dashboard/
+    index.vue  new.vue  settings.vue   # user dashboard + account settings
+    [slug]/edit.vue                    # org config editor (sticky save bar)
+    admin.vue                          # SUPERADMIN: orgs · users · registration whitelist
+
 components/
-  public/    # VerifyForm, WelcomeContent, BrandMark, LanguageToggle,
-             # ThemeToggle, Icon, StatusAlert, MarkdownView
-  admin/     # ConfigEditor, LivePreview, IconPicker, ImageUploader,
-             # ImagePreview, LocaleField, MarkdownEditor
-  ui/        # shadcn-vue (button/input/label/card)
-composables/ # useAuth, useAuthForm, useOrgConfig, useOrgI18n, useVerifier
-lib/         # verify, icon, iconAllowlist, markdown, utils
-utils/       # errors (auto-imported)
-plugins/     # i18n, auth           (auth plugin hydrates user via /api/auth/me)
-middleware/  # auth, guest, superadmin, preview-guard, welcome-gate
-shared/      # app↔server code (auto-aliased to #shared)
-  types.ts   # lib/{admissionCore, applyDefaults, defaultConfig, escapeMessage, validateConfig}
-server/      #               Nitro
+  SaveBar.vue                 # shared sticky save/discard bar (edit/settings/whitelist)
+  public/    # BrandMark, Icon, LanguageToggle, ThemeToggle, StatusAlert,
+             # VerifyForm, WelcomeContent, MarkdownView
+  admin/     # ConfigEditor, IconPicker, ImageUploader, ImagePreview,
+             # LocaleField, MarkdownEditor
+  ui/        # shadcn-vue: button, card, input, label
+
+composables/                  # useAuth, useAuthForm, useOrgConfig, useOrgI18n, useVerifier
+lib/                          # verify, icon, iconAllowlist, markdown, utils
+utils/                        # errors (auto-imported)
+plugins/                      # i18n (vue-i18n); auth (hydrates user via /api/auth/me)
+middleware/                   # auth, guest, superadmin, preview-guard, welcome-gate
+shared/                       # app↔server code, auto-aliased to #shared
+  types.ts
+  lib/                        # admissionCore, applyDefaults, defaultConfig, escapeMessage, validateConfig
+
+server/                       # Nitro
   api/
-    auth/    # {register, login, logout, me.get, me.patch}
-    orgs/    # index.{get,post}, validate, [slug]/{config.get, config.put, check,
-             # images, img/[key], index.delete}
-    admin/   # users, users/[id].patch, orgs
-    icon.svg.get
-  entities/  # user, session, organization, orgSetting, orgImage, verification
-  utils/     # database, auth, jwt, orgs, config, admission, request, png
-  middleware/ # session.ts        (resolves session → event.context.user)
-  plugins/    # 01.db.ts            (init DataSource on boot)
-  migrations/ # Init, AddJwtTrust, AddUserRole
-  scripts/    # runMigration, revertMigration, generateMigration, checkMigration
-  db/         # seed.ts
+    auth/                     # register · login · logout · me.{get,patch}
+    auth/passkey/             # {register,login}-{options,verify} · index.get · [id].delete
+    orgs/                     # index.{get,post} · validate · [slug]/{config.{get,put}, check, images, img/[key], index.delete}
+    admin/                    # users · users/[id].patch · orgs · registration.{get,put}
+    icon.svg.get              # lucide → SVG favicon (orgs with a vector brand icon)
+  entities/                   # user · session · passkey · organization · orgSetting · orgImage · verification · appSetting
+  utils/                      # database · auth · jwt · orgs · config · admission · webauthn · registration · request · png
+  middleware/                 # session.ts (resolves session → event.context.user)
+  plugins/                    # 01.db.ts (init DataSource + synchronize on boot)
+  migrations/                 # Init · AddJwtTrust · AddUserRole · AddPasskeys
+  scripts/                    # runMigration · revertMigration · generateMigration · checkMigration
+  db/                         # seed.ts
 ```
 
 ---

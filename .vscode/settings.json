@@ -1,10 +1,17 @@
 {
     "cSpell.words": [
+        "FOUC",
+        "lucide",
         "Ningbo",
         "Nuxt",
         "refetches",
+        "savebar",
         "selftest",
+        "simplewebauthn",
         "superadmin",
-        "vueuse"
+        "Superadmins",
+        "vars",
+        "vueuse",
+        "webauthn"
     ]
 }

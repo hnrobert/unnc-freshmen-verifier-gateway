@@ -30,28 +30,54 @@ async function onRoleChange(user: UserRow, role: string) {
 
 // Registration email whitelist (superadmin-only).
 interface WhitelistConfig { enabled: boolean; patterns: string[] }
-const { data: whitelist, refresh: refreshWhitelist } = await useFetch<WhitelistConfig>('/api/admin/registration')
+const { data: whitelist } = await useFetch<WhitelistConfig>('/api/admin/registration')
 const wlEnabled = ref(false)
 const wlPatternsText = ref('')
 const wlSaving = ref(false)
-watch(whitelist, (w) => {
-  if (!w) return
-  wlEnabled.value = w.enabled
-  wlPatternsText.value = w.patterns.join('\n')
-}, { immediate: true })
+const wlSaved = ref(false)
+const wlError = ref('')
+// Snapshot of the persisted values, for dirty tracking + discard.
+const wlOriginal = ref({ enabled: false, patternsText: '' })
+watch(
+  whitelist,
+  (w) => {
+    if (!w) return
+    const snap = { enabled: w.enabled, patternsText: w.patterns.join('\n') }
+    wlEnabled.value = snap.enabled
+    wlPatternsText.value = snap.patternsText
+    wlOriginal.value = snap
+  },
+  { immediate: true },
+)
+const wlDirty = computed(
+  () => wlEnabled.value !== wlOriginal.value.enabled || wlPatternsText.value !== wlOriginal.value.patternsText,
+)
 async function saveWhitelist() {
   wlSaving.value = true
+  wlError.value = ''
+  wlSaved.value = false
   try {
     const patterns = wlPatternsText.value.split('\n').map((p) => p.trim()).filter(Boolean)
-    const res = await $fetch<WhitelistConfig>('/api/admin/registration', { method: 'PUT', body: { enabled: wlEnabled.value, patterns } })
-    wlEnabled.value = res.enabled
-    wlPatternsText.value = res.patterns.join('\n')
+    const res = await $fetch<WhitelistConfig>('/api/admin/registration', {
+      method: 'PUT',
+      body: { enabled: wlEnabled.value, patterns },
+    })
+    const snap = { enabled: res.enabled, patternsText: res.patterns.join('\n') }
+    wlEnabled.value = snap.enabled
+    wlPatternsText.value = snap.patternsText
+    wlOriginal.value = snap
+    wlSaved.value = true
+    setTimeout(() => (wlSaved.value = false), 2000)
   } catch (e) {
-    alert(messageFromError(e, 'Save failed'))
-    await refreshWhitelist()
+    wlError.value = messageFromError(e, 'Save failed')
   } finally {
     wlSaving.value = false
   }
+}
+function discardWhitelist() {
+  wlEnabled.value = wlOriginal.value.enabled
+  wlPatternsText.value = wlOriginal.value.patternsText
+  wlError.value = ''
 }
 </script>
 
@@ -123,7 +149,7 @@ async function saveWhitelist() {
     </div>
 
     <!-- Registration email whitelist tab -->
-    <div v-else-if="tab === 'registration'" class="mt-6 space-y-4">
+    <div v-else-if="tab === 'registration'" class="mt-6 space-y-4 pb-24">
       <Card>
         <CardContent class="space-y-4">
           <div class="flex items-start gap-3">
@@ -147,11 +173,19 @@ async function saveWhitelist() {
               Glob: <code>*</code> any chars, <code>?</code> one char, <code>{a,b}</code> alternation. Case-insensitive. The first registration (superadmin bootstrap) is always allowed.
             </p>
           </div>
-          <div class="flex justify-end">
-            <Button :disabled="wlSaving" @click="saveWhitelist">{{ wlSaving ? 'Saving…' : 'Save' }}</Button>
-          </div>
+          <StatusAlert v-if="wlError" variant="error" :message="wlError" />
         </CardContent>
       </Card>
     </div>
+
+    <!-- Sticky save/discard bar (registration whitelist only) -->
+    <SaveBar
+      v-if="tab === 'registration'"
+      :dirty="wlDirty"
+      :saving="wlSaving"
+      :saved="wlSaved"
+      @save="saveWhitelist"
+      @discard="discardWhitelist"
+    />
   </div>
 </template>
