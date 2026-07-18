@@ -6,7 +6,7 @@
     <div class="w-full max-w-sm">
       <div class="mb-6 flex items-center justify-center gap-2 text-lg font-semibold">
         <span class="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10 12 5 2 10l10 5 10-5Z" /><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" /></svg>
+          <Icon spec="GraduationCap" :size="20" />
         </span>
         <span>UNNC Freshmen Verifier Gateway</span>
       </div>

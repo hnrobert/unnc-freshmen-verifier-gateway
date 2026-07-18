@@ -5,8 +5,9 @@ interface UserRow { id: number; email: string; role: string; createdAt: string }
 interface OrgRow { id: number; slug: string; name: string; createdAt: string; ownerEmail: string }
 
 const route = useRoute()
+type AdminTab = 'orgs' | 'users' | 'registration'
 const tab = computed({
-  get: () => (route.query.tab === 'users' ? 'users' : 'orgs') as 'users' | 'orgs',
+  get: () => (route.query.tab === 'users' || route.query.tab === 'registration' ? route.query.tab : 'orgs') as AdminTab,
   set: (v) => navigateTo({ path: '/dashboard/admin', query: { tab: v } }),
 })
 
@@ -26,12 +27,38 @@ async function onRoleChange(user: UserRow, role: string) {
     saving.value[user.id] = false
   }
 }
+
+// Registration email whitelist (superadmin-only).
+interface WhitelistConfig { enabled: boolean; patterns: string[] }
+const { data: whitelist, refresh: refreshWhitelist } = await useFetch<WhitelistConfig>('/api/admin/registration')
+const wlEnabled = ref(false)
+const wlPatternsText = ref('')
+const wlSaving = ref(false)
+watch(whitelist, (w) => {
+  if (!w) return
+  wlEnabled.value = w.enabled
+  wlPatternsText.value = w.patterns.join('\n')
+}, { immediate: true })
+async function saveWhitelist() {
+  wlSaving.value = true
+  try {
+    const patterns = wlPatternsText.value.split('\n').map((p) => p.trim()).filter(Boolean)
+    const res = await $fetch<WhitelistConfig>('/api/admin/registration', { method: 'PUT', body: { enabled: wlEnabled.value, patterns } })
+    wlEnabled.value = res.enabled
+    wlPatternsText.value = res.patterns.join('\n')
+  } catch (e) {
+    alert(messageFromError(e, 'Save failed'))
+    await refreshWhitelist()
+  } finally {
+    wlSaving.value = false
+  }
+}
 </script>
 
 <template>
   <div>
     <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">
-      {{ tab === 'users' ? 'Users' : 'All Organizations' }}
+      {{ tab === 'users' ? 'Users' : tab === 'registration' ? 'Registration' : 'All Organizations' }}
     </h1>
 
     <!-- Orgs tab -->
@@ -53,7 +80,7 @@ async function onRoleChange(user: UserRow, role: string) {
     </div>
 
     <!-- Users tab -->
-    <div v-else class="mt-6">
+    <div v-else-if="tab === 'users'" class="mt-6">
       <Card class="hidden sm:block">
         <CardContent>
           <table class="w-full text-sm">
@@ -93,6 +120,38 @@ async function onRoleChange(user: UserRow, role: string) {
           </CardContent>
         </Card>
       </div>
+    </div>
+
+    <!-- Registration email whitelist tab -->
+    <div v-else-if="tab === 'registration'" class="mt-6 space-y-4">
+      <Card>
+        <CardContent class="space-y-4">
+          <div class="flex items-start gap-3">
+            <input id="wl-enabled" v-model="wlEnabled" type="checkbox" class="mt-0.5 size-4 rounded border" />
+            <div>
+              <Label for="wl-enabled" class="cursor-pointer font-medium">Restrict registration by email</Label>
+              <p class="text-xs text-muted-foreground">When on, only emails matching a pattern below can register. Off = open registration (current default).</p>
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <Label for="wl-patterns">Allowed email patterns (glob, one per line)</Label>
+            <textarea
+              id="wl-patterns"
+              v-model="wlPatternsText"
+              rows="8"
+              spellcheck="false"
+              class="w-full rounded-md border bg-transparent p-3 font-mono text-sm"
+              placeholder="*@nottingham.edu.cn&#10;*@*.nottingham.edu.cn&#10;{john,jane}@example.com"
+            ></textarea>
+            <p class="text-xs text-muted-foreground">
+              Glob: <code>*</code> any chars, <code>?</code> one char, <code>{a,b}</code> alternation. Case-insensitive. The first registration (superadmin bootstrap) is always allowed.
+            </p>
+          </div>
+          <div class="flex justify-end">
+            <Button :disabled="wlSaving" @click="saveWhitelist">{{ wlSaving ? 'Saving…' : 'Save' }}</Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>

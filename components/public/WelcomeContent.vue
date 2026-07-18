@@ -62,7 +62,7 @@ function goBack(): void {
       class="mb-6 flex aspect-video w-full items-center justify-center rounded-lg border bg-muted text-muted-foreground"
       :style="{ maxWidth: imageMaxWidth, borderRadius: imageRadius }"
     >
-      <svg viewBox="0 0 24 24" class="size-10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9" /><path d="m9 9 5 5" /><path d="M14 9v5" /><path d="M9 14h5" /><line x1="18" x2="22" y1="18" y2="18" /><line x1="20" x2="20" y1="16" y2="20" /></svg>
+      <Icon spec="ImageOff" :size="40" :stroke-width="1.5" />
     </div>
 
     <span class="mb-3 inline-flex items-center gap-1.5 rounded-full border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">

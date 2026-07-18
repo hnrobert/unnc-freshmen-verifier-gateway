@@ -1,6 +1,7 @@
 import { AppDataSource } from '../../utils/database'
 import { User } from '../../entities/user.entity'
 import { signTrustJwt, setTrustCookie, getTrustWindowMs } from '../../utils/jwt'
+import { getEmailWhitelist, emailMatchesWhitelist } from '../../utils/registration'
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
@@ -18,6 +19,15 @@ export default defineEventHandler(async (event) => {
   // First registered user becomes superadmin; all others are admin.
   const userCount = await repo.count()
   const role = userCount === 0 ? 'superadmin' : 'admin'
+
+  // Email whitelist (superadmin-controlled). Skipped for the bootstrap user
+  // (userCount === 0) so an enabled+empty whitelist can't lock out the app.
+  if (userCount > 0) {
+    const wl = await getEmailWhitelist()
+    if (wl.enabled && !emailMatchesWhitelist(email, wl.patterns)) {
+      throw createError({ statusCode: 403, statusMessage: 'This email domain is not allowed to register' })
+    }
+  }
 
   const trustedUntil = new Date(Date.now() + getTrustWindowMs())
   const user = await repo.save({ email, passwordHash: hashPassword(password), trustedUntil, role })

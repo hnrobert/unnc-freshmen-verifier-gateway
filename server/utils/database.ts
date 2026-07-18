@@ -7,13 +7,14 @@ import { Organization } from '../entities/organization.entity'
 import { OrgSetting } from '../entities/orgSetting.entity'
 import { OrgImage } from '../entities/orgImage.entity'
 import { Verification } from '../entities/verification.entity'
+import { AppSetting } from '../entities/appSetting.entity'
 
 const dbPath = process.env.DB_PATH || './data/app.db'
 
 export const AppDataSource = new DataSource({
   type: 'better-sqlite3',
   database: dbPath,
-  entities: [User, Session, Organization, OrgSetting, OrgImage, Verification],
+  entities: [User, Session, Organization, OrgSetting, OrgImage, Verification, AppSetting],
   // synchronize stays false: the CLI migration scripts (tsx) own prod migrations.
   // At runtime (Nitro) we call synchronize() explicitly in initDataSource() because
   // the migrations glob doesn't resolve in Nitro's bundled context.

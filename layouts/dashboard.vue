@@ -30,7 +30,7 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
       <!-- Brand -->
       <div class="flex h-14 items-center gap-2 border-b px-5">
         <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10 12 5 2 10l10 5 10-5Z" /><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" /></svg>
+          <Icon spec="GraduationCap" :size="16" />
         </span>
         <span class="flex-1 text-sm font-semibold leading-tight">UNNC Freshmen<br />Verifier Gateway</span>
         <button
@@ -38,8 +38,7 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
           :title="mode === 'dark' ? 'Light mode' : 'Dark mode'"
           @click="toggleTheme"
         >
-          <svg v-if="mode === 'dark'" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
-          <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>
+          <Icon :spec="mode === 'dark' ? 'Sun' : 'Moon'" :size="16" />
         </button>
       </div>
 
@@ -50,7 +49,7 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
           class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
           :class="route.path === '/dashboard' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
         >
-          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+          <Icon spec="LayoutDashboard" :size="16" />
           Dashboard
         </NuxtLink>
 
@@ -60,9 +59,9 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
           <NuxtLink
             to="/dashboard/admin?tab=orgs"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
-            :class="route.path === '/dashboard/admin' && route.query.tab !== 'users' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+            :class="route.path === '/dashboard/admin' && (route.query.tab === 'orgs' || !route.query.tab) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
           >
-            <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /></svg>
+            <Icon spec="Building2" :size="16" />
             All Organizations
           </NuxtLink>
           <NuxtLink
@@ -70,8 +69,16 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="route.path === '/dashboard/admin' && route.query.tab === 'users' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
           >
-            <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            <Icon spec="Users" :size="16" />
             Users
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin?tab=registration"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="route.path === '/dashboard/admin' && route.query.tab === 'registration' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+          >
+            <Icon spec="UserCheck" :size="16" />
+            Registration
           </NuxtLink>
         </template>
         <!-- Settings -->
@@ -80,7 +87,7 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
           class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
           :class="route.path === '/dashboard/settings' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
         >
-          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg>
+          <Icon spec="Settings" :size="16" />
           Settings
         </NuxtLink>
       </nav>
@@ -95,7 +102,7 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
           class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all hover:translate-x-0.5 hover:bg-accent hover:text-foreground"
           @click="logout"
         >
-          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
+          <Icon spec="LogOut" :size="16" />
           Log out
         </button>
       </div>
@@ -109,7 +116,7 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
           class="flex size-9 items-center justify-center rounded-lg border text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground active:scale-95"
           @click="sidebarOpen = true"
         >
-          <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6" /><line x1="3" x2="21" y1="12" y2="12" /><line x1="3" x2="21" y1="18" y2="18" /></svg>
+          <Icon spec="Menu" :size="20" />
         </button>
         <span class="text-sm font-semibold">UNNC VG</span>
         <!-- Theme toggle -->
@@ -117,8 +124,7 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
           class="ml-auto flex size-8 items-center justify-center rounded-lg border text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"
           @click="toggleTheme"
         >
-          <svg v-if="mode === 'dark'" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
-          <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>
+          <Icon :spec="mode === 'dark' ? 'Sun' : 'Moon'" :size="16" />
         </button>
       </header>
 
