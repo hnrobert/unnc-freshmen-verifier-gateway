@@ -18,6 +18,9 @@ const isDirty = computed(
     !!draft.value.confirm,
 )
 
+// Unsaved-changes prompt on leave (matches the config editor).
+const { confirmLeave } = useUnsavedLeaveGuard(isDirty, saving)
+
 async function onSave(): Promise<void> {
   if (draft.value.newPassword !== draft.value.confirm) {
     toast.error('New passwords do not match')
@@ -199,5 +202,24 @@ onMounted(loadPasskeys)
 
     <!-- Sticky save/discard bar (dirty tracking + save logic live in this page) -->
     <SaveBar :dirty="isDirty" :saving="saving" :saved="saved" @save="onSave" @discard="onDiscard" />
+
+    <!-- Unsaved changes leave dialog -->
+    <UnsavedLeaveDialog
+      :open="confirmLeave"
+      :saving="saving"
+      @stay="confirmLeave = false"
+      @discard="
+        () => {
+          onDiscard()
+          confirmLeave = false
+        }
+      "
+      @save="
+        async () => {
+          await onSave()
+          confirmLeave = false
+        }
+      "
+    />
   </div>
 </template>

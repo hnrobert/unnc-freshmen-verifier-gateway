@@ -71,6 +71,8 @@ const wlDirty = computed(
     wlEnabled.value !== wlOriginal.value.enabled ||
     wlPatternsText.value !== wlOriginal.value.patternsText,
 )
+// Unsaved-changes prompt on leave (registration whitelist).
+const { confirmLeave } = useUnsavedLeaveGuard(wlDirty, wlSaving)
 async function saveWhitelist() {
   wlSaving.value = true
   wlSaved.value = false
@@ -244,6 +246,25 @@ function discardWhitelist() {
       :saved="wlSaved"
       @save="saveWhitelist"
       @discard="discardWhitelist"
+    />
+
+    <!-- Unsaved changes leave dialog (registration whitelist) -->
+    <UnsavedLeaveDialog
+      :open="confirmLeave"
+      :saving="wlSaving"
+      @stay="confirmLeave = false"
+      @discard="
+        () => {
+          discardWhitelist()
+          confirmLeave = false
+        }
+      "
+      @save="
+        async () => {
+          await saveWhitelist()
+          confirmLeave = false
+        }
+      "
     />
   </div>
 </template>

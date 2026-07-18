@@ -42,14 +42,8 @@ const saved = ref(false)
 const originalSerialized = ref(JSON.stringify(raw.value))
 const isDirty = computed(() => JSON.stringify(draft.value) !== originalSerialized.value)
 
-// --- Navigation guard ---
-const confirmLeave = ref(false)
-onBeforeRouteLeave(() => {
-  if (isDirty.value && !saving.value && !saved.value) {
-    confirmLeave.value = true
-    return false
-  }
-})
+// --- Navigation guard (unsaved-changes prompt on leave) ---
+const { confirmLeave } = useUnsavedLeaveGuard(isDirty, saving)
 
 // Returns true on a successful save (used by saveAndPreview to open the preview).
 async function onSave(): Promise<boolean> {
@@ -163,45 +157,23 @@ function previewWithoutSaving() {
     </Transition>
 
     <!-- Unsaved changes leave dialog -->
-    <Transition name="fade">
-      <div
-        v-if="confirmLeave"
-        class="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4"
-        @click.self="confirmLeave = false"
-      >
-        <Card class="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle>Unsaved changes</CardTitle>
-            <CardDescription>Save or discard before leaving?</CardDescription>
-          </CardHeader>
-          <CardContent class="flex gap-2">
-            <Button variant="outline" class="flex-1" @click="confirmLeave = false">Stay</Button>
-            <Button
-              variant="outline"
-              class="flex-1"
-              @click="
-                () => {
-                  onDiscard()
-                  confirmLeave = false
-                }
-              "
-              >Discard</Button
-            >
-            <Button
-              class="flex-1"
-              :disabled="saving"
-              @click="
-                async () => {
-                  await onSave()
-                  confirmLeave = false
-                }
-              "
-              >Save & leave</Button
-            >
-          </CardContent>
-        </Card>
-      </div>
-    </Transition>
+    <UnsavedLeaveDialog
+      :open="confirmLeave"
+      :saving="saving"
+      @stay="confirmLeave = false"
+      @discard="
+        () => {
+          onDiscard()
+          confirmLeave = false
+        }
+      "
+      @save="
+        async () => {
+          await onSave()
+          confirmLeave = false
+        }
+      "
+    />
   </div>
 </template>
 
