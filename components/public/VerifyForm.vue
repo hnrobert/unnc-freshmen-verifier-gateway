@@ -17,7 +17,6 @@ const { setVerified } = useVerifier()
 const name = ref(props.defaultName ?? '')
 const idNumber = ref(props.defaultId ?? '')
 const submitting = ref(false)
-const errorMsg = ref('')
 
 const reasonKey: Record<VerifyReason, string> = {
   empty_name: 'errors.emptyName',
@@ -30,11 +29,15 @@ const reasonKey: Record<VerifyReason, string> = {
 }
 
 async function onSubmit(): Promise<void> {
-  errorMsg.value = ''
   const dest = props.welcomePath ?? `/${props.slug}/welcome`
   // Preview mode: skip the real portal check and jump straight to the welcome page.
   if (props.preview) {
-    setVerified(true, { ok: true, admitted: true, message: 'preview', name: name.value || '示例姓名' })
+    setVerified(true, {
+      ok: true,
+      admitted: true,
+      message: 'preview',
+      name: name.value || '示例姓名',
+    })
     await router.push(dest)
     return
   }
@@ -49,9 +52,9 @@ async function onSubmit(): Promise<void> {
       await router.push(dest)
       return
     }
-    errorMsg.value = t(reasonKey[result.reason] ?? 'errors.generic')
+    toast.error(t(reasonKey[result.reason] ?? 'errors.generic'))
   } catch {
-    errorMsg.value = t('errors.generic')
+    toast.error(t('errors.generic'))
   } finally {
     submitting.value = false
   }
@@ -71,22 +74,37 @@ async function onSubmit(): Promise<void> {
             <Icon :spec="config.icons.nameField" :size="16" />
             {{ t('verify.nameLabel') }}
           </Label>
-          <Input id="vg-name" v-model="name" :placeholder="t('verify.namePlaceholder')" autocomplete="name" :disabled="submitting" />
+          <Input
+            id="vg-name"
+            v-model="name"
+            :placeholder="t('verify.namePlaceholder')"
+            autocomplete="name"
+            :disabled="submitting"
+          />
         </div>
         <div class="flex flex-col gap-2">
           <Label for="vg-id">
             <Icon :spec="config.icons.idField" :size="16" />
             {{ t('verify.idLabel') }}
           </Label>
-          <Input id="vg-id" v-model="idNumber" :placeholder="t('verify.idPlaceholder')" autocomplete="off" inputmode="text" maxlength="18" :disabled="submitting" />
+          <Input
+            id="vg-id"
+            v-model="idNumber"
+            :placeholder="t('verify.idPlaceholder')"
+            autocomplete="off"
+            inputmode="text"
+            maxlength="18"
+            :disabled="submitting"
+          />
         </div>
-        <StatusAlert v-if="errorMsg" variant="error" :message="errorMsg" :icon="config.icons.error" />
         <Button type="submit" size="lg" :disabled="submitting" class="mt-1 w-full">
           <Icon v-if="submitting" :spec="config.icons.verifying" :size="18" class="animate-spin" />
           <Icon v-else :spec="config.icons.submit" :size="18" />
           {{ submitting ? t('verify.submitting') : t('verify.submit') }}
         </Button>
-        <p class="text-center text-xs leading-relaxed text-muted-foreground">{{ t('verify.hint') }}</p>
+        <p class="text-center text-xs leading-relaxed text-muted-foreground">
+          {{ t('verify.hint') }}
+        </p>
       </form>
     </CardContent>
   </Card>

@@ -9,7 +9,6 @@ const originalEmail = ref(user.value?.email ?? '')
 const draft = ref({ email: originalEmail.value, currentPassword: '', newPassword: '', confirm: '' })
 const saving = ref(false)
 const saved = ref(false)
-const errors = ref<string[]>([])
 
 const isDirty = computed(
   () =>
@@ -20,9 +19,8 @@ const isDirty = computed(
 )
 
 async function onSave(): Promise<void> {
-  errors.value = []
   if (draft.value.newPassword !== draft.value.confirm) {
-    errors.value = ['New passwords do not match']
+    toast.error('New passwords do not match')
     return
   }
   const body: Record<string, string> = {}
@@ -45,7 +43,7 @@ async function onSave(): Promise<void> {
     saved.value = true
     setTimeout(() => (saved.value = false), 2000)
   } catch (e) {
-    errors.value = [messageFromError(e, 'Failed to save')]
+    toast.error(messageFromError(e, 'Failed to save'))
   } finally {
     saving.value = false
   }
@@ -53,7 +51,6 @@ async function onSave(): Promise<void> {
 
 function onDiscard(): void {
   draft.value = { email: originalEmail.value, currentPassword: '', newPassword: '', confirm: '' }
-  errors.value = []
 }
 
 // --- Passkeys (independent of the email/password draft above) ---
@@ -65,15 +62,17 @@ const removingId = ref<number | null>(null)
 async function loadPasskeys(): Promise<void> {
   try {
     passkeys.value = await listPasskeys()
-  } catch { /* best-effort */ }
+  } catch {
+    /* best-effort */
+  }
 }
 async function onAddPasskey(): Promise<void> {
-  errors.value = []
   pkLoading.value = true
   try {
     passkeys.value = await addPasskey()
+    toast.success('Passkey added')
   } catch (e) {
-    errors.value = [messageFromError(e, 'Could not add passkey')]
+    toast.error(messageFromError(e, 'Could not add passkey'))
   } finally {
     pkLoading.value = false
   }
@@ -82,8 +81,9 @@ async function onRemovePasskey(id: number): Promise<void> {
   removingId.value = id
   try {
     passkeys.value = await removePasskey(id)
+    toast.success('Passkey removed')
   } catch (e) {
-    errors.value = [messageFromError(e, 'Could not remove passkey')]
+    toast.error(messageFromError(e, 'Could not remove passkey'))
   } finally {
     removingId.value = null
   }
@@ -99,8 +99,6 @@ onMounted(loadPasskeys)
 <template>
   <div class="max-w-md space-y-8 pb-24">
     <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Settings</h1>
-
-    <StatusAlert v-if="errors.length" variant="error" :message="errors.join('; ')" />
 
     <!-- Email -->
     <Card>
@@ -125,15 +123,36 @@ onMounted(loadPasskeys)
       <CardContent class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
           <Label for="settings-pw-current">Current password</Label>
-          <Input id="settings-pw-current" v-model="draft.currentPassword" type="password" placeholder="••••••••" autocomplete="current-password" :disabled="saving" />
+          <Input
+            id="settings-pw-current"
+            v-model="draft.currentPassword"
+            type="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            :disabled="saving"
+          />
         </div>
         <div class="flex flex-col gap-2">
           <Label for="settings-pw-new">New password</Label>
-          <Input id="settings-pw-new" v-model="draft.newPassword" type="password" placeholder="min 8 characters" autocomplete="new-password" :disabled="saving" />
+          <Input
+            id="settings-pw-new"
+            v-model="draft.newPassword"
+            type="password"
+            placeholder="min 8 characters"
+            autocomplete="new-password"
+            :disabled="saving"
+          />
         </div>
         <div class="flex flex-col gap-2">
           <Label for="settings-pw-confirm">Confirm new password</Label>
-          <Input id="settings-pw-confirm" v-model="draft.confirm" type="password" placeholder="re-enter password" autocomplete="new-password" :disabled="saving" />
+          <Input
+            id="settings-pw-confirm"
+            v-model="draft.confirm"
+            type="password"
+            placeholder="re-enter password"
+            autocomplete="new-password"
+            :disabled="saving"
+          />
         </div>
       </CardContent>
     </Card>
@@ -142,19 +161,32 @@ onMounted(loadPasskeys)
     <Card>
       <CardHeader>
         <CardTitle class="text-base">Passkeys</CardTitle>
-        <CardDescription>Sign in without a password using your device (Face&nbsp;ID, Touch&nbsp;ID, security key…). Requires HTTPS or localhost.</CardDescription>
+        <CardDescription
+          >Sign in without a password using your device (Face&nbsp;ID, Touch&nbsp;ID, security
+          key…). Requires HTTPS or localhost.</CardDescription
+        >
       </CardHeader>
       <CardContent class="flex flex-col gap-4">
         <p v-if="!passkeys.length" class="text-sm text-muted-foreground">No passkeys yet.</p>
         <ul v-else class="flex flex-col gap-2">
-          <li v-for="p in passkeys" :key="p.id" class="flex items-center justify-between gap-3 rounded-md border p-3">
+          <li
+            v-for="p in passkeys"
+            :key="p.id"
+            class="flex items-center justify-between gap-3 rounded-md border p-3"
+          >
             <div class="min-w-0">
               <div class="truncate text-sm font-medium">{{ passkeyLabel(p) }}</div>
               <div class="text-xs text-muted-foreground">
-                Added {{ new Date(p.createdAt).toLocaleDateString() }}<span v-if="p.backedUp"> · synced</span>
+                Added {{ new Date(p.createdAt).toLocaleDateString()
+                }}<span v-if="p.backedUp"> · synced</span>
               </div>
             </div>
-            <Button variant="outline" size="sm" :disabled="removingId === p.id" @click="onRemovePasskey(p.id)">
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="removingId === p.id"
+              @click="onRemovePasskey(p.id)"
+            >
               {{ removingId === p.id ? '…' : 'Remove' }}
             </Button>
           </li>

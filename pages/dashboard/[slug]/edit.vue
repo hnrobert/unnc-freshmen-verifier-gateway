@@ -25,13 +25,18 @@ provide(OrgConfigKey, { config: draft })
 const { applyOrgI18n, mergeOrgMessages } = useOrgI18n()
 const acceptLanguage = import.meta.server
   ? (useRequestHeaders(['accept-language'])['accept-language'] ?? '')
-  : (typeof navigator !== 'undefined' ? navigator.language : '')
+  : typeof navigator !== 'undefined'
+    ? navigator.language
+    : ''
 applyOrgI18n(draft.value, acceptLanguage)
-watch(() => draft.value.messages, () => mergeOrgMessages(draft.value), { deep: true })
+watch(
+  () => draft.value.messages,
+  () => mergeOrgMessages(draft.value),
+  { deep: true },
+)
 
 const saving = ref(false)
 const saved = ref(false)
-const errors = ref<string[]>([])
 
 // --- Dirty tracking ---
 const originalSerialized = ref(JSON.stringify(raw.value))
@@ -46,22 +51,27 @@ onBeforeRouteLeave(() => {
   }
 })
 
-async function onSave(): Promise<void> {
+// Returns true on a successful save (used by saveAndPreview to open the preview).
+async function onSave(): Promise<boolean> {
   saving.value = true
-  errors.value = []
   saved.value = false
   try {
     const v = await $fetch<{ errors: string[] }>('/api/orgs/validate', {
       method: 'POST',
       body: { config: draft.value },
     })
-    if (v.errors.length) { errors.value = v.errors; return }
+    if (v.errors.length) {
+      toast.error(v.errors.join('; '))
+      return false
+    }
     await $fetch(`/api/orgs/${slug.value}/config`, { method: 'PUT', body: { config: draft.value } })
     originalSerialized.value = JSON.stringify(draft.value)
     saved.value = true
     setTimeout(() => (saved.value = false), 2000)
+    return true
   } catch (e) {
-    errors.value = [messageFromError(e, 'Save failed')]
+    toast.error(messageFromError(e, 'Save failed'))
+    return false
   } finally {
     saving.value = false
   }
@@ -85,8 +95,8 @@ function onPreviewClick() {
 
 async function saveAndPreview() {
   previewDialog.value = false
-  await onSave()
-  if (!errors.value.length) {
+  const ok = await onSave()
+  if (ok) {
     window.open(`/${slug.value}/preview`, '_blank')
   }
 }
@@ -100,15 +110,22 @@ function previewWithoutSaving() {
 <template>
   <div>
     <!-- Sticky header bar -->
-    <div class="sticky top-14 z-30 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur lg:top-0 lg:-mx-6 lg:px-6">
-      <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Edit <code>/{{ slug }}</code></h1>
+    <div
+      class="sticky top-14 z-30 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur lg:top-0 lg:-mx-6 lg:px-6"
+    >
+      <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">
+        Edit <code>/{{ slug }}</code>
+      </h1>
       <div class="flex items-center gap-2">
         <Button variant="ghost" size="sm" @click="onPreviewClick">Preview ↗</Button>
-        <a :href="`/${slug}`" target="_blank" :class="buttonVariants({ variant: 'ghost', size: 'sm' })">Visit ↗</a>
+        <a
+          :href="`/${slug}`"
+          target="_blank"
+          :class="buttonVariants({ variant: 'ghost', size: 'sm' })"
+          >Visit ↗</a
+        >
       </div>
     </div>
-
-    <StatusAlert v-if="errors.length" variant="error" :message="errors.join('; ')" class="mt-4" />
 
     <div class="mt-6 pb-24">
       <ConfigEditor />
@@ -119,15 +136,26 @@ function previewWithoutSaving() {
 
     <!-- Preview with unsaved changes dialog -->
     <Transition name="fade">
-      <div v-if="previewDialog" class="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4" @click.self="previewDialog = false">
+      <div
+        v-if="previewDialog"
+        class="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4"
+        @click.self="previewDialog = false"
+      >
         <Card class="w-full max-w-sm">
           <CardHeader>
             <CardTitle>Unsaved changes</CardTitle>
-            <CardDescription>You have unsaved changes. Save before previewing to see them reflected?</CardDescription>
+            <CardDescription
+              >You have unsaved changes. Save before previewing to see them
+              reflected?</CardDescription
+            >
           </CardHeader>
           <CardContent class="flex flex-col gap-2">
-            <Button class="w-full" :disabled="saving" @click="saveAndPreview">Save & Preview</Button>
-            <Button variant="outline" class="w-full" @click="previewWithoutSaving">Preview without saving</Button>
+            <Button class="w-full" :disabled="saving" @click="saveAndPreview"
+              >Save & Preview</Button
+            >
+            <Button variant="outline" class="w-full" @click="previewWithoutSaving"
+              >Preview without saving</Button
+            >
             <Button variant="ghost" class="w-full" @click="previewDialog = false">Cancel</Button>
           </CardContent>
         </Card>
@@ -136,7 +164,11 @@ function previewWithoutSaving() {
 
     <!-- Unsaved changes leave dialog -->
     <Transition name="fade">
-      <div v-if="confirmLeave" class="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4" @click.self="confirmLeave = false">
+      <div
+        v-if="confirmLeave"
+        class="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4"
+        @click.self="confirmLeave = false"
+      >
         <Card class="w-full max-w-sm">
           <CardHeader>
             <CardTitle>Unsaved changes</CardTitle>
@@ -144,8 +176,28 @@ function previewWithoutSaving() {
           </CardHeader>
           <CardContent class="flex gap-2">
             <Button variant="outline" class="flex-1" @click="confirmLeave = false">Stay</Button>
-            <Button variant="outline" class="flex-1" @click="() => { onDiscard(); confirmLeave = false }">Discard</Button>
-            <Button class="flex-1" :disabled="saving" @click="async () => { await onSave(); confirmLeave = false }">Save & leave</Button>
+            <Button
+              variant="outline"
+              class="flex-1"
+              @click="
+                () => {
+                  onDiscard()
+                  confirmLeave = false
+                }
+              "
+              >Discard</Button
+            >
+            <Button
+              class="flex-1"
+              :disabled="saving"
+              @click="
+                async () => {
+                  await onSave()
+                  confirmLeave = false
+                }
+              "
+              >Save & leave</Button
+            >
           </CardContent>
         </Card>
       </div>
@@ -154,6 +206,12 @@ function previewWithoutSaving() {
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 </style>

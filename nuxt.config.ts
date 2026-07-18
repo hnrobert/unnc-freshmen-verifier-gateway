@@ -15,6 +15,14 @@ export default defineNuxtConfig({
   // root alongside app.vue, not under an app/ dir.
   srcDir: '.',
 
+  // vue-sonner: registers the client-only <Toaster> component, auto-adds its
+  // CSS, and provides $toast. The preset below also auto-imports the `toast`
+  // function so any <script setup> can call toast.error/.success directly.
+  modules: ['vue-sonner/nuxt'],
+  imports: {
+    presets: [{ from: 'vue-sonner', imports: ['toast'] }],
+  },
+
   // Tailwind v4 + shadcn theme CSS.
   css: ['~/assets/css/main.css'],
   vite: {
