@@ -12,7 +12,6 @@ const ACTION_LABELS: Record<string, string> = {
   stats: 'Statistics',
 }
 const ADMIN_TAB_LABELS: Record<string, string> = {
-  orgs: 'Organizations',
   users: 'Users',
   registration: 'Registration',
   mail: 'Mail',
@@ -29,11 +28,14 @@ function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
   if (path === '/dashboard/new') return [dash, orgs, { label: 'New organization' }]
   if (path === '/dashboard/settings') return [dash, { label: 'Settings' }]
 
-  if (path === '/dashboard/admin') {
-    const tabLabel = ADMIN_TAB_LABELS[String(route.query.tab ?? 'orgs')]
-    return tabLabel
-      ? [dash, { label: 'Admin', to: '/dashboard/admin' }, { label: tabLabel }]
-      : [dash, { label: 'Admin' }]
+  // Admin section (superadmin): /dashboard/admin is the index; users /
+  // registration / mail are sub-pages. (The section used to be a single page
+  // with a ?tab= query — now it's a route dir, so match the sub-routes.)
+  if (path === '/dashboard/admin') return [dash, { label: 'Admin' }]
+  const adminPage = path.match(/^\/dashboard\/admin\/(users|registration|mail)$/)
+  if (adminPage && adminPage[1]) {
+    const label = ADMIN_TAB_LABELS[adminPage[1]] ?? adminPage[1]
+    return [dash, { label: 'Admin', to: '/dashboard/admin' }, { label }]
   }
 
   // /dashboard/<slug>/{edit,members,stats}
