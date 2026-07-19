@@ -71,8 +71,6 @@ const wlDirty = computed(
     wlEnabled.value !== wlOriginal.value.enabled ||
     wlPatternsText.value !== wlOriginal.value.patternsText,
 )
-// Unsaved-changes prompt on leave (registration whitelist).
-const { confirmLeave, proceed } = useUnsavedLeaveGuard(wlDirty, wlSaving)
 async function saveWhitelist() {
   wlSaving.value = true
   wlSaved.value = false
@@ -118,28 +116,67 @@ interface MailConfigView {
   maxLenBody: number
 }
 const { user: authUser } = useAuth()
-const { data: mail } = await useFetch<MailConfigView>('/api/mail/config')
+const { data: mailData } = await useFetch<MailConfigView | null>('/api/mail/config')
+const DEFAULT_MAIL: MailConfigView = {
+  smtpServer: '',
+  smtpPort: 587,
+  useSsl: false,
+  useTls: true,
+  usePassword: true,
+  senderEmail: '',
+  senderEmailDisplay: '',
+  senderDomain: '',
+  hasPassword: false,
+  maxLenRecipientEmail: 64,
+  maxLenSubject: 255,
+  maxLenBody: 50000,
+}
+// Defaulted local form model — the card always shows (even before any config
+// exists), populated from the fetch when one comes back.
+const mail = ref<MailConfigView>({ ...DEFAULT_MAIL })
+// Snapshot of persisted values, for dirty tracking + discard.
+const mailOriginal = ref<MailConfigView>({ ...DEFAULT_MAIL })
+watch(
+  mailData,
+  (m) => {
+    const v = m ? { ...m } : { ...DEFAULT_MAIL }
+    mail.value = { ...v }
+    mailOriginal.value = { ...v }
+  },
+  { immediate: true },
+)
 const mailPassword = ref('')
 const mailSaving = ref(false)
+const mailSaved = ref(false)
 const mailTesting = ref(false)
 const testRecipient = ref(authUser.value?.email ?? '')
+const mailDirty = computed(
+  () =>
+    JSON.stringify(mail.value) !== JSON.stringify(mailOriginal.value) || mailPassword.value !== '',
+)
 
 async function onSaveMail() {
-  if (!mail.value) return
   mailSaving.value = true
+  mailSaved.value = false
   try {
     const res = await $fetch<MailConfigView>('/api/mail/config', {
       method: 'PUT',
       body: { ...mail.value, senderPassword: mailPassword.value },
     })
-    mail.value = res
+    mail.value = { ...res }
+    mailOriginal.value = { ...res }
     mailPassword.value = ''
-    toast.success('Mail settings saved')
+    mailSaved.value = true
+    setTimeout(() => (mailSaved.value = false), 2000)
   } catch (e) {
     toast.error(messageFromError(e, 'Save failed'))
   } finally {
     mailSaving.value = false
   }
+}
+function discardMail() {
+  mail.value = { ...mailOriginal.value }
+  mailPassword.value = ''
 }
 async function onSendTest() {
   if (!mail.value) return
@@ -152,6 +189,21 @@ async function onSendTest() {
   } finally {
     mailTesting.value = false
   }
+}
+
+// Shared save bar + leave guard across the registration + mail tabs.
+const tabDirty = computed(() =>
+  tab.value === 'mail' ? mailDirty.value : tab.value === 'registration' ? wlDirty.value : false,
+)
+const tabSaving = computed(() => (tab.value === 'mail' ? mailSaving.value : wlSaving.value))
+const tabSaved = computed(() => (tab.value === 'mail' ? mailSaved.value : wlSaved.value))
+const { confirmLeave, proceed } = useUnsavedLeaveGuard(tabDirty, tabSaving)
+async function onTabSave() {
+  return tab.value === 'mail' ? onSaveMail() : saveWhitelist()
+}
+function onTabDiscard() {
+  if (tab.value === 'mail') discardMail()
+  else discardWhitelist()
 }
 </script>
 
@@ -297,8 +349,8 @@ async function onSendTest() {
     </div>
 
     <!-- Mail (site-wide SMTP) tab -->
-    <div v-else-if="tab === 'mail'" class="mt-6">
-      <Card v-if="mail">
+    <div v-else-if="tab === 'mail'" class="mt-6 pb-24">
+      <Card>
         <CardHeader>
           <CardTitle class="text-base">Mail (SMTP)</CardTitle>
           <CardDescription>
@@ -398,10 +450,6 @@ async function onSendTest() {
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <Button size="sm" :disabled="mailSaving" @click="onSaveMail">{{
-              mailSaving ? 'Saving…' : 'Save mail settings'
-            }}</Button>
-            <span class="mx-1 h-5 w-px bg-border"></span>
             <Input
               v-model="testRecipient"
               type="email"
@@ -421,30 +469,30 @@ async function onSendTest() {
       </Card>
     </div>
 
-    <!-- Sticky save/discard bar (registration whitelist only) -->
+    <!-- Sticky save/discard bar (registration + mail tabs) -->
     <SaveBar
-      v-if="tab === 'registration'"
-      :dirty="wlDirty"
-      :saving="wlSaving"
-      :saved="wlSaved"
-      @save="saveWhitelist"
-      @discard="discardWhitelist"
+      v-if="tab === 'registration' || tab === 'mail'"
+      :dirty="tabDirty"
+      :saving="tabSaving"
+      :saved="tabSaved"
+      @save="onTabSave"
+      @discard="onTabDiscard"
     />
 
-    <!-- Unsaved changes leave dialog (registration whitelist) -->
+    <!-- Unsaved changes leave dialog (registration + mail) -->
     <UnsavedLeaveDialog
       :open="confirmLeave"
-      :saving="wlSaving"
+      :saving="tabSaving"
       @stay="confirmLeave = false"
       @discard="
         () => {
-          discardWhitelist()
+          onTabDiscard()
           proceed()
         }
       "
       @save="
         async () => {
-          await saveWhitelist()
+          await onTabSave()
           proceed()
         }
       "
