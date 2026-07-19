@@ -1,4 +1,5 @@
 import { getMailConfig, sendMailWithConfig } from '#server/utils/mail'
+import { renderEmail } from '#server/mail/render'
 
 export default defineEventHandler(async (event) => {
   requireSuperAdmin(event)
@@ -9,12 +10,18 @@ export default defineEventHandler(async (event) => {
   if (!cfg) throw createError({ statusCode: 400, statusMessage: 'Mail is not configured yet' })
 
   try {
+    const html = renderEmail({
+      title: 'Test email',
+      bodyHtml:
+        '<p>This is a test email sent by the UNNC Freshmen Verifier Gateway mail feature.</p>' +
+        '<p>If you received it, your SMTP settings are working correctly.</p>',
+      preheader: 'Your mail configuration is working.',
+    })
     const messageId = await sendMailWithConfig(cfg, {
       to,
       subject: `Mail test from ${cfg.senderEmail || 'UNNC VG'}`,
-      body:
-        'This is a test email sent by the UNNC Freshmen Verifier Gateway mail feature.\n\n' +
-        'If you received it, your SMTP settings are working.',
+      body: html,
+      html: true,
     })
     return { messageId }
   } catch (e) {

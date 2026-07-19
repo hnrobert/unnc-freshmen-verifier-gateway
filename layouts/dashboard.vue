@@ -98,10 +98,10 @@ function toggleTheme() {
             Admin
           </div>
           <NuxtLink
-            to="/dashboard/admin?tab=orgs"
+            to="/dashboard/admin"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="
-              route.path === '/dashboard/admin' && (route.query.tab === 'orgs' || !route.query.tab)
+              route.path === '/dashboard/admin'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             "
@@ -110,10 +110,10 @@ function toggleTheme() {
             All Organizations
           </NuxtLink>
           <NuxtLink
-            to="/dashboard/admin?tab=users"
+            to="/dashboard/admin/users"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="
-              route.path === '/dashboard/admin' && route.query.tab === 'users'
+              route.path === '/dashboard/admin/users'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             "
@@ -122,10 +122,10 @@ function toggleTheme() {
             Users
           </NuxtLink>
           <NuxtLink
-            to="/dashboard/admin?tab=registration"
+            to="/dashboard/admin/registration"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="
-              route.path === '/dashboard/admin' && route.query.tab === 'registration'
+              route.path === '/dashboard/admin/registration'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             "
@@ -134,10 +134,10 @@ function toggleTheme() {
             Registration
           </NuxtLink>
           <NuxtLink
-            to="/dashboard/admin?tab=mail"
+            to="/dashboard/admin/mail"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="
-              route.path === '/dashboard/admin' && route.query.tab === 'mail'
+              route.path === '/dashboard/admin/mail'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             "

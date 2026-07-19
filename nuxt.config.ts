@@ -1,4 +1,15 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
+
+// The HTML email template is authored as a standalone file (email/template.html).
+// Read at config-eval time and passed to the server via runtimeConfig so it's
+// bundled into the build reliably. (Nitro serverAssets didn't bundle it here.)
+// Edits to the template require a dev-server restart to take effect.
+const emailTemplate = readFileSync(
+  fileURLToPath(new URL('./email/template.html', import.meta.url)),
+  'utf-8',
+)
 
 // Nuxt 4 full-stack config. The public per-org gateway is SSR-rendered so each
 // org's config/i18n/theme apply on first paint; auth + orgs + admission run as
@@ -37,6 +48,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
     dbPath: process.env.DB_PATH || './data/app.db',
+    emailTemplate,
   },
 
   // No-FOUC dark mode: apply the saved/system theme synchronously in <head>
