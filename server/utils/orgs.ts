@@ -22,7 +22,7 @@ export const RESERVED_SLUGS = new Set([
   'static',
   'assets',
   '_nuxt',
-  'favicon.png',
+  'favicon.svg',
   'welcome',
 ])
 

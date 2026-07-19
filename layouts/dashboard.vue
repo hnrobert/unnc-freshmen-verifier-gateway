@@ -80,7 +80,21 @@ function toggleTheme() {
           Organizations
         </NuxtLink>
 
-        <!-- Superadmin section -->
+        <!-- Settings (user account: email / password / passkeys / mail) -->
+        <NuxtLink
+          to="/dashboard/settings"
+          class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+          :class="
+            route.path === '/dashboard/settings'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+          "
+        >
+          <Icon spec="Settings" :size="16" />
+          Settings
+        </NuxtLink>
+
+        <!-- Superadmin section (site-wide: orgs / users / registration) -->
         <template v-if="isSuperAdmin">
           <div
             class="px-3 pt-4 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60"
@@ -124,19 +138,6 @@ function toggleTheme() {
             Registration
           </NuxtLink>
         </template>
-        <!-- Settings -->
-        <NuxtLink
-          to="/dashboard/settings"
-          class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
-          :class="
-            route.path === '/dashboard/settings'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-          "
-        >
-          <Icon spec="Settings" :size="16" />
-          Settings
-        </NuxtLink>
       </nav>
 
       <!-- User -->
