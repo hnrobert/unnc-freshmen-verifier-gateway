@@ -92,6 +92,7 @@ async function onDelete(slug: string) {
             :class="buttonVariants({ variant: 'ghost', size: 'sm' })"
             >View ↗</a
           >
+          <OrgLinkActions variant="outline" :slug="org.slug" />
         </div>
       </li>
     </ul>

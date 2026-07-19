@@ -5,6 +5,7 @@ const { user, logout } = useAuth()
 const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
 const sidebarOpen = ref(false)
 const route = useRoute()
+const trail = useBreadcrumbs()
 
 watch(
   () => route.path,
@@ -194,6 +195,17 @@ function toggleTheme() {
 
       <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <div class="mx-auto w-full max-w-4xl">
+          <Breadcrumb v-if="trail.length > 1" class="mb-4">
+            <BreadcrumbList>
+              <template v-for="(item, i) in trail" :key="i">
+                <BreadcrumbItem>
+                  <BreadcrumbLink v-if="item.to" :to="item.to">{{ item.label }}</BreadcrumbLink>
+                  <BreadcrumbPage v-else>{{ item.label }}</BreadcrumbPage>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator v-if="i < trail.length - 1" />
+              </template>
+            </BreadcrumbList>
+          </Breadcrumb>
           <slot />
         </div>
       </main>

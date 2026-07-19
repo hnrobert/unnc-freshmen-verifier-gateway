@@ -140,6 +140,7 @@ function previewWithoutSaving() {
           :class="buttonVariants({ variant: 'ghost', size: 'sm' })"
           >Visit ↗</a
         >
+        <OrgLinkActions :slug="slug" />
       </div>
     </div>
 

@@ -35,6 +35,7 @@ const { data: orgs } = await useFetch<OrgRow[]>('/api/admin/orgs')
                 class="inline-flex h-9 items-center rounded-md px-3 text-xs font-medium border hover:bg-accent"
                 >Preview ↗</a
               >
+              <OrgLinkActions variant="outline" :slug="org.slug" />
             </div>
           </div>
         </CardContent>
