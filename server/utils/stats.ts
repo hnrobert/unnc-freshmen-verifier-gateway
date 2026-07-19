@@ -4,6 +4,7 @@ import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
 import { OrgEvent } from '#server/entities/orgEvent.entity'
 import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
+import { listAccessibleOrgs, type EffectiveRole } from './members'
 
 const RETENTION_DAYS = 90
 const RANGES = new Set([7, 30, 90, 0]) // 0 == all
@@ -336,5 +337,229 @@ export async function readStats(orgId: number, rangeQuery: unknown): Promise<Sta
       os: await breakdown('os'),
       referer: await breakdown('referer'),
     },
+  }
+}
+
+// --- Cross-org overview (powers GET /api/stats/overview → dashboard 看板) ---
+
+export interface OverviewOrg {
+  id: number
+  slug: string
+  name: string
+  role: EffectiveRole
+  totals: { views: number; verifyTotal: number; admitted: number; successRate: number | null }
+  /** Daily views across the range, aligned to `daily.days` (for the sparkline). */
+  spark: number[]
+}
+
+export interface OverviewResult {
+  range: number
+  totals: {
+    views: number
+    uniqueVisitors: number
+    verifyTotal: number
+    admitted: number
+    notFound: number
+    error: number
+    successRate: number | null
+  }
+  daily: {
+    days: string[]
+    views: number[]
+    uniqueVisitors: (number | null)[]
+    verifyTotal: number[]
+    admitted: number[]
+  }
+  orgs: OverviewOrg[]
+}
+
+/**
+ * Aggregate stats across every org the user can access (owned ∪ shared), for the
+ * dashboard 看板: cross-org totals + a summed daily trend + a per-org breakdown
+ * (each org's quick KPIs + a views sparkline). UV is a true `COUNT(DISTINCT
+ * ip_hash)` across all the orgs (a visitor shared between orgs isn't double
+ * counted — the stats salt is stable across orgs).
+ */
+export async function readOverviewStats(
+  userId: number,
+  rangeQuery: unknown,
+): Promise<OverviewResult> {
+  const accessible = await listAccessibleOrgs(userId)
+  const range = rangeDays(rangeQuery)
+  const now = Date.now()
+  const sinceMs = range > 0 ? now - range * 24 * 60 * 60 * 1000 : 0
+  const since = sinceMs ? new Date(sinceMs).toISOString() : null
+  const startDay = sinceMs ? new Date(sinceMs).toISOString().slice(0, 10) : '1970-01-01'
+  const days = range > 0 ? dayRange(startDay) : []
+
+  const empty: OverviewResult = {
+    range,
+    totals: {
+      views: 0,
+      uniqueVisitors: 0,
+      verifyTotal: 0,
+      admitted: 0,
+      notFound: 0,
+      error: 0,
+      successRate: null,
+    },
+    daily: { days, views: [], uniqueVisitors: [], verifyTotal: [], admitted: [] },
+    orgs: [],
+  }
+  if (!accessible.length) return empty
+
+  const orgIds = accessible.map((a) => a.org.id)
+  const statRepo = AppDataSource.getRepository(OrgDailyStat)
+  const eventRepo = AppDataSource.getRepository(OrgEvent)
+
+  // --- aggregate totals across orgs ---
+  const totalRows = await statRepo
+    .createQueryBuilder('s')
+    .select(['s.metric AS metric', 'SUM(s.count) AS count'])
+    .where('s.orgId IN (:...orgIds)', { orgIds })
+    .groupBy('s.metric')
+    .getRawMany<{ metric: string; count: number }>()
+  const metricTotals = new Map<string, number>()
+  for (const r of totalRows)
+    metricTotals.set(r.metric, (metricTotals.get(r.metric) ?? 0) + Number(r.count))
+
+  // --- aggregate daily trend across orgs ---
+  const metricByDay = new Map<string, Record<string, number>>()
+  if (range > 0) {
+    const dailyRows = await statRepo
+      .createQueryBuilder('s')
+      .select(['s.day AS day', 's.metric AS metric', 'SUM(s.count) AS count'])
+      .where('s.orgId IN (:...orgIds)', { orgIds })
+      .andWhere('s.day >= :startDay', { startDay })
+      .groupBy('s.day')
+      .addGroupBy('s.metric')
+      .getRawMany<{ day: string; metric: string; count: number }>()
+    for (const r of dailyRows) {
+      const m = metricByDay.get(r.day) ?? {}
+      m[r.metric] = (m[r.metric] ?? 0) + Number(r.count)
+      metricByDay.set(r.day, m)
+    }
+  }
+  const pickDay = (metric: string) => days.map((d) => metricByDay.get(d)?.[metric] ?? 0)
+
+  // --- cross-org unique visitors (distinct ip_hash across all the orgs) ---
+  const retentionCutoff = new Date(now - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+  const uvSince = since && since > retentionCutoff ? since : retentionCutoff
+  let uvSeries: (number | null)[] = days.map(() => null)
+  let uniqueVisitors = 0
+  if (range > 0) {
+    const uvRows = await eventRepo
+      .createQueryBuilder('e')
+      .select(['DATE(e.createdAt) AS day', 'COUNT(DISTINCT e.ipHash) AS uv'])
+      .where('e.orgId IN (:...orgIds)', { orgIds })
+      .andWhere('e.type = :type', { type: 'view' })
+      .andWhere('e.createdAt >= :uvSince', { uvSince })
+      .groupBy('DATE(e.createdAt)')
+      .getRawMany<{ day: string; uv: number }>()
+    const uvByDay = new Map(uvRows.map((r) => [r.day, Number(r.uv)]))
+    uvSeries = days.map((d) => {
+      const v = uvByDay.get(d)
+      return v === undefined ? null : v
+    })
+    uniqueVisitors = uvRows.reduce((a, r) => a + Number(r.uv), 0)
+  } else {
+    uniqueVisitors = Number(
+      (
+        await eventRepo
+          .createQueryBuilder('e')
+          .select('COUNT(DISTINCT e.ipHash)', 'uv')
+          .where('e.orgId IN (:...orgIds)', { orgIds })
+          .andWhere('e.type = :type', { type: 'view' })
+          .andWhere('e.createdAt >= :uvSince', { uvSince })
+          .getRawOne<{ uv: number }>()
+      )?.uv ?? 0,
+    )
+  }
+
+  // --- per-org totals ---
+  const perOrgTotals = await statRepo
+    .createQueryBuilder('s')
+    .select(['s.orgId AS orgId', 's.metric AS metric', 'SUM(s.count) AS count'])
+    .where('s.orgId IN (:...orgIds)', { orgIds })
+    .groupBy('s.orgId')
+    .addGroupBy('s.metric')
+    .getRawMany<{ orgId: number; metric: string; count: number }>()
+  const perOrg = new Map<number, Record<string, number>>()
+  for (const r of perOrgTotals) {
+    const m = perOrg.get(r.orgId) ?? {}
+    m[r.metric] = (m[r.metric] ?? 0) + Number(r.count)
+    perOrg.set(r.orgId, m)
+  }
+
+  // --- per-org daily views for the sparkline ---
+  const perOrgSpark = new Map<number, number[]>()
+  if (range > 0) {
+    const sparkRows = await statRepo
+      .createQueryBuilder('s')
+      .select(['s.orgId AS orgId', 's.day AS day', 'SUM(s.count) AS count'])
+      .where('s.orgId IN (:...orgIds)', { orgIds })
+      .andWhere('s.metric = :metric', { metric: 'view' })
+      .andWhere('s.day >= :startDay', { startDay })
+      .groupBy('s.orgId')
+      .addGroupBy('s.day')
+      .getRawMany<{ orgId: number; day: string; count: number }>()
+    const sparkMap = new Map<number, Map<string, number>>()
+    for (const r of sparkRows) {
+      const d = sparkMap.get(r.orgId) ?? new Map<string, number>()
+      d.set(r.day, Number(r.count))
+      sparkMap.set(r.orgId, d)
+    }
+    for (const id of orgIds) {
+      const d = sparkMap.get(id)
+      perOrgSpark.set(
+        id,
+        days.map((day) => d?.get(day) ?? 0),
+      )
+    }
+  }
+
+  const verifyTotal = metricTotals.get('verify_total') ?? 0
+  const admitted = metricTotals.get('verify_admitted') ?? 0
+
+  const orgs: OverviewOrg[] = accessible
+    .map(({ org, role }) => {
+      const m = perOrg.get(org.id) ?? {}
+      const v = m['verify_total'] ?? 0
+      const adm = m['verify_admitted'] ?? 0
+      return {
+        id: org.id,
+        slug: org.slug,
+        name: org.name,
+        role,
+        totals: {
+          views: m['view'] ?? 0,
+          verifyTotal: v,
+          admitted: adm,
+          successRate: v > 0 ? adm / v : null,
+        },
+        spark: perOrgSpark.get(org.id) ?? [],
+      }
+    })
+    .sort((a, b) => b.totals.views - a.totals.views)
+
+  return {
+    range,
+    totals: {
+      views: metricTotals.get('view') ?? 0,
+      uniqueVisitors,
+      verifyTotal,
+      admitted,
+      notFound: metricTotals.get('verify_not_found') ?? 0,
+      error: metricTotals.get('verify_error') ?? 0,
+      successRate: verifyTotal > 0 ? admitted / verifyTotal : null,
+    },
+    daily: {
+      days,
+      views: pickDay('view'),
+      uniqueVisitors: uvSeries,
+      verifyTotal: pickDay('verify_total'),
+      admitted: pickDay('verify_admitted'),
+    },
+    orgs,
   }
 }
