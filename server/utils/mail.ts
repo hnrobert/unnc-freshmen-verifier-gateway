@@ -1,0 +1,134 @@
+import { randomBytes } from 'node:crypto'
+import nodemailer from 'nodemailer'
+import { AppDataSource } from './database'
+import { MailConfig } from '#server/entities/mailConfig.entity'
+
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+export interface SendMailInput {
+  to: string
+  subject: string
+  body: string
+  /** Send `body` as text/html instead of text/plain. */
+  html?: boolean
+}
+
+/** Patch shape for upserting a user's mail config. `senderPassword` only applies when non-empty. */
+export interface MailConfigInput {
+  smtpServer?: string
+  smtpPort?: number
+  useSsl?: boolean
+  useTls?: boolean
+  usePassword?: boolean
+  senderEmail?: string
+  senderEmailDisplay?: string
+  senderDomain?: string
+  senderPassword?: string
+  maxLenRecipientEmail?: number
+  maxLenSubject?: number
+  maxLenBody?: number
+}
+
+export async function getMailConfig(userId: number): Promise<MailConfig | null> {
+  return AppDataSource.getRepository(MailConfig).findOneBy({ userId })
+}
+
+/**
+ * Upsert the user's mail config. `senderPassword` is only overwritten when a
+ * non-empty value is supplied, so "save without re-entering the password"
+ * leaves the stored secret intact.
+ */
+export async function saveMailConfig(userId: number, patch: MailConfigInput): Promise<MailConfig> {
+  const repo = AppDataSource.getRepository(MailConfig)
+  const existing = await repo.findOneBy({ userId })
+  if (existing) {
+    const { senderPassword, ...rest } = patch
+    Object.assign(existing, rest)
+    if (typeof senderPassword === 'string' && senderPassword !== '') {
+      existing.senderPassword = senderPassword
+    }
+    return repo.save(existing)
+  }
+  return repo.save(repo.create({ userId, ...patch }))
+}
+
+/** Config safe to return to the client — drops the password, exposes `hasPassword`. */
+export function mailConfigToClient(c: MailConfig | null) {
+  if (!c) return null
+  return {
+    id: c.id,
+    userId: c.userId,
+    smtpServer: c.smtpServer,
+    smtpPort: c.smtpPort,
+    useSsl: c.useSsl,
+    useTls: c.useTls,
+    usePassword: c.usePassword,
+    senderEmail: c.senderEmail,
+    senderEmailDisplay: c.senderEmailDisplay,
+    senderDomain: c.senderDomain,
+    hasPassword: !!c.senderPassword,
+    maxLenRecipientEmail: c.maxLenRecipientEmail,
+    maxLenSubject: c.maxLenSubject,
+    maxLenBody: c.maxLenBody,
+  }
+}
+
+/**
+ * From header, ported from smtogo's sender.go. When authenticated the envelope
+ * sender must match the SMTP login (sender_email); the display address is shown
+ * to the recipient. Unauthenticated senders just use the display address.
+ */
+function fromAddress(c: MailConfig): string {
+  const display = c.senderEmailDisplay.trim()
+  if (c.usePassword) {
+    return display && display !== c.senderEmail ? `${display} <${c.senderEmail}>` : c.senderEmail
+  }
+  return display || c.senderEmail
+}
+
+function validate(c: MailConfig, input: SendMailInput): void {
+  if (!EMAIL_RE.test(input.to)) throw new Error('Invalid recipient email address')
+  if (input.to.length > c.maxLenRecipientEmail) {
+    throw new Error(`Recipient email exceeds max length (${c.maxLenRecipientEmail})`)
+  }
+  if (input.subject.length > c.maxLenSubject) {
+    throw new Error(`Subject exceeds max length (${c.maxLenSubject})`)
+  }
+  if (input.body.length > c.maxLenBody) {
+    throw new Error(`Body exceeds max length (${c.maxLenBody})`)
+  }
+}
+
+/** Send using an explicit config (bypasses the DB lookup). Returns the message id. */
+export async function sendMailWithConfig(c: MailConfig, input: SendMailInput): Promise<string> {
+  if (!c.smtpServer) throw new Error('SMTP server is not configured')
+  validate(c, input)
+  const transporter = nodemailer.createTransport({
+    host: c.smtpServer,
+    port: c.smtpPort,
+    secure: c.useSsl, // implicit TLS (direct socket TLS, e.g. :465)
+    requireTLS: c.useTls, // force STARTTLS (e.g. :587/:25)
+    auth: c.usePassword ? { user: c.senderEmail, pass: c.senderPassword } : undefined,
+  })
+  try {
+    const info = await transporter.sendMail({
+      from: fromAddress(c),
+      to: input.to,
+      subject: input.subject,
+      messageId: c.senderDomain
+        ? `<${randomBytes(12).toString('hex')}@${c.senderDomain}>`
+        : undefined,
+      ...(input.html ? { html: input.body } : { text: input.body }),
+    })
+    return info.messageId
+  } finally {
+    transporter.close()
+  }
+}
+
+/** Send on behalf of a user (loads their stored config). Returns the message id. */
+export async function sendMail(userId: number, input: SendMailInput): Promise<string> {
+  const cfg = await getMailConfig(userId)
+  if (!cfg) throw new Error('Mail is not configured for this user')
+  return sendMailWithConfig(cfg, input)
+}
