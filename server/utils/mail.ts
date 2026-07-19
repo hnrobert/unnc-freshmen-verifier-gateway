@@ -29,18 +29,25 @@ export interface MailConfigInput {
   maxLenBody?: number
 }
 
-export async function getMailConfig(userId: number): Promise<MailConfig | null> {
-  return AppDataSource.getRepository(MailConfig).findOneBy({ userId })
+/**
+ * The mail/SMTP config is a site-wide setting (superadmin-owned), stored as a
+ * single row keyed by this reserved userId (no real user has id 0). Reuses the
+ * existing table shape without a schema change.
+ */
+const SITE_USER_ID = 0
+
+export async function getMailConfig(): Promise<MailConfig | null> {
+  return AppDataSource.getRepository(MailConfig).findOneBy({ userId: SITE_USER_ID })
 }
 
 /**
- * Upsert the user's mail config. `senderPassword` is only overwritten when a
+ * Upsert the site mail config. `senderPassword` is only overwritten when a
  * non-empty value is supplied, so "save without re-entering the password"
  * leaves the stored secret intact.
  */
-export async function saveMailConfig(userId: number, patch: MailConfigInput): Promise<MailConfig> {
+export async function saveMailConfig(patch: MailConfigInput): Promise<MailConfig> {
   const repo = AppDataSource.getRepository(MailConfig)
-  const existing = await repo.findOneBy({ userId })
+  const existing = await repo.findOneBy({ userId: SITE_USER_ID })
   if (existing) {
     const { senderPassword, ...rest } = patch
     Object.assign(existing, rest)
@@ -49,7 +56,7 @@ export async function saveMailConfig(userId: number, patch: MailConfigInput): Pr
     }
     return repo.save(existing)
   }
-  return repo.save(repo.create({ userId, ...patch }))
+  return repo.save(repo.create({ userId: SITE_USER_ID, ...patch }))
 }
 
 /** Config safe to return to the client — drops the password, exposes `hasPassword`. */
@@ -126,9 +133,9 @@ export async function sendMailWithConfig(c: MailConfig, input: SendMailInput): P
   }
 }
 
-/** Send on behalf of a user (loads their stored config). Returns the message id. */
-export async function sendMail(userId: number, input: SendMailInput): Promise<string> {
-  const cfg = await getMailConfig(userId)
-  if (!cfg) throw new Error('Mail is not configured for this user')
+/** Send using the site mail config. Returns the message id. */
+export async function sendMail(input: SendMailInput): Promise<string> {
+  const cfg = await getMailConfig()
+  if (!cfg) throw new Error('Mail is not configured')
   return sendMailWithConfig(cfg, input)
 }

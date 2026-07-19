@@ -1,11 +1,11 @@
 import { getMailConfig, sendMailWithConfig } from '#server/utils/mail'
 
 export default defineEventHandler(async (event) => {
-  const user = requireAuth(event)
+  requireSuperAdmin(event)
   const body = await readBody<{ to?: unknown }>(event)
   const to = String(body?.to ?? '').trim()
 
-  const cfg = await getMailConfig(user.id)
+  const cfg = await getMailConfig()
   if (!cfg) throw createError({ statusCode: 400, statusMessage: 'Mail is not configured yet' })
 
   try {

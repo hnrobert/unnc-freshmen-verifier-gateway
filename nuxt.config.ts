@@ -46,7 +46,7 @@ export default defineNuxtConfig({
       // Default favicon for non-org pages (homepage, auth, dashboard). Org
       // pages override this same key in layouts/default.vue with the org's
       // brand icon.
-      link: [{ key: 'favicon', rel: 'icon', type: 'image/jpeg', href: '/favicon.svg' }],
+      link: [{ key: 'favicon', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
       script: [
         {
           tagPosition: 'head',

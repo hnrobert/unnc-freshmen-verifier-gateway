@@ -7,7 +7,7 @@ const clampInt = (v: unknown, fallback: number, min = 1, max = 65535): number =>
 }
 
 export default defineEventHandler(async (event) => {
-  const user = requireAuth(event)
+  requireSuperAdmin(event)
   const body = await readBody<Record<string, unknown>>(event)
 
   const patch: MailConfigInput = {
@@ -33,6 +33,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'SMTP server is required' })
   }
 
-  const saved = await saveMailConfig(user.id, patch)
+  const saved = await saveMailConfig(patch)
   return mailConfigToClient(saved)
 })

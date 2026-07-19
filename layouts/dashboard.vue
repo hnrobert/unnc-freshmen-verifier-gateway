@@ -36,11 +36,7 @@ function toggleTheme() {
     >
       <!-- Brand -->
       <div class="flex h-14 items-center gap-2 border-b px-5">
-        <span
-          class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-        >
-          <Icon spec="GraduationCap" :size="16" />
-        </span>
+        <img src="/favicon.svg" alt="" class="size-8 shrink-0 rounded-lg" />
         <span class="flex-1 text-sm font-semibold leading-tight"
           >UNNC Freshmen<br />Verifier Gateway</span
         >
@@ -136,6 +132,18 @@ function toggleTheme() {
           >
             <Icon spec="UserCheck" :size="16" />
             Registration
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin?tab=mail"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin' && route.query.tab === 'mail'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="Mail" :size="16" />
+            Mail
           </NuxtLink>
         </template>
       </nav>
