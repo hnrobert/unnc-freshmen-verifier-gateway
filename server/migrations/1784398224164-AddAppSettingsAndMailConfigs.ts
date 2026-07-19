@@ -1,5 +1,5 @@
 /* eslint-disable class-methods-use-this */
-import { MigrationInterface, QueryRunner } from 'typeorm'
+import type { MigrationInterface, QueryRunner } from 'typeorm'
 
 export class AddAppSettingsAndMailConfigs1784398224164 implements MigrationInterface {
   name = 'AddAppSettingsAndMailConfigs1784398224164'

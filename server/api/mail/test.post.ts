@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   } catch (e) {
     throw createError({
       statusCode: 502,
-      statusMessage: messageFromError(e, 'Failed to send test email'),
+      statusMessage: e instanceof Error ? e.message : 'Failed to send test email',
     })
   }
 })

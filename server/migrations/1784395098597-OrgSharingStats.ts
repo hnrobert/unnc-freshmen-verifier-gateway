@@ -1,5 +1,5 @@
 /* eslint-disable class-methods-use-this */
-import { MigrationInterface, QueryRunner } from 'typeorm'
+import type { MigrationInterface, QueryRunner } from 'typeorm'
 
 export class OrgSharingStats1784395098597 implements MigrationInterface {
   name = 'OrgSharingStats1784395098597'

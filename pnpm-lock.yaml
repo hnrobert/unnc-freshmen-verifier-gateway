@@ -17,6 +17,9 @@ importers:
       '@simplewebauthn/server':
         specifier: ^13.3.2
         version: 13.3.2
+      '@vue/server-renderer':
+        specifier: 3.5.39
+        version: 3.5.39(vue@3.5.39(typescript@5.9.3))
       '@vueuse/core':
         specifier: ^14.3.0
         version: 14.3.0(vue@3.5.39(typescript@5.9.3))

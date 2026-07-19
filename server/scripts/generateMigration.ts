@@ -13,7 +13,7 @@ import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { stdin as input, stdout as output } from 'node:process'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -59,6 +59,27 @@ const cleanTmpDb = (): void => {
   }
 }
 
+/**
+ * Normalise a freshly TypeORM-generated migration so it passes the project's
+ * typecheck and lint *unedited*:
+ *  - `verbatimModuleSyntax`: `MigrationInterface` and `QueryRunner` are used only
+ *    in type positions, so their import must be `import type` (TypeORM emits a
+ *    value import, which fails typecheck).
+ *  - `class-methods-use-this`: the generated `up`/`down` don't reference `this`,
+ *    hence the eslint-disable header.
+ * Exported (and the script guards its `main` on direct execution) so this can be
+ * unit-tested by importing it.
+ */
+export function postProcessMigration(content: string): string {
+  const withTypeImport = content.replace(
+    /import\s+\{\s*MigrationInterface\s*,\s*QueryRunner\s*\}\s+from\s+(['"])typeorm\1/,
+    'import type { MigrationInterface, QueryRunner } from "typeorm"',
+  )
+  return withTypeImport.startsWith('/* eslint-disable')
+    ? withTypeImport
+    : `/* eslint-disable class-methods-use-this */\n${withTypeImport}`
+}
+
 const main = async (): Promise<void> => {
   const { name: cliName } = parseArgs()
   const name = await readMigrationName(cliName)
@@ -86,14 +107,11 @@ const main = async (): Promise<void> => {
     process.exit(1)
   }
 
-  // 3. Prepend eslint-disable, then regenerate the migrations barrel so the
-  //    DataSource imports the new migration automatically (no manual list).
+  // 3. Post-process (type-only import + eslint header), then regenerate the
+  //    migrations barrel so the DataSource imports the new migration automatically.
   for (const file of newFiles) {
     const filePath = resolve(migrationsDir, file)
-    const content = readFileSync(filePath, 'utf-8')
-    if (!content.startsWith('/* eslint-disable')) {
-      writeFileSync(filePath, `/* eslint-disable class-methods-use-this */\n${content}`)
-    }
+    writeFileSync(filePath, postProcessMigration(readFileSync(filePath, 'utf-8')))
   }
   run('tsx server/scripts/syncMigrations.ts')
 
@@ -101,8 +119,11 @@ const main = async (): Promise<void> => {
   console.log('Commit the new migration + server/migrations/index.ts.')
 }
 
-main().catch((e) => {
-  cleanTmpDb()
-  console.error(e)
-  process.exit(1)
-})
+// Only run the generation flow when executed directly (not when imported for tests).
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main().catch((e) => {
+    cleanTmpDb()
+    console.error(e)
+    process.exit(1)
+  })
+}
