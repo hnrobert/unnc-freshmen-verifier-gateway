@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { useColorMode } from '@vueuse/core'
+// Explicit import: the global <NuxtLink> resolves to a literal <RouterLink> tag
+// when nested inside auto-imported components (BreadcrumbItem) during prod SSR.
+// Importing it binds a real reference that resolves everywhere.
+import { NuxtLink } from '#components'
 
 const { user, logout } = useAuth()
 const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
@@ -183,7 +187,7 @@ function toggleTheme() {
         >
           <Icon spec="Menu" :size="20" />
         </button>
-        <span class="text-sm font-semibold">UNNC VG</span>
+        <span class="text-sm font-semibold">UNNC Freshmen Verifier Gateway</span>
         <!-- Theme toggle -->
         <button
           class="ml-auto flex size-8 items-center justify-center rounded-lg border text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"
@@ -199,7 +203,14 @@ function toggleTheme() {
             <BreadcrumbList>
               <template v-for="(item, i) in trail" :key="i">
                 <BreadcrumbItem>
-                  <BreadcrumbLink v-if="item.to" :to="item.to">{{ item.label }}</BreadcrumbLink>
+                  <!-- NuxtLink authored here (not via <BreadcrumbLink as-child>) because
+                       reka-ui's Primitive (BreadcrumbLink) renders null in prod SSR here. -->
+                  <NuxtLink
+                    v-if="item.to"
+                    :to="item.to"
+                    class="transition-colors hover:text-foreground"
+                    >{{ item.label }}</NuxtLink
+                  >
                   <BreadcrumbPage v-else>{{ item.label }}</BreadcrumbPage>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator v-if="i < trail.length - 1" />

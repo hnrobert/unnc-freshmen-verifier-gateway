@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SiteConfig } from '#shared/types'
+import { useI18n } from 'vue-i18n'
 import { OrgConfigKey } from '~/composables/useOrgConfig'
 
 const route = useRoute()
@@ -22,9 +23,21 @@ const { applyOrgI18n } = useOrgI18n()
 // client — they match, so SSR renders the right locale on first paint (no flash).
 const acceptLanguage = import.meta.server
   ? (useRequestHeaders(['accept-language'])['accept-language'] ?? '')
-  : (typeof navigator !== 'undefined' ? navigator.language : '')
+  : typeof navigator !== 'undefined'
+    ? navigator.language
+    : ''
 watchEffect(() => {
   if (config.value) applyOrgI18n(config.value, acceptLanguage)
+})
+
+// Tab title + meta description follow the org's brand (current locale), so they
+// swap live with the language toggle. t() is reactive to i18n.locale, which is
+// set by applyOrgI18n / setLocale.
+const { t, locale } = useI18n()
+useHead({
+  title: () => t('brand.title'),
+  htmlAttrs: { lang: () => (locale.value === 'zh' ? 'zh-CN' : 'en') },
+  meta: [{ name: 'description', content: () => t('brand.subtitle') }],
 })
 
 const radius = computed(() => config.value?.theme.radius ?? '0.65rem')
@@ -78,7 +91,11 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
 </script>
 
 <template>
-  <div class="relative min-h-screen text-foreground" :class="{ 'bg-background': !hasBg }" :style="themeVars">
+  <div
+    class="relative min-h-screen text-foreground"
+    :class="{ 'bg-background': !hasBg }"
+    :style="themeVars"
+  >
     <!-- optional page background image + darkening overlay -->
     <div
       v-if="hasBg"
@@ -94,7 +111,9 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
     ></div>
     <!-- default decorative blob (only without a background image) -->
     <div v-else aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <div class="absolute -top-40 left-1/2 size-168 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"></div>
+      <div
+        class="absolute -top-40 left-1/2 size-168 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
+      ></div>
     </div>
     <header class="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-5 py-5">
       <BrandMark />
@@ -115,7 +134,9 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
     <main class="mx-auto w-full max-w-2xl px-5 pb-16">
       <slot />
     </main>
-    <footer class="mx-auto w-full max-w-2xl px-5 pb-10 text-center text-xs leading-relaxed text-foreground/60">
+    <footer
+      class="mx-auto w-full max-w-2xl px-5 pb-10 text-center text-xs leading-relaxed text-foreground/60"
+    >
       {{ $t('footer') }}
     </footer>
   </div>

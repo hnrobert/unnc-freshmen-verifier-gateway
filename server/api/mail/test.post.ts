@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     })
     const messageId = await sendMailWithConfig(cfg, {
       to,
-      subject: `Mail test from ${cfg.senderEmail || 'UNNC VG'}`,
+      subject: `Mail test from ${cfg.senderEmail || 'UNNC Freshmen Verifier Gateway'}`,
       body: html,
       html: true,
     })
