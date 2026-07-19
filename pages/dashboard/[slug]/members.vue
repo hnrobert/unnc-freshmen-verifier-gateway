@@ -24,8 +24,11 @@ const {
   }[]
 }>(() => `/api/orgs/${slug.value}/members`)
 
-const isOwner = computed(() => access.value?.role === 'owner')
-const canManage = computed(() => isOwner.value || access.value?.role === 'manager')
+// Gate on rank (from /access) so superadmin (rank 999) and owner (4) are treated
+// as owner-equivalent — the first registered user is a superadmin who also owns
+// orgs, and string-matching role === 'owner' missed them.
+const isOwner = computed(() => (access.value?.rank ?? 0) >= 4) // owner or superadmin
+const canManage = computed(() => (access.value?.rank ?? 0) >= 3) // manager+ (incl. owner, superadmin)
 const myMemberId = computed(
   () => membersData.value?.members.find((m) => m.email === user.value?.email)?.id ?? null,
 )
