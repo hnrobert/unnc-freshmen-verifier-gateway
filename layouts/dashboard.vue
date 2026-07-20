@@ -23,6 +23,37 @@ const mode = useColorMode({ storageKey: 'vg.theme' })
 function toggleTheme() {
   mode.value = mode.value === 'dark' ? 'light' : 'dark'
 }
+
+// Org tab bar (Home / Edit / Advanced / Members / Share) for an org's dashboard
+// area. Rendered in the sticky full-width header so the breadcrumb + tabs span
+// the main column (not the centered content box) and stay pinned.
+const RESERVED_SEGS = new Set(['', 'admin', 'orgs', 'settings', 'new'])
+const orgSlug = computed(() => {
+  const seg = route.path.split('/')[2] ?? ''
+  return RESERVED_SEGS.has(seg) ? '' : seg
+})
+const { data: orgList } = useFetch<{ orgs: { slug: string; name: string; role: string }[] }>(
+  '/api/orgs',
+)
+const currentOrg = computed(() =>
+  orgSlug.value ? orgList.value?.orgs.find((o) => o.slug === orgSlug.value) : undefined,
+)
+const orgTabs = computed(() => {
+  const s = orgSlug.value
+  if (!s || !currentOrg.value) return []
+  const canEdit = ['owner', 'manager', 'editor', 'superadmin'].includes(currentOrg.value.role)
+  const canManage = ['owner', 'manager', 'superadmin'].includes(currentOrg.value.role)
+  return [
+    { label: 'Home', to: `/dashboard/${s}`, exact: true, show: true },
+    { label: 'Edit', to: `/dashboard/${s}/edit`, exact: false, show: canEdit },
+    { label: 'Advanced', to: `/dashboard/${s}/advanced`, exact: false, show: canEdit },
+    { label: 'Members', to: `/dashboard/${s}/members`, exact: false, show: canManage },
+    { label: 'Share', to: `/dashboard/${s}/share`, exact: false, show: true },
+  ]
+})
+function tabActive(to: string, exact: boolean) {
+  return exact ? route.path === to : route.path.startsWith(to)
+}
 </script>
 
 <template>
@@ -197,27 +228,52 @@ function toggleTheme() {
         </button>
       </header>
 
-      <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div class="mx-auto w-full max-w-4xl">
-          <Breadcrumb v-if="trail.length > 1" class="mb-4">
-            <BreadcrumbList>
-              <template v-for="(item, i) in trail" :key="i">
-                <BreadcrumbItem>
-                  <!-- NuxtLink authored here (not via <BreadcrumbLink as-child>) because
-                       reka-ui's Primitive (BreadcrumbLink) renders null in prod SSR here. -->
-                  <NuxtLink
-                    v-if="item.to"
-                    :to="item.to"
-                    class="transition-colors hover:text-foreground"
-                    >{{ item.label }}</NuxtLink
-                  >
-                  <BreadcrumbPage v-else>{{ item.label }}</BreadcrumbPage>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator v-if="i < trail.length - 1" />
-              </template>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <slot />
+      <main class="flex-1">
+        <!-- Sticky full-width header: breadcrumb + (on org pages) the org tabs.
+             top-14 on mobile to sit under the mobile top bar, top-0 on desktop. -->
+        <div class="sticky top-14 z-10 bg-background/95 backdrop-blur lg:top-0">
+          <div v-if="trail.length > 1" class="border-b px-4 py-2.5 sm:px-6 lg:px-8">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <template v-for="(item, i) in trail" :key="i">
+                  <BreadcrumbItem>
+                    <!-- NuxtLink authored here (not via <BreadcrumbLink as-child>) because
+                         reka-ui's Primitive (BreadcrumbLink) renders null in prod SSR here. -->
+                    <NuxtLink
+                      v-if="item.to"
+                      :to="item.to"
+                      class="transition-colors hover:text-foreground"
+                      >{{ item.label }}</NuxtLink
+                    >
+                    <BreadcrumbPage v-else>{{ item.label }}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator v-if="i < trail.length - 1" />
+                </template>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+          <nav
+            v-if="orgTabs.length"
+            class="flex gap-1 overflow-x-auto border-b px-4 sm:px-6 lg:px-8"
+          >
+            <NuxtLink
+              v-for="tab in orgTabs"
+              v-show="tab.show"
+              :key="tab.to"
+              :to="tab.to"
+              class="-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
+              :class="
+                tabActive(tab.to, tab.exact)
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              "
+              >{{ tab.label }}</NuxtLink
+            >
+          </nav>
+        </div>
+        <!-- Page content (centered) -->
+        <div class="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div class="mx-auto w-full max-w-4xl"><slot /></div>
         </div>
       </main>
       <SiteFooter />

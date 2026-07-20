@@ -6,8 +6,6 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
-// Page-level awaits (context-safe via Suspense); the results are handed to the
-// sync useOrgDraft composable.
 const { data: access } = await useFetch<{ role: string | null }>(
   () => `/api/orgs/${slug.value}/access`,
   { watch: [slug] },
@@ -32,7 +30,7 @@ const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscar
       variant="error"
       message="You have view-only access to this organization. Changes can't be saved."
     />
-    <ConfigEditor mode="basic" />
+    <ConfigEditor mode="advanced" />
 
     <SaveBar
       v-if="canEdit"

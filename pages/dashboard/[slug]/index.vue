@@ -162,19 +162,31 @@ const horizOpts: ChartOptions<'bar'> = {
 }
 
 const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)}%`)
+
+// --- Danger zone: owner-only org deletion (moved off the orgs-list card) ---
+const { data: orgsData } = useFetch<{ orgs: { slug: string; role: string }[] }>('/api/orgs')
+const isOwner = computed(
+  () => orgsData.value?.orgs.find((o) => o.slug === slug.value)?.role === 'owner',
+)
+const deleting = ref(false)
+async function onDelete() {
+  if (!confirm(`Delete organization "${slug.value}"? This cannot be undone.`)) return
+  deleting.value = true
+  try {
+    await $fetch(`/api/orgs/${slug.value}`, { method: 'DELETE' })
+    toast.success('Organization deleted')
+    await navigateTo('/dashboard/orgs')
+  } catch (e) {
+    toast.error(messageFromError(e, 'Delete failed'))
+  } finally {
+    deleting.value = false
+  }
+}
 </script>
 
 <template>
   <div class="max-w-5xl space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">
-          Statistics · <code>/{{ slug }}</code>
-        </h1>
-        <p class="mt-1 text-sm text-muted-foreground">
-          Page views, verifications, and visitor profile.
-        </p>
-      </div>
+    <div class="flex flex-wrap items-center justify-end gap-3">
       <div class="flex gap-1 rounded-md border p-1">
         <button
           v-for="r in RANGES"
@@ -200,7 +212,6 @@ const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)}
     />
 
     <template v-else-if="stats">
-      <!-- KPIs -->
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Card
           ><CardContent class="p-4"
@@ -287,7 +298,6 @@ const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)}
         <template #fallback><div class="text-muted-foreground">Loading charts…</div></template>
       </ClientOnly>
 
-      <!-- Visitor profile breakdowns -->
       <ClientOnly>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Card
@@ -310,5 +320,21 @@ const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)}
         <template #fallback><div class="text-muted-foreground">Loading charts…</div></template>
       </ClientOnly>
     </template>
+
+    <!-- Danger zone (owner only) -->
+    <Card v-if="isOwner" class="border-destructive/40">
+      <CardHeader>
+        <CardTitle class="text-base text-destructive">Danger zone</CardTitle>
+        <CardDescription
+          >Deleting an organization permanently removes its config, members, and
+          statistics.</CardDescription
+        >
+      </CardHeader>
+      <CardContent>
+        <Button variant="destructive" :disabled="deleting" @click="onDelete">
+          {{ deleting ? 'Deleting…' : 'Delete this organization' }}
+        </Button>
+      </CardContent>
+    </Card>
   </div>
 </template>

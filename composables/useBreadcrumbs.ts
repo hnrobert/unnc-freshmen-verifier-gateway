@@ -9,7 +9,8 @@ export interface BreadcrumbItem {
 const ACTION_LABELS: Record<string, string> = {
   edit: 'Edit',
   members: 'Members',
-  stats: 'Statistics',
+  advanced: 'Advanced',
+  share: 'Share',
 }
 const ADMIN_TAB_LABELS: Record<string, string> = {
   users: 'Users',
@@ -38,14 +39,20 @@ function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
     return [dash, { label: 'Admin', to: '/dashboard/admin' }, { label }]
   }
 
-  // /dashboard/<slug>/{edit,members,stats}
-  const m = path.match(/^\/dashboard\/([^/]+)\/(edit|members|stats)$/)
+  // /dashboard/<slug>/{edit,advanced,members,share}
+  const m = path.match(/^\/dashboard\/([^/]+)\/(edit|advanced|members|share)$/)
   if (m && m[1] && m[2]) {
     const slug = m[1]
     const actionLabel = ACTION_LABELS[m[2]]
     if (actionLabel) {
-      return [dash, orgs, { label: slug, to: `/dashboard/${slug}/edit` }, { label: actionLabel }]
+      return [dash, orgs, { label: slug, to: `/dashboard/${slug}` }, { label: actionLabel }]
     }
+  }
+
+  // /dashboard/<slug> (Home — the org's data/stats panel)
+  const home = path.match(/^\/dashboard\/([^/]+)$/)
+  if (home && home[1]) {
+    return [dash, orgs, { label: home[1] }]
   }
 
   // Fallback for anything else under /dashboard

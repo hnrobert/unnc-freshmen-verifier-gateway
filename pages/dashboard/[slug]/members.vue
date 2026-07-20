@@ -116,16 +116,8 @@ async function copyUrl(url: string) {
 
 <template>
   <div class="max-w-3xl space-y-8">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">
-          Members · <code>/{{ slug }}</code>
-        </h1>
-        <p class="mt-1 text-sm text-muted-foreground">Invite others and manage their access.</p>
-      </div>
-      <Button v-if="myMemberId !== null" variant="outline" size="sm" @click="onLeave"
-        >Leave org</Button
-      >
+    <div v-if="myMemberId !== null" class="flex justify-end">
+      <Button variant="outline" size="sm" @click="onLeave">Leave org</Button>
     </div>
 
     <!-- Owner -->

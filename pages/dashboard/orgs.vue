@@ -3,22 +3,7 @@ import { buttonVariants } from '~/components/ui/button'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
-const { data, pending, refresh } = await useFetch('/api/orgs')
-const deleting = ref('')
-
-async function onDelete(slug: string) {
-  if (!confirm(`Delete organization "${slug}"? This cannot be undone.`)) return
-  deleting.value = slug
-  try {
-    await $fetch(`/api/orgs/${slug}`, { method: 'DELETE' })
-    await refresh()
-    toast.success('Organization deleted')
-  } catch (e) {
-    toast.error(messageFromError(e, 'Delete failed'))
-  } finally {
-    deleting.value = ''
-  }
-}
+const { data, pending } = await useFetch('/api/orgs')
 </script>
 
 <template>
@@ -43,48 +28,20 @@ async function onDelete(slug: string) {
       <Button class="mt-4" @click="navigateTo('/dashboard/new')">Create your first org</Button>
     </div>
 
-    <ul v-else class="mt-6 grid gap-3 sm:grid-cols-2">
-      <li v-for="org in data.orgs" :key="org.id" class="rounded-lg border p-4">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="font-medium">{{ org.name }}</span>
-              <span
-                v-if="org.role === 'owner'"
-                class="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary-foreground"
-                >owner</span
-              >
-              <span
-                v-else
-                class="rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
-                >shared · {{ org.role }}</span
-              >
-            </div>
-            <div class="text-sm text-muted-foreground">/{{ org.slug }}</div>
-          </div>
-          <Button
-            v-if="org.role === 'owner'"
-            variant="outline"
-            size="sm"
-            :disabled="deleting === org.slug"
-            @click="onDelete(org.slug)"
-          >
-            {{ deleting === org.slug ? '…' : 'Delete' }}
-          </Button>
-        </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}/edit`)"
-            >Edit</Button
-          >
-          <Button
-            v-if="org.role === 'owner' || org.role === 'manager'"
-            variant="outline"
-            size="sm"
-            @click="navigateTo(`/dashboard/${org.slug}/members`)"
-            >Members</Button
-          >
-          <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}/stats`)"
-            >Stats</Button
+    <ul v-else class="mt-6 space-y-2">
+      <li
+        v-for="org in data.orgs"
+        :key="org.id"
+        class="flex items-center justify-between gap-3 rounded-lg border p-4"
+      >
+        <NuxtLink
+          :to="`/dashboard/${org.slug}`"
+          class="min-w-0 truncate font-medium hover:underline"
+          >{{ org.name }}</NuxtLink
+        >
+        <div class="flex shrink-0 items-center gap-2">
+          <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}/share`)"
+            >Share</Button
           >
           <a
             :href="`/${org.slug}`"
@@ -92,7 +49,6 @@ async function onDelete(slug: string) {
             :class="buttonVariants({ variant: 'ghost', size: 'sm' })"
             >View ↗</a
           >
-          <OrgLinkActions variant="outline" :slug="org.slug" />
         </div>
       </li>
     </ul>
