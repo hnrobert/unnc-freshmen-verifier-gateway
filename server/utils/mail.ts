@@ -27,6 +27,11 @@ export interface MailConfigInput {
   maxLenRecipientEmail?: number
   maxLenSubject?: number
   maxLenBody?: number
+  // POST webhook
+  provider?: string
+  postUrl?: string
+  postSchema?: string
+  postAuthToken?: string
 }
 
 /**
@@ -77,6 +82,10 @@ export function mailConfigToClient(c: MailConfig | null) {
     maxLenRecipientEmail: c.maxLenRecipientEmail,
     maxLenSubject: c.maxLenSubject,
     maxLenBody: c.maxLenBody,
+    provider: c.provider,
+    postUrl: c.postUrl,
+    postSchema: c.postSchema,
+    hasPostAuthToken: !!c.postAuthToken,
   }
 }
 
@@ -106,8 +115,29 @@ function validate(c: MailConfig, input: SendMailInput): void {
   }
 }
 
+/** Send via HTTP POST webhook (provider 'post'). Two payload schemas:
+ *  smtogo:           { from, to, subject, html }
+ *  powerautomate:    { email, content, subject } */
+async function sendViaPost(c: MailConfig, input: SendMailInput): Promise<string> {
+  if (!c.postUrl) throw new Error('POST webhook URL is not configured')
+  validate(c, input)
+  const payload =
+    c.postSchema === 'powerautomate'
+      ? { email: input.to, subject: input.subject, content: input.body }
+      : { from: fromAddress(c), to: input.to, subject: input.subject, html: input.body }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (c.postAuthToken) headers.Authorization = `Bearer ${c.postAuthToken}`
+  const res = await fetch(c.postUrl, { method: 'POST', headers, body: JSON.stringify(payload) })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Webhook returned ${res.status}${detail ? ': ' + detail.slice(0, 200) : ''}`)
+  }
+  return `<post-${randomBytes(8).toString('hex')}@webhook>`
+}
+
 /** Send using an explicit config (bypasses the DB lookup). Returns the message id. */
 export async function sendMailWithConfig(c: MailConfig, input: SendMailInput): Promise<string> {
+  if (c.provider === 'post') return sendViaPost(c, input)
   if (!c.smtpServer) throw new Error('SMTP server is not configured')
   validate(c, input)
   const transporter = nodemailer.createTransport({
