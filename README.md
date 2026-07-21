@@ -234,64 +234,53 @@ auto-syncs on boot.
 
 ## Project structure
 
-```
-app.vue                     root component (landing → /dashboard)
-nuxt.config.ts              Nuxt 4 flat layout (srcDir: '.'), SSR, Tailwind v4
-
-pages/
-  index.vue                       landing (redirects → /dashboard)
-  login.vue register.vue          auth (auth layout)
-  invite/[token].vue              invite landing (public, claim on login)
-  [slug]/{index,welcome}.vue      PUBLIC per-org gateway (default layout)
-  [slug]/preview/{index,welcome}  auth+ownership-gated live preview
-  dashboard/index.vue             data 看板 (cross-org overview)
-  dashboard/orgs.vue              org list (name + Share + View)
-  dashboard/new.vue               create org
-  dashboard/settings.vue          account: email/password/passkeys/mail
-  dashboard/[slug].vue            parent layout (org header + tabs + switcher)
-  dashboard/[slug]/index.vue      Home (stats + delete-org danger zone)
-  dashboard/[slug]/{edit,advanced,members,share}.vue
-  dashboard/admin/{index,users,registration,mail}.vue
-
-components/
-  SiteFooter.vue            unified footer (Apache-2.0, GitHub, Robert He)
-  SaveBar.vue               shared sticky save/discard bar
-  UnsavedLeaveDialog.vue    unsaved-changes leave prompt
-  public/    BrandMark, Icon, LanguageToggle, ThemeToggle, StatusAlert,
-             VerifyForm, WelcomeContent, MarkdownView, OrgLinkActions
-  admin/     ConfigEditor (mode: basic|advanced), IconPicker, ImageUploader,
-             ImagePreview, LocaleField, MarkdownEditor
-  ui/        shadcn-vue: button, card, input, label, breadcrumb (reka-ui)
-
-composables/ useAuth, useAuthForm, useBreadcrumbs, useOrgConfig, useOrgDraft,
-             useOrgI18n, useUnsavedLeaveGuard, useVerifier
-lib/         verify, icon, iconAllowlist, markdown, utils
-utils/       errors (auto-imported)
-plugins/     i18n, auth, chartjs.client
-middleware/  auth, guest, superadmin, preview-guard, welcome-gate
-shared/      app↔server code (auto-aliased to #shared)
-  types.ts  lib/{admissionCore, applyDefaults, defaultConfig, escapeMessage, validateConfig}
-
-server/                     Nitro
-  api/
-    auth/   register · login · logout · me.{get,patch} · passkey/*
-    orgs/   index.{get,post} · validate · [slug]/{config.{get,put}, check, track,
-            stats, access, images, img/[key], members*, transfer, index.delete}
-    stats/  overview.get (cross-org dashboard)
-    invites/ [token].get · [token]/claim.post
-    admin/  users · users/[id].patch · orgs · registration.{get,put}
-    mail/   config.{get,put} · test.post
-    icon.svg.get
-  entities/ 12 TypeORM entities (users, sessions, organizations, org_settings,
-            org_images, verifications, app_settings, passkeys, org_members,
-            org_events, org_daily_stats, mail_configs)
-  utils/    database (synchronize:true) · auth · jwt · members · orgs · config ·
-            admission · stats · webauthn · mail · registration · request · png
-  mail/     render.ts (HTML email template renderer)
-  middleware/ session.ts
-  plugins/  01.db.ts (init DataSource on boot)
-
-email/template.html         standalone HTML email template (site-themed, dark mode)
+```bash
+.
+├── assets/css/main.css
+├── components/
+│   ├── admin/          # ConfigEditor (basic|advanced) · IconPicker · ImageUploader · ImagePreview · LocaleField · MarkdownEditor
+│   ├── public/         # BrandMark · Icon · LanguageToggle · ThemeToggle · StatusAlert · VerifyForm · WelcomeContent · MarkdownView · OrgLinkActions
+│   ├── ui/             # shadcn-vue: breadcrumb (reka-ui) · button · card · input · label
+│   ├── SaveBar.vue
+│   ├── SiteFooter.vue
+│   └── UnsavedLeaveDialog.vue
+├── composables/        # useAuth · useAuthForm · useBreadcrumbs · useOrgConfig · useOrgDraft · useOrgI18n · useUnsavedLeaveGuard · useVerifier
+├── email/template.html # standalone HTML email template (site-themed, dark mode)
+├── layouts/            # auth · dashboard · default (per-org)
+├── lib/                # verify · icon · iconAllowlist · markdown · utils
+├── middleware/         # auth · guest · superadmin · preview-guard · welcome-gate
+├── pages/
+│   ├── [slug]/{index,welcome}.vue             # PUBLIC per-org gateway
+│   ├── [slug]/preview/{index,welcome}.vue     # auth+ownership-gated live preview
+│   ├── dashboard/[slug].vue                   # parent layout (org header + tabs + switcher)
+│   ├── dashboard/[slug]/{index,edit,advanced,members,share}.vue
+│   ├── dashboard/admin/{index,users,registration,mail}.vue
+│   ├── dashboard/{index,new,orgs,settings}.vue
+│   ├── invite/[token].vue                     # invite landing (claim on login)
+│   ├── index.vue · login.vue · register.vue
+├── plugins/            # i18n · auth · chartjs.client
+├── public/favicon.svg
+├── server/             # Nitro
+│   ├── api/
+│   │   ├── auth/       # register · login · logout · me.{get,patch} · passkey/*
+│   │   ├── orgs/       # index.{get,post} · validate · [slug]/{config.{get,put}, check, track, stats, access, images, img/[key], members*, transfer, index.delete}
+│   │   ├── stats/      # overview.get (cross-org dashboard)
+│   │   ├── invites/    # [token].get · [token]/claim.post
+│   │   ├── admin/      # users · users/[id].patch · orgs · registration.{get,put}
+│   │   ├── mail/       # config.{get,put} · test.post
+│   │   └── icon.svg.get
+│   ├── entities/       # 12 TypeORM entities (users · sessions · organizations · org_settings · org_images · verifications · app_settings · passkeys · org_members · org_events · org_daily_stats · mail_configs)
+│   ├── mail/render.ts  # HTML email template renderer
+│   ├── middleware/session.ts   # resolves session → event.context.user
+│   ├── plugins/01.db.ts        # init DataSource (synchronize) on boot
+│   └── utils/          # database · auth · jwt · members · orgs · config · admission · stats · webauthn · mail · registration · request · png
+├── shared/             # app↔server code (auto-aliased to #shared)
+│   ├── types.ts
+│   └── lib/            # admissionCore · applyDefaults · defaultConfig · escapeMessage · validateConfig
+├── utils/errors.ts     # auto-imported
+├── Dockerfile · docker-compose.yml
+├── app.vue · nuxt.config.ts · components.json
+└── package.json · tsconfig.json · pnpm-workspace.yaml
 ```
 
 ---
