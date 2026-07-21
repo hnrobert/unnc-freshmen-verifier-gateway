@@ -44,11 +44,24 @@ const orgTabs = computed(() => {
   const canEdit = ['owner', 'manager', 'editor', 'superadmin'].includes(currentOrg.value.role)
   const canManage = ['owner', 'manager', 'superadmin'].includes(currentOrg.value.role)
   return [
-    { label: 'Home', to: `/dashboard/${s}`, exact: true, show: true },
-    { label: 'Edit', to: `/dashboard/${s}/edit`, exact: false, show: canEdit },
-    { label: 'Advanced', to: `/dashboard/${s}/advanced`, exact: false, show: canEdit },
-    { label: 'Members', to: `/dashboard/${s}/members`, exact: false, show: canManage },
-    { label: 'Share', to: `/dashboard/${s}/share`, exact: false, show: true },
+    { label: 'Home', icon: 'Home', to: `/dashboard/${s}`, exact: true, show: true },
+    { label: 'Edit', icon: 'Pencil', to: `/dashboard/${s}/edit`, exact: false, show: canEdit },
+    {
+      label: 'Advanced',
+      icon: 'Settings',
+      to: `/dashboard/${s}/advanced`,
+      exact: false,
+      show: canEdit,
+    },
+    {
+      label: 'Members',
+      icon: 'Users',
+      to: `/dashboard/${s}/members`,
+      exact: false,
+      show: canManage,
+    },
+    { label: 'Share', icon: 'Share2', to: `/dashboard/${s}/share`, exact: false, show: true },
+    { label: 'Preview', icon: 'Eye', to: `/dashboard/${s}/preview`, exact: false, show: true },
   ]
 })
 function tabActive(to: string, exact: boolean) {
@@ -229,48 +242,53 @@ function tabActive(to: string, exact: boolean) {
       </header>
 
       <main class="flex-1">
-        <!-- Sticky full-width header: breadcrumb + (on org pages) the org tabs.
-             top-14 on mobile to sit under the mobile top bar, top-0 on desktop. -->
-        <div class="sticky top-14 z-10 bg-background/95 backdrop-blur lg:top-0">
-          <div v-if="trail.length > 1" class="border-b px-4 py-2.5 sm:px-6 lg:px-8">
-            <Breadcrumb>
-              <BreadcrumbList>
-                <template v-for="(item, i) in trail" :key="i">
-                  <BreadcrumbItem>
-                    <!-- NuxtLink authored here (not via <BreadcrumbLink as-child>) because
-                         reka-ui's Primitive (BreadcrumbLink) renders null in prod SSR here. -->
-                    <NuxtLink
-                      v-if="item.to"
-                      :to="item.to"
-                      class="transition-colors hover:text-foreground"
-                      >{{ item.label }}</NuxtLink
-                    >
-                    <BreadcrumbPage v-else>{{ item.label }}</BreadcrumbPage>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator v-if="i < trail.length - 1" />
-                </template>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-          <nav
-            v-if="orgTabs.length"
-            class="flex gap-1 overflow-x-auto border-b px-4 sm:px-6 lg:px-8"
-          >
+        <!-- Sticky full-width breadcrumb (top-14 on mobile to sit under the mobile
+             top bar, top-0 on desktop). Only the breadcrumb is pinned; the org
+             tabs below scroll normally with the page. -->
+        <div
+          v-if="trail.length > 1"
+          class="sticky top-14 z-10 border-b bg-background/95 px-4 py-2.5 backdrop-blur sm:px-6 lg:px-8 lg:top-0"
+        >
+          <Breadcrumb>
+            <BreadcrumbList>
+              <template v-for="(item, i) in trail" :key="i">
+                <BreadcrumbItem>
+                  <!-- NuxtLink authored here (not via <BreadcrumbLink as-child>) because
+                       reka-ui's Primitive (BreadcrumbLink) renders null in prod SSR here. -->
+                  <NuxtLink
+                    v-if="item.to"
+                    :to="item.to"
+                    class="transition-colors hover:text-foreground"
+                    >{{ item.label }}</NuxtLink
+                  >
+                  <BreadcrumbPage v-else>{{ item.label }}</BreadcrumbPage>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator v-if="i < trail.length - 1" />
+              </template>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+        <!-- Org tabs (full-width, NOT sticky — scrolls away with the page).
+             Each tab has its own icon (Home/Edit/Advanced/Members/Share/Preview). -->
+        <nav v-if="orgTabs.length" class="flex border-b px-4 sm:px-6 lg:px-8">
+          <div class="flex flex-1 gap-1 overflow-x-auto">
             <NuxtLink
               v-for="tab in orgTabs"
               v-show="tab.show"
               :key="tab.to"
               :to="tab.to"
-              class="-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
+              class="-mb-px flex items-center whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
               :class="
                 tabActive(tab.to, tab.exact)
                   ? 'border-primary text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               "
-              >{{ tab.label }}</NuxtLink
             >
-          </nav>
-        </div>
+              <Icon :spec="tab.icon" :size="14" class="mr-1.5 shrink-0" />
+              {{ tab.label }}
+            </NuxtLink>
+          </div>
+        </nav>
         <!-- Page content (centered) -->
         <div class="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div class="mx-auto w-full max-w-4xl"><slot /></div>

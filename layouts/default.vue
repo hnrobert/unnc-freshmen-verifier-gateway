@@ -134,10 +134,6 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
     <main class="mx-auto w-full max-w-2xl px-5 pb-16">
       <slot />
     </main>
-    <footer
-      class="mx-auto w-full max-w-2xl px-5 pb-10 text-center text-xs leading-relaxed text-foreground/60"
-    >
-      {{ $t('footer') }}
-    </footer>
+    <SiteFooter />
   </div>
 </template>

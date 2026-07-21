@@ -164,9 +164,14 @@ const horizOpts: ChartOptions<'bar'> = {
 const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)}%`)
 
 // --- Danger zone: owner-only org deletion (moved off the orgs-list card) ---
-const { data: orgsData } = useFetch<{ orgs: { slug: string; role: string }[] }>('/api/orgs')
-const isOwner = computed(
-  () => orgsData.value?.orgs.find((o) => o.slug === slug.value)?.role === 'owner',
+const { data: orgsData } = useFetch<{ orgs: { slug: string; name: string; role: string }[] }>(
+  '/api/orgs',
+)
+const currentOrg = computed(() => orgsData.value?.orgs.find((o) => o.slug === slug.value))
+const orgName = computed(() => currentOrg.value?.name ?? slug.value)
+const isOwner = computed(() => currentOrg.value?.role === 'owner')
+const canEdit = computed(() =>
+  ['owner', 'manager', 'editor', 'superadmin'].includes(currentOrg.value?.role ?? ''),
 )
 const deleting = ref(false)
 async function onDelete() {
@@ -186,21 +191,32 @@ async function onDelete() {
 
 <template>
   <div class="max-w-5xl space-y-6">
-    <div class="flex flex-wrap items-center justify-end gap-3">
-      <div class="flex gap-1 rounded-md border p-1">
-        <button
-          v-for="r in RANGES"
-          :key="r"
-          class="rounded px-2.5 py-1 text-sm"
-          :class="
-            range === r
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-accent'
-          "
-          @click="setRange(r)"
-        >
-          {{ r === 'all' ? 'All' : `${r}d` }}
-        </button>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">{{ orgName }}</h1>
+        <p class="mt-1 text-sm text-muted-foreground">/{{ slug }} · overview</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex gap-1 rounded-md border p-1">
+          <button
+            v-for="r in RANGES"
+            :key="r"
+            class="rounded px-2.5 py-1 text-sm"
+            :class="
+              range === r
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent'
+            "
+            @click="setRange(r)"
+          >
+            {{ r === 'all' ? 'All' : `${r}d` }}
+          </button>
+        </div>
+        <!-- Prominent entry to the org's settings (config editor) -->
+        <Button v-if="canEdit" @click="navigateTo(`/dashboard/${slug}/edit`)">
+          <Icon spec="Settings" :size="16" />
+          Configure
+        </Button>
       </div>
     </div>
 

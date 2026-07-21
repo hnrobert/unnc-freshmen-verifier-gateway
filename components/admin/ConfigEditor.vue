@@ -457,12 +457,6 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           {{ t('editor.footerMisc') }}
         </h4>
         <LocaleField
-          :label="t('editor.footer')"
-          :locales="config.locales"
-          :messages="msgs"
-          path="footer"
-        />
-        <LocaleField
           :label="t('editor.themeToggle')"
           :locales="config.locales"
           :messages="msgs"
@@ -500,7 +494,7 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
         </h4>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div class="grid gap-1.5">
-            <Label>{{ t('editor.gatewayMode') }}<</Label>
+            <Label>{{ t('editor.gatewayMode') }}</Label>
             <select
               v-model="config.gateway.mode"
               class="h-9 rounded-md border bg-transparent px-2 text-sm"
@@ -510,19 +504,19 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
             </select>
           </div>
           <div class="grid gap-1.5">
-            <Label>{{ t('editor.gatewayBaseUrl') }}<</Label
+            <Label>{{ t('editor.gatewayBaseUrl') }}</Label
             ><Input v-model="config.gateway.baseUrl" />
           </div>
           <div class="grid gap-1.5">
-            <Label>{{ t('editor.gatewayMaxCaptchaRounds') }}<</Label
+            <Label>{{ t('editor.gatewayMaxCaptchaRounds') }}</Label
             ><Input v-model.number="config.gateway.maxCaptchaRounds" type="number" />
           </div>
           <div class="grid gap-1.5">
-            <Label>{{ t('editor.gatewayMaxOffsetTries') }}<</Label
+            <Label>{{ t('editor.gatewayMaxOffsetTries') }}</Label
             ><Input v-model.number="config.gateway.maxOffsetTries" type="number" />
           </div>
           <div class="grid gap-1.5">
-            <Label>{{ t('editor.gatewayRequestTimeoutMs') }}<</Label
+            <Label>{{ t('editor.gatewayRequestTimeoutMs') }}</Label
             ><Input v-model.number="config.gateway.requestTimeoutMs" type="number" />
           </div>
         </div>
@@ -534,7 +528,7 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           {{ t('editor.theme') }}
         </h4>
         <div class="flex items-center gap-2 text-sm">
-          <Label class="mb-0">{{ t('editor.themeRadius') }}<</Label>
+          <Label class="mb-0">{{ t('editor.themeRadius') }}</Label>
           <Input v-model.number="themeRadiusNum" type="number" step="0.05" class="h-8 w-20" />
           <span class="text-xs text-muted-foreground">rem</span>
         </div>

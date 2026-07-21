@@ -6,12 +6,6 @@ export interface BreadcrumbItem {
   to?: string
 }
 
-const ACTION_LABELS: Record<string, string> = {
-  edit: 'Edit',
-  members: 'Members',
-  advanced: 'Advanced',
-  share: 'Share',
-}
 const ADMIN_TAB_LABELS: Record<string, string> = {
   users: 'Users',
   registration: 'Registration',
@@ -39,14 +33,11 @@ function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
     return [dash, { label: 'Admin', to: '/dashboard/admin' }, { label }]
   }
 
-  // /dashboard/<slug>/{edit,advanced,members,share}
-  const m = path.match(/^\/dashboard\/([^/]+)\/(edit|advanced|members|share)$/)
-  if (m && m[1] && m[2]) {
-    const slug = m[1]
-    const actionLabel = ACTION_LABELS[m[2]]
-    if (actionLabel) {
-      return [dash, orgs, { label: slug, to: `/dashboard/${slug}` }, { label: actionLabel }]
-    }
+  // /dashboard/<slug>/{edit,advanced,members,share,preview} — breadcrumb stops at the
+  // org slug; the sub-tab name isn't shown (the tabs are right there).
+  const m = path.match(/^\/dashboard\/([^/]+)\/(edit|advanced|members|share|preview)$/)
+  if (m && m[1]) {
+    return [dash, orgs, { label: m[1] }]
   }
 
   // /dashboard/<slug> (Home — the org's data/stats panel)

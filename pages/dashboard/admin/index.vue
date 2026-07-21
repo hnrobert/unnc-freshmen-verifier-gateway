@@ -29,11 +29,11 @@ const { data: orgs } = await useFetch<OrgRow[]>('/api/admin/orgs')
               <Button size="sm" variant="outline" @click="navigateTo(`/dashboard/${org.slug}/edit`)"
                 >Edit</Button
               >
-              <a
-                :href="`/${org.slug}/preview`"
-                target="_blank"
-                class="inline-flex h-9 items-center rounded-md px-3 text-xs font-medium border hover:bg-accent"
-                >Preview ↗</a
+              <Button
+                size="sm"
+                variant="outline"
+                @click="navigateTo(`/dashboard/${org.slug}/preview`)"
+                >Preview</Button
               >
               <OrgLinkActions variant="outline" :slug="org.slug" />
             </div>

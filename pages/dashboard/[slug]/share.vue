@@ -47,6 +47,11 @@ async function copyLink() {
       </p>
     </div>
 
+    <div class="flex items-center gap-2 rounded-md border bg-muted/40 p-3 text-sm">
+      <code class="min-w-0 ml-2 flex-1 truncate">{{ publicUrl }}</code>
+      <Button variant="ghost" size="sm" @click="copyLink">Copy</Button>
+    </div>
+
     <Card>
       <CardContent class="flex flex-col items-center gap-4 p-6">
         <img :src="qr" :alt="`QR code for ${publicUrl}`" class="size-60 rounded-lg border" />
@@ -54,7 +59,7 @@ async function copyLink() {
           <Button size="sm" @click="downloadQr">
             <Icon spec="Download" :size="16" /> Download QR
           </Button>
-          <Button size="sm" variant="outline" @click="copyLink">
+          <!-- <Button size="sm" variant="outline" @click="copyLink">
             <Icon spec="Copy" :size="16" /> Copy link
           </Button>
           <a
@@ -64,14 +69,9 @@ async function copyLink() {
             class="inline-flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm font-medium hover:bg-accent"
           >
             <Icon spec="ExternalLink" :size="16" /> Open
-          </a>
+          </a> -->
         </div>
       </CardContent>
     </Card>
-
-    <div class="flex items-center gap-2 rounded-md border bg-muted/40 p-3 text-sm">
-      <code class="min-w-0 flex-1 truncate">{{ publicUrl }}</code>
-      <Button variant="ghost" size="sm" @click="copyLink">Copy</Button>
-    </div>
   </div>
 </template>
