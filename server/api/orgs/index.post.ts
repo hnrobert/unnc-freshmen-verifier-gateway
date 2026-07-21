@@ -1,9 +1,9 @@
-import { AppDataSource } from '../../utils/database'
-import { Organization } from '../../entities/organization.entity'
-import { OrgSetting } from '../../entities/orgSetting.entity'
-import defaultConfig from '../../../shared/lib/defaultConfig'
-import type { SiteConfig } from '../../../shared/types'
-import type { Locale } from '../../../shared/types'
+import { AppDataSource } from '#server/utils/database'
+import { Organization } from '#server/entities/organization.entity'
+import { OrgSetting } from '#server/entities/orgSetting.entity'
+import defaultConfig from '#shared/lib/defaultConfig'
+import type { SiteConfig } from '#shared/types'
+import type { Locale } from '#shared/types'
 
 /** Recursively set all string leaves to empty string (keep object structure). */
 function blankMessages(obj: Record<string, unknown>): void {
@@ -20,7 +20,9 @@ function blankMessages(obj: Record<string, unknown>): void {
 export default defineEventHandler(async (event) => {
   const user = requireAuth(event)
   const body = await readBody<{ slug?: unknown; name?: unknown }>(event)
-  const slug = String(body?.slug ?? '').trim().toLowerCase()
+  const slug = String(body?.slug ?? '')
+    .trim()
+    .toLowerCase()
   const name = String(body?.name ?? '')
 
   const slugError = validateSlug(slug)

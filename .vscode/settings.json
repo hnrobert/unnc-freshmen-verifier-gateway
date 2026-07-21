@@ -1,10 +1,31 @@
 {
-    "cSpell.words": [
-        "Ningbo",
-        "Nuxt",
-        "refetches",
-        "selftest",
-        "superadmin",
-        "vueuse"
-    ]
+  "cSpell.words": [
+    "chartjs",
+    "colored",
+    "FOUC",
+    "gitflow",
+    "honored",
+    "honors",
+    "lucide",
+    "Ningbo",
+    "nocase",
+    "Nuxt",
+    "passwordless",
+    "preheader",
+    "qrcode",
+    "refetches",
+    "reka",
+    "rollup",
+    "savebar",
+    "SEGS",
+    "selftest",
+    "simplewebauthn",
+    "STARTTLS",
+    "superadmin",
+    "Superadmins",
+    "usernameless",
+    "vars",
+    "vueuse",
+    "webauthn"
+  ]
 }

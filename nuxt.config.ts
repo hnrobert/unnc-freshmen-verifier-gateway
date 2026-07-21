@@ -1,4 +1,15 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
+
+// The HTML email template is authored as a standalone file (email/template.html).
+// Read at config-eval time and passed to the server via runtimeConfig so it's
+// bundled into the build reliably. (Nitro serverAssets didn't bundle it here.)
+// Edits to the template require a dev-server restart to take effect.
+const emailTemplate = readFileSync(
+  fileURLToPath(new URL('./email/template.html', import.meta.url)),
+  'utf-8',
+)
 
 // Nuxt 4 full-stack config. The public per-org gateway is SSR-rendered so each
 // org's config/i18n/theme apply on first paint; auth + orgs + admission run as
@@ -15,6 +26,14 @@ export default defineNuxtConfig({
   // root alongside app.vue, not under an app/ dir.
   srcDir: '.',
 
+  // vue-sonner: registers the client-only <Toaster> component, auto-adds its
+  // CSS, and provides $toast. The preset below also auto-imports the `toast`
+  // function so any <script setup> can call toast.error/.success directly.
+  modules: ['vue-sonner/nuxt'],
+  imports: {
+    presets: [{ from: 'vue-sonner', imports: ['toast'] }],
+  },
+
   // Tailwind v4 + shadcn theme CSS.
   css: ['~/assets/css/main.css'],
   vite: {
@@ -29,6 +48,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
     dbPath: process.env.DB_PATH || './data/app.db',
+    emailTemplate,
   },
 
   // No-FOUC dark mode: apply the saved/system theme synchronously in <head>
@@ -38,7 +58,7 @@ export default defineNuxtConfig({
       // Default favicon for non-org pages (homepage, auth, dashboard). Org
       // pages override this same key in layouts/default.vue with the org's
       // brand icon.
-      link: [{ key: 'favicon', rel: 'icon', type: 'image/jpeg', href: '/favicon.png' }],
+      link: [{ key: 'favicon', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
       script: [
         {
           tagPosition: 'head',

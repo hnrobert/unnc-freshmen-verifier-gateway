@@ -1,16 +1,72 @@
 <script setup lang="ts">
 import { useColorMode } from '@vueuse/core'
+// Explicit import: the global <NuxtLink> resolves to a literal <RouterLink> tag
+// when nested inside auto-imported components (BreadcrumbItem) during prod SSR.
+// Importing it binds a real reference that resolves everywhere.
+import { NuxtLink } from '#components'
 
 const { user, logout } = useAuth()
 const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
 const sidebarOpen = ref(false)
 const route = useRoute()
+const trail = useBreadcrumbs()
 
-watch(() => route.path, () => { sidebarOpen.value = false })
+watch(
+  () => route.path,
+  () => {
+    sidebarOpen.value = false
+  },
+)
 
 // Dashboard theme toggle (standalone — no org config needed)
 const mode = useColorMode({ storageKey: 'vg.theme' })
-function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
+function toggleTheme() {
+  mode.value = mode.value === 'dark' ? 'light' : 'dark'
+}
+
+// Org tab bar (Home / Edit / Advanced / Members / Share) for an org's dashboard
+// area. Rendered in the sticky full-width header so the breadcrumb + tabs span
+// the main column (not the centered content box) and stay pinned.
+const RESERVED_SEGS = new Set(['', 'admin', 'orgs', 'settings', 'new'])
+const orgSlug = computed(() => {
+  const seg = route.path.split('/')[2] ?? ''
+  return RESERVED_SEGS.has(seg) ? '' : seg
+})
+const { data: orgList } = useFetch<{ orgs: { slug: string; name: string; role: string }[] }>(
+  '/api/orgs',
+)
+const currentOrg = computed(() =>
+  orgSlug.value ? orgList.value?.orgs.find((o) => o.slug === orgSlug.value) : undefined,
+)
+const orgTabs = computed(() => {
+  const s = orgSlug.value
+  if (!s || !currentOrg.value) return []
+  const canEdit = ['owner', 'manager', 'editor', 'superadmin'].includes(currentOrg.value.role)
+  const canManage = ['owner', 'manager', 'superadmin'].includes(currentOrg.value.role)
+  return [
+    { label: 'Home', icon: 'Home', to: `/dashboard/${s}`, exact: true, show: true },
+    { label: 'Edit', icon: 'Pencil', to: `/dashboard/${s}/edit`, exact: false, show: canEdit },
+    {
+      label: 'Advanced',
+      icon: 'Settings',
+      to: `/dashboard/${s}/advanced`,
+      exact: false,
+      show: canEdit,
+    },
+    {
+      label: 'Members',
+      icon: 'Users',
+      to: `/dashboard/${s}/members`,
+      exact: false,
+      show: canManage,
+    },
+    { label: 'Share', icon: 'Share2', to: `/dashboard/${s}/share`, exact: false, show: true },
+    { label: 'Preview', icon: 'Eye', to: `/dashboard/${s}/preview`, exact: false, show: true },
+  ]
+})
+function tabActive(to: string, exact: boolean) {
+  return exact ? route.path === to : route.path.startsWith(to)
+}
 </script>
 
 <template>
@@ -29,17 +85,16 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
     >
       <!-- Brand -->
       <div class="flex h-14 items-center gap-2 border-b px-5">
-        <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10 12 5 2 10l10 5 10-5Z" /><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" /></svg>
-        </span>
-        <span class="flex-1 text-sm font-semibold leading-tight">UNNC Freshmen<br />Verifier Gateway</span>
+        <img src="/favicon.svg" alt="" class="size-8 shrink-0 rounded-lg" />
+        <span class="flex-1 text-sm font-semibold leading-tight"
+          >UNNC Freshmen<br />Verifier Gateway</span
+        >
         <button
           class="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"
           :title="mode === 'dark' ? 'Light mode' : 'Dark mode'"
           @click="toggleTheme"
         >
-          <svg v-if="mode === 'dark'" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
-          <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>
+          <Icon :spec="mode === 'dark' ? 'Sun' : 'Moon'" :size="16" />
         </button>
       </div>
 
@@ -48,54 +103,117 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
         <NuxtLink
           to="/dashboard"
           class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
-          :class="route.path === '/dashboard' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+          :class="
+            route.path === '/dashboard'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+          "
         >
-          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+          <Icon spec="LayoutDashboard" :size="16" />
           Dashboard
         </NuxtLink>
+        <NuxtLink
+          to="/dashboard/orgs"
+          class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+          :class="
+            route.path === '/dashboard/orgs'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+          "
+        >
+          <Icon spec="Building2" :size="16" />
+          Organizations
+        </NuxtLink>
 
-        <!-- Superadmin section -->
-        <template v-if="isSuperAdmin">
-          <div class="px-3 pt-4 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">Admin</div>
-          <NuxtLink
-            to="/dashboard/admin?tab=orgs"
-            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
-            :class="route.path === '/dashboard/admin' && route.query.tab !== 'users' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
-          >
-            <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /></svg>
-            All Organizations
-          </NuxtLink>
-          <NuxtLink
-            to="/dashboard/admin?tab=users"
-            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
-            :class="route.path === '/dashboard/admin' && route.query.tab === 'users' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
-          >
-            <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-            Users
-          </NuxtLink>
-        </template>
-        <!-- Settings -->
+        <!-- Settings (user account: email / password / passkeys / mail) -->
         <NuxtLink
           to="/dashboard/settings"
           class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
-          :class="route.path === '/dashboard/settings' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+          :class="
+            route.path === '/dashboard/settings'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+          "
         >
-          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg>
+          <Icon spec="Settings" :size="16" />
           Settings
         </NuxtLink>
+
+        <!-- Superadmin section (site-wide: orgs / users / registration) -->
+        <template v-if="isSuperAdmin">
+          <div
+            class="px-3 pt-4 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60"
+          >
+            Admin
+          </div>
+          <NuxtLink
+            to="/dashboard/admin"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="Building2" :size="16" />
+            All Organizations
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin/users"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin/users'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="Users" :size="16" />
+            Users
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin/registration"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin/registration'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="UserCheck" :size="16" />
+            Registration
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin/mail"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin/mail'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="Mail" :size="16" />
+            Mail
+          </NuxtLink>
+        </template>
       </nav>
 
       <!-- User -->
       <div class="border-t p-3">
         <div class="mb-2 flex items-center gap-2 px-3">
-          <span v-if="isSuperAdmin" class="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">SA</span>
-          <span class="min-w-0 flex-1 truncate text-sm text-muted-foreground">{{ user?.email }}</span>
+          <span
+            v-if="isSuperAdmin"
+            class="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground"
+            >SA</span
+          >
+          <span class="min-w-0 flex-1 truncate text-sm text-muted-foreground">{{
+            user?.email
+          }}</span>
         </div>
         <button
           class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all hover:translate-x-0.5 hover:bg-accent hover:text-foreground"
           @click="logout"
         >
-          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
+          <Icon spec="LogOut" :size="16" />
           Log out
         </button>
       </div>
@@ -104,29 +222,79 @@ function toggleTheme() { mode.value = mode.value === 'dark' ? 'light' : 'dark' }
     <!-- Main -->
     <div class="flex flex-1 flex-col lg:pl-64">
       <!-- Mobile top bar -->
-      <header class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur lg:hidden">
+      <header
+        class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur lg:hidden"
+      >
         <button
           class="flex size-9 items-center justify-center rounded-lg border text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground active:scale-95"
           @click="sidebarOpen = true"
         >
-          <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6" /><line x1="3" x2="21" y1="12" y2="12" /><line x1="3" x2="21" y1="18" y2="18" /></svg>
+          <Icon spec="Menu" :size="20" />
         </button>
-        <span class="text-sm font-semibold">UNNC VG</span>
+        <span class="text-sm font-semibold">UNNC Freshmen Verifier Gateway</span>
         <!-- Theme toggle -->
         <button
           class="ml-auto flex size-8 items-center justify-center rounded-lg border text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"
           @click="toggleTheme"
         >
-          <svg v-if="mode === 'dark'" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
-          <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>
+          <Icon :spec="mode === 'dark' ? 'Sun' : 'Moon'" :size="16" />
         </button>
       </header>
 
-      <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div class="mx-auto w-full max-w-4xl">
-          <slot />
+      <main class="flex-1">
+        <!-- Sticky full-width breadcrumb (top-14 on mobile to sit under the mobile
+             top bar, top-0 on desktop). Only the breadcrumb is pinned; the org
+             tabs below scroll normally with the page. -->
+        <div
+          v-if="trail.length > 1"
+          class="sticky top-14 z-10 border-b bg-background/95 px-4 py-2.5 backdrop-blur sm:px-6 lg:px-8 lg:top-0"
+        >
+          <Breadcrumb>
+            <BreadcrumbList>
+              <template v-for="(item, i) in trail" :key="i">
+                <BreadcrumbItem>
+                  <!-- NuxtLink authored here (not via <BreadcrumbLink as-child>) because
+                       reka-ui's Primitive (BreadcrumbLink) renders null in prod SSR here. -->
+                  <NuxtLink
+                    v-if="item.to"
+                    :to="item.to"
+                    class="transition-colors hover:text-foreground"
+                    >{{ item.label }}</NuxtLink
+                  >
+                  <BreadcrumbPage v-else>{{ item.label }}</BreadcrumbPage>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator v-if="i < trail.length - 1" />
+              </template>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+        <!-- Org tabs (full-width, NOT sticky — scrolls away with the page).
+             Each tab has its own icon (Home/Edit/Advanced/Members/Share/Preview). -->
+        <nav v-if="orgTabs.length" class="flex border-b px-4 sm:px-6 lg:px-8">
+          <div class="flex flex-1 gap-1 overflow-x-auto">
+            <NuxtLink
+              v-for="tab in orgTabs"
+              v-show="tab.show"
+              :key="tab.to"
+              :to="tab.to"
+              class="-mb-px flex items-center whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
+              :class="
+                tabActive(tab.to, tab.exact)
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              "
+            >
+              <Icon :spec="tab.icon" :size="14" class="mr-1.5 shrink-0" />
+              {{ tab.label }}
+            </NuxtLink>
+          </div>
+        </nav>
+        <!-- Page content (centered) -->
+        <div class="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div class="mx-auto w-full max-w-4xl"><slot /></div>
         </div>
       </main>
+      <SiteFooter />
     </div>
   </div>
 </template>

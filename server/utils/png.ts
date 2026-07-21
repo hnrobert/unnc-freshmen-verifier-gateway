@@ -3,7 +3,7 @@
  * build, works in Node and serverless). Returns the shared {@link DecodedImage}.
  */
 import { PNG } from 'pngjs'
-import type { DecodedImage } from '../../shared/types'
+import type { DecodedImage } from '#shared/types'
 
 export async function decodeImage(buffer: ArrayBuffer): Promise<DecodedImage> {
   const png = PNG.sync.read(Buffer.from(buffer))

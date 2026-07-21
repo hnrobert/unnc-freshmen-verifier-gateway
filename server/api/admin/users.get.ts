@@ -1,5 +1,5 @@
-import { AppDataSource } from '../../utils/database'
-import { User } from '../../entities/user.entity'
+import { AppDataSource } from '#server/utils/database'
+import { User } from '#server/entities/user.entity'
 
 export default defineEventHandler((event) => {
   requireSuperAdmin(event)

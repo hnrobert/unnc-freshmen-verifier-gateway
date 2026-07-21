@@ -2,13 +2,13 @@
  * Seed a demo user + org. Run: pnpm db:seed
  *   email: demo@example.com  password: demo1234  org slug: demo
  */
-import { AppDataSource, initDataSource, closeDataSource } from '../utils/database'
-import { User } from '../entities/user.entity'
-import { Organization } from '../entities/organization.entity'
-import { OrgSetting } from '../entities/orgSetting.entity'
-import { hashPassword } from '../utils/auth'
-import defaultConfig from '../../shared/lib/defaultConfig'
-import type { SiteConfig } from '../../shared/types'
+import { AppDataSource, initDataSource, closeDataSource } from '#server/utils/database'
+import { User } from '#server/entities/user.entity'
+import { Organization } from '#server/entities/organization.entity'
+import { OrgSetting } from '#server/entities/orgSetting.entity'
+import { hashPassword } from '#server/utils/auth'
+import defaultConfig from '#shared/lib/defaultConfig'
+import type { SiteConfig } from '#shared/types'
 
 async function main(): Promise<void> {
   await initDataSource()
@@ -56,4 +56,7 @@ async function main(): Promise<void> {
   console.log('done.')
 }
 
-main().catch((e) => { console.error(e); process.exit(1) })
+main().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})

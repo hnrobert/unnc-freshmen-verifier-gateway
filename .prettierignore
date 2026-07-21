@@ -1,0 +1,10 @@
+node_modules
+.nuxt
+.output
+.output-legacy
+dist
+dist-cli
+.data
+pnpm-lock.yaml
+ref
+data

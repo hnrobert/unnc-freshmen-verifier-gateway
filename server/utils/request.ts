@@ -1,3 +1,4 @@
+import { TLSSocket } from 'node:tls'
 import type { H3Event } from 'h3'
 
 /**
@@ -12,10 +13,9 @@ import type { H3Event } from 'h3'
  * HTTP tunnels.
  */
 export function isSecureRequest(event: H3Event): boolean {
-  const xfp = getRequestHeader(event, 'x-forwarded-proto')
-    ?.split(',')[0]
-    ?.trim()
-    .toLowerCase()
+  const xfp = getRequestHeader(event, 'x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase()
   if (xfp) return xfp === 'https'
-  return Boolean(event.node.req.socket?.encrypted)
+  // `.encrypted` only exists on a TLS socket; plain HTTP sockets are net.Socket.
+  const socket = event.node.req.socket
+  return socket instanceof TLSSocket && socket.encrypted
 }

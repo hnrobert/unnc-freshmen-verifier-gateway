@@ -1,21 +1,25 @@
 /**
  * Generate a TypeORM migration from entity changes.
- *   pnpm db:generate -- --name=Init
+ *   pnpm db:generate -- --name=AddMailConfig
  *
- * Checks for entity changes, prompts for a migration name, runs pending
- * migrations on the comparison DB, then generates the new migration file.
+ * Generates against a THROWAWAY database built from the *existing migrations*
+ * (not the live dev DB, which may already have been mutated). The diff between
+ * the entities and that migrations-only baseline is exactly what the new
+ * migration must add. The migrations barrel (server/migrations/index.ts) is then
+ * regenerated so the DataSource picks the new migration up automatically.
  */
 import { execSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { stdin as input, stdout as output } from 'node:process'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = resolve(__dirname, '..', '..')
 const migrationsDir = resolve(rootDir, 'server', 'migrations')
+const tmpDb = resolve(rootDir, 'data', '.migration-gen.db')
 
 const run = (command: string, env?: NodeJS.ProcessEnv): void => {
   execSync(command, { stdio: 'inherit', cwd: rootDir, env: env ?? process.env })
@@ -45,55 +49,81 @@ const listMigrationFiles = (): string[] => {
   return readdirSync(migrationsDir).filter((f) => f.endsWith('.ts'))
 }
 
-const hasEntityChanges = (): boolean => {
-  const out = execSync('git status --porcelain server/entities', { cwd: rootDir }).toString().trim()
-  return out.length > 0
+const cleanTmpDb = (): void => {
+  for (const suffix of ['', '-wal', '-shm']) {
+    try {
+      unlinkSync(tmpDb + suffix)
+    } catch {
+      /* not present */
+    }
+  }
+}
+
+/**
+ * Normalise a freshly TypeORM-generated migration so it passes the project's
+ * typecheck and lint *unedited*:
+ *  - `verbatimModuleSyntax`: `MigrationInterface` and `QueryRunner` are used only
+ *    in type positions, so their import must be `import type` (TypeORM emits a
+ *    value import, which fails typecheck).
+ *  - `class-methods-use-this`: the generated `up`/`down` don't reference `this`,
+ *    hence the eslint-disable header.
+ * Exported (and the script guards its `main` on direct execution) so this can be
+ * unit-tested by importing it.
+ */
+export function postProcessMigration(content: string): string {
+  const withTypeImport = content.replace(
+    /import\s+\{\s*MigrationInterface\s*,\s*QueryRunner\s*\}\s+from\s+(['"])typeorm\1/,
+    'import type { MigrationInterface, QueryRunner } from "typeorm"',
+  )
+  return withTypeImport.startsWith('/* eslint-disable')
+    ? withTypeImport
+    : `/* eslint-disable class-methods-use-this */\n${withTypeImport}`
 }
 
 const main = async (): Promise<void> => {
-  if (!hasEntityChanges()) {
-    console.log('No changes in entities detected.')
-    const rl = createInterface({ input, output })
-    const answer = await rl.question('Continue anyway? (y/N): ')
-    rl.close()
-    if (!/^y(es)?$/i.test(answer.trim())) {
-      console.log('Cancelled.')
-      return
-    }
-  }
-
   const { name: cliName } = parseArgs()
   const name = await readMigrationName(cliName)
-  const dbPath = process.env.DB_PATH || './data/app.db'
-  const env = { ...process.env, DB_PATH: dbPath, TYPEORM_MIGRATION: 'true' }
+  const genEnv = { ...process.env, DB_PATH: tmpDb, TYPEORM_MIGRATION: 'true' }
 
+  // 1. Build a baseline from the existing migrations on a throwaway DB.
+  cleanTmpDb()
+  run('pnpm db:run', genEnv)
+
+  // 2. Diff entities vs that baseline → new migration. (typeorm errors with
+  //    "No changes" if there's nothing to generate, which is the correct signal.)
   const beforeFiles = listMigrationFiles()
+  try {
+    run(
+      `tsx --tsconfig server/tsconfig.json ./node_modules/typeorm/cli.js -d server/utils/database.ts migration:generate server/migrations/${name}`,
+      genEnv,
+    )
+  } finally {
+    cleanTmpDb()
+  }
 
-  // Bring comparison DB to latest, then generate
-  run('pnpm db:run', env)
-  run(
-    `tsx --tsconfig server/tsconfig.json ./node_modules/typeorm/cli.js -d server/utils/database.ts migration:generate server/migrations/${name}`,
-    env,
-  )
-
-  const afterFiles = listMigrationFiles()
-  const newFiles = afterFiles.filter((f) => !beforeFiles.includes(f))
-
+  const newFiles = listMigrationFiles().filter((f) => !beforeFiles.includes(f))
   if (!newFiles.length) {
     console.error('Expected a new migration file but none was generated.')
     process.exit(1)
   }
 
-  // Prepend eslint-disable (harmless even without ESLint)
-  newFiles.forEach((file) => {
+  // 3. Post-process (type-only import + eslint header), then regenerate the
+  //    migrations barrel so the DataSource imports the new migration automatically.
+  for (const file of newFiles) {
     const filePath = resolve(migrationsDir, file)
-    const content = readFileSync(filePath, 'utf-8')
-    if (!content.startsWith('/* eslint-disable')) {
-      writeFileSync(filePath, `/* eslint-disable class-methods-use-this */\n${content}`)
-    }
-  })
+    writeFileSync(filePath, postProcessMigration(readFileSync(filePath, 'utf-8')))
+  }
+  run('tsx server/scripts/syncMigrations.ts')
 
   console.log(`Generated: ${newFiles.join(', ')}`)
+  console.log('Commit the new migration + server/migrations/index.ts.')
 }
 
-main().catch((e) => { console.error(e); process.exit(1) })
+// Only run the generation flow when executed directly (not when imported for tests).
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main().catch((e) => {
+    cleanTmpDb()
+    console.error(e)
+    process.exit(1)
+  })
+}

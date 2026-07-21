@@ -3,14 +3,18 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
 import { isSecureRequest } from './request'
-import { Session } from '../entities/session.entity'
-import { User } from '../entities/user.entity'
+import { Session } from '#server/entities/session.entity'
+import { User } from '#server/entities/user.entity'
 
 const ARGON_OPTS = { t: 2, m: 19456, p: 1 } as const
 const SESSION_COOKIE = 'vg_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30
 
-export interface SessionUser { id: number; email: string; role: string }
+export interface SessionUser {
+  id: number
+  email: string
+  role: string
+}
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16)
@@ -32,8 +36,11 @@ export async function createSession(event: H3Event, userId: number): Promise<str
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
   await AppDataSource.getRepository(Session).insert({ id, userId, expiresAt })
   setCookie(event, SESSION_COOKIE, id, {
-    httpOnly: true, sameSite: 'lax', path: '/',
-    expires: expiresAt, secure: isSecureRequest(event),
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    expires: expiresAt,
+    secure: isSecureRequest(event),
   })
   return id
 }
