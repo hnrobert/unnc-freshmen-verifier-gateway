@@ -20,7 +20,7 @@
     "db:seed": "tsx --tsconfig server/tsconfig.json server/db/seed.ts",
     "db:sync": "tsx server/scripts/syncMigrations.ts",
     "test": "tsx scripts/selftest.ts",
-    "postinstall": "nuxt prepare && pnpm db:sync",
+    "postinstall": "nuxt prepare",
     "prepare": "husky",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
