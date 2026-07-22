@@ -10,6 +10,9 @@ const emailTemplate = readFileSync(
   fileURLToPath(new URL('./email/template.html', import.meta.url)),
   'utf-8',
 )
+const emailLogo = `data:image/svg+xml;base64,${Buffer.from(
+  readFileSync(fileURLToPath(new URL('./public/favicon.svg', import.meta.url))),
+).toString('base64')}`
 
 // Nuxt 4 full-stack config. The public per-org gateway is SSR-rendered so each
 // org's config/i18n/theme apply on first paint; auth + orgs + admission run as
@@ -49,6 +52,7 @@ export default defineNuxtConfig({
     sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
     dbPath: process.env.DB_PATH || './data/app.db',
     emailTemplate,
+    emailLogo,
   },
 
   // No-FOUC dark mode: apply the saved/system theme synchronously in <head>

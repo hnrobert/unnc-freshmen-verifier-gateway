@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { abort } from 'node:process'
+
 const year = new Date().getFullYear()
 const REPO = 'https://github.com/hnrobert/unnc-freshmen-verifier-gateway'
 </script>
@@ -32,6 +34,14 @@ const REPO = 'https://github.com/hnrobert/unnc-freshmen-verifier-gateway'
         rel="noopener noreferrer"
         class="underline-offset-2 hover:underline"
         >Robert He</a
+      >
+      @
+      <a
+        href="https://github.com/CompPsyUnion"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="underline-offset-2 hover:underline"
+        >CompPsyUnion</a
       >
     </div>
   </footer>
