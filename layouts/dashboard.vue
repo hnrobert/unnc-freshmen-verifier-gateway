@@ -231,6 +231,7 @@ function tabActive(to: string, exact: boolean) {
         >
           <Icon spec="Menu" :size="20" />
         </button>
+        <img src="/favicon.svg" alt="" class="size-7 shrink-0 rounded-lg" />
         <span class="text-sm font-semibold">UNNC Freshmen Verifier Gateway</span>
         <!-- Theme toggle -->
         <button
@@ -247,7 +248,7 @@ function tabActive(to: string, exact: boolean) {
              tabs below scroll normally with the page. -->
         <div
           v-if="trail.length > 1"
-          class="sticky top-14 z-10 border-b bg-background/95 px-4 py-2.5 backdrop-blur sm:px-6 lg:px-8 lg:top-0"
+          class="sticky top-14 z-10 flex h-14 items-center border-b bg-background/95 px-4 backdrop-blur sm:px-6 lg:px-8 lg:top-0"
         >
           <Breadcrumb>
             <BreadcrumbList>
@@ -258,10 +259,15 @@ function tabActive(to: string, exact: boolean) {
                   <NuxtLink
                     v-if="item.to"
                     :to="item.to"
-                    class="transition-colors hover:text-foreground"
-                    >{{ item.label }}</NuxtLink
+                    class="flex items-center transition-colors hover:text-foreground"
                   >
-                  <BreadcrumbPage v-else>{{ item.label }}</BreadcrumbPage>
+                    <Icon v-if="i === 0" spec="LayoutDashboard" :size="14" class="mr-1 shrink-0" />
+                    {{ item.label }}
+                  </NuxtLink>
+                  <BreadcrumbPage v-else class="flex items-center">
+                    <Icon v-if="i === 0" spec="LayoutDashboard" :size="14" class="mr-1 shrink-0" />
+                    {{ item.label }}
+                  </BreadcrumbPage>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator v-if="i < trail.length - 1" />
               </template>

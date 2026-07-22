@@ -268,8 +268,11 @@ async function onSendTest() {
             </div>
           </template>
 
-          <!-- Sender (always visible — SMTP auth + From; smtogo POST uses 'from') -->
-          <div class="grid gap-4 sm:grid-cols-2">
+          <!-- Sender email (SMTP auth + From; smtogo POST uses 'from'. Not needed for Power Automate.) -->
+          <div
+            v-if="mail.provider === 'smtp' || mail.postSchema === 'smtogo'"
+            class="grid gap-4 sm:grid-cols-2"
+          >
             <div class="flex flex-col gap-2">
               <Label for="mail-from">Sender email</Label>
               <Input
