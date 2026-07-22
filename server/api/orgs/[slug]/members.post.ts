@@ -1,10 +1,12 @@
 import { AppDataSource } from '#server/utils/database'
 import { OrgMember } from '#server/entities/orgMember.entity'
+import { renderEmail } from '#server/mail/render'
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const ROLES = ['viewer', 'editor', 'manager'] as const
 
-/** Invite a user by email (creates a pending member + one-time token). Manager+. */
+/** Invite a user by email (creates a pending member + one-time token) and sends
+ * an invitation email via the site mail config. Manager+. */
 export default defineEventHandler(async (event) => {
   const me = requireAuth(event)
   const slug = getRouterParam(event, 'slug') as string
@@ -38,5 +40,30 @@ export default defineEventHandler(async (event) => {
     invitedBy: me.id,
     expiresAt: new Date(Date.now() + INVITE_TTL_MS),
   })
-  return { id: member.id, inviteUrl: buildInviteUrl(event, token) }
+  const inviteUrl = buildInviteUrl(event, token)
+
+  // Send invitation email (best-effort — invite succeeds even if mail fails)
+  void (async () => {
+    try {
+      const cfg = await getMailConfig()
+      if (!cfg) return
+      const html = renderEmail({
+        title: `Invitation to join ${org.name}`,
+        bodyHtml: `<p>You've been invited to join <strong>${org.name}</strong> as <strong>${role}</strong>.</p><p>Click the button to view and accept the invitation.</p>`,
+        actionLabel: 'View invitation',
+        actionUrl: inviteUrl,
+        preheader: `You've been invited to join ${org.name} as ${role}`,
+      })
+      await sendMailWithConfig(cfg, {
+        to: email,
+        subject: `Invitation to join ${org.name}`,
+        body: html,
+        html: true,
+      })
+    } catch {
+      // best-effort — invitation email is not critical
+    }
+  })()
+
+  return { id: member.id, inviteUrl }
 })
