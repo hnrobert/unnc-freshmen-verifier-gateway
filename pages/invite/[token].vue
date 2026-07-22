@@ -22,17 +22,31 @@ const emailMatches = computed(
 )
 const claimed = computed(() => invite.value?.status === 'active')
 const claiming = ref(false)
+const declining = ref(false)
 
 async function onAccept() {
   claiming.value = true
   try {
     await $fetch(`/api/invites/${token.value}/claim`, { method: 'POST' })
     toast.success('Invitation accepted')
-    await navigateTo('/dashboard')
+    await navigateTo(`/dashboard/${invite.value?.slug}`)
   } catch (e) {
     toast.error(messageFromError(e, 'Could not accept invitation'))
   } finally {
     claiming.value = false
+  }
+}
+
+async function onDecline() {
+  declining.value = true
+  try {
+    await $fetch(`/api/invites/${token.value}/decline`, { method: 'POST' })
+    toast.success('Invitation declined')
+    await navigateTo('/dashboard')
+  } catch (e) {
+    toast.error(messageFromError(e, 'Could not decline'))
+  } finally {
+    declining.value = false
   }
 }
 </script>
@@ -83,9 +97,14 @@ async function onAccept() {
           />
 
           <!-- Good to go -->
-          <Button v-else :disabled="claiming" @click="onAccept">
-            {{ claiming ? 'Accepting…' : 'Accept invitation' }}
-          </Button>
+          <div v-else class="flex gap-2">
+            <Button :disabled="claiming" @click="onAccept">
+              {{ claiming ? 'Accepting…' : 'Accept invitation' }}
+            </Button>
+            <Button variant="outline" :disabled="declining" @click="onDecline">
+              {{ declining ? '…' : 'Decline' }}
+            </Button>
+          </div>
         </template>
       </template>
     </CardContent>

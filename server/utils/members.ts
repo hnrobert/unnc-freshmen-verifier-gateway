@@ -137,3 +137,18 @@ export async function claimInvite(token: string, user: SessionUser): Promise<Org
   await repo.save(member)
   return member
 }
+
+/** Decline (delete) a pending invite. Validates email match + not-yet-active. */
+export async function declineInvite(token: string, user: SessionUser): Promise<void> {
+  const repo = AppDataSource.getRepository(OrgMember)
+  const member = await repo.findOne({ where: { inviteToken: token } })
+  if (!member) throw createError({ statusCode: 404, statusMessage: 'Invitation not found' })
+  if (member.status === 'active')
+    throw createError({ statusCode: 410, statusMessage: 'Invitation has already been used' })
+  if (member.invitedEmail.toLowerCase() !== user.email.toLowerCase())
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'This invitation is for a different email address',
+    })
+  await repo.delete({ id: member.id })
+}
