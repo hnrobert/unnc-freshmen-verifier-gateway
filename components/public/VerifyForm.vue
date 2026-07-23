@@ -14,6 +14,10 @@ const { t } = useI18n()
 const router = useRouter()
 const { setVerified } = useVerifier()
 
+// --- Tab state ---
+const tab = ref<'verify' | 'email'>('verify')
+
+// --- Verify form (existing) ---
 const name = ref(props.defaultName ?? '')
 const idNumber = ref(props.defaultId ?? '')
 const submitting = ref(false)
@@ -59,6 +63,33 @@ async function onSubmit(): Promise<void> {
     submitting.value = false
   }
 }
+
+// --- Email form (new) ---
+const emailAddr = ref('')
+const emailSending = ref(false)
+const emailSent = ref(false)
+
+const emailValid = computed(() =>
+  emailAddr.value.trim().toLowerCase().endsWith('@nottingham.edu.cn'),
+)
+
+async function onSendEmail(): Promise<void> {
+  if (!emailValid.value) return
+  emailSending.value = true
+  emailSent.value = false
+  try {
+    await $fetch(`/api/orgs/${props.slug}/email-page`, {
+      method: 'POST',
+      body: { email: emailAddr.value.trim().toLowerCase() },
+    })
+    emailSent.value = true
+    toast.success('Page sent to your email')
+  } catch {
+    toast.error('Failed to send email')
+  } finally {
+    emailSending.value = false
+  }
+}
 </script>
 
 <template>
@@ -67,8 +98,36 @@ async function onSubmit(): Promise<void> {
       <CardTitle class="text-xl">{{ t('verify.heading') }}</CardTitle>
       <CardDescription>{{ t('verify.subheading') }}</CardDescription>
     </CardHeader>
-    <CardContent>
-      <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
+
+    <!-- Tabs -->
+    <div class="mx-6 flex gap-1 border-b">
+      <button
+        class="-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors"
+        :class="
+          tab === 'verify'
+            ? 'border-primary text-foreground'
+            : 'border-transparent text-muted-foreground hover:text-foreground'
+        "
+        @click="tab = 'verify'"
+      >
+        新生验证
+      </button>
+      <button
+        class="-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors"
+        :class="
+          tab === 'email'
+            ? 'border-primary text-foreground'
+            : 'border-transparent text-muted-foreground hover:text-foreground'
+        "
+        @click="tab = 'email'"
+      >
+        邮箱验证
+      </button>
+    </div>
+
+    <CardContent class="pt-6">
+      <!-- Tab 1: Verify form (existing) -->
+      <form v-if="tab === 'verify'" class="flex flex-col gap-4" @submit.prevent="onSubmit">
         <div class="flex flex-col gap-2">
           <Label for="vg-name">
             <Icon :spec="config.icons.nameField" :size="16" />
@@ -104,6 +163,40 @@ async function onSubmit(): Promise<void> {
         </Button>
         <p class="text-center text-xs leading-relaxed text-muted-foreground">
           {{ t('verify.hint') }}
+        </p>
+      </form>
+
+      <!-- Tab 2: Email form (new) -->
+      <form v-else class="flex flex-col gap-4" @submit.prevent="onSendEmail">
+        <div class="flex flex-col gap-2">
+          <Label for="vg-email">
+            <Icon spec="Mail" :size="16" />
+            UNNC 邮箱
+          </Label>
+          <Input
+            id="vg-email"
+            v-model="emailAddr"
+            type="email"
+            placeholder="you@nottingham.edu.cn"
+            autocomplete="email"
+            :disabled="emailSending"
+          />
+          <p v-if="emailAddr && !emailValid" class="text-xs text-red-500">
+            仅支持 @nottingham.edu.cn 邮箱
+          </p>
+        </div>
+        <Button type="submit" size="lg" :disabled="emailSending || !emailValid" class="mt-1 w-full">
+          <Icon spec="Send" :size="18" />
+          {{ emailSending ? '发送中…' : '发送页面到邮箱' }}
+        </Button>
+        <div
+          v-if="emailSent"
+          class="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-center text-sm text-emerald-600"
+        >
+          ✓ 页面已发送到 {{ emailAddr }}
+        </div>
+        <p class="text-center text-xs leading-relaxed text-muted-foreground">
+          输入你的 UNNC 邮箱，我们将把本页面的完整内容发送到你的邮箱。
         </p>
       </form>
     </CardContent>

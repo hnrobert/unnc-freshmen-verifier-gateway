@@ -110,9 +110,6 @@ function validate(c: MailConfig, input: SendMailInput): void {
   if (input.subject.length > c.maxLenSubject) {
     throw new Error(`Subject exceeds max length (${c.maxLenSubject})`)
   }
-  if (input.body.length > c.maxLenBody) {
-    throw new Error(`Body exceeds max length (${c.maxLenBody})`)
-  }
 }
 
 /** Send via HTTP POST webhook (provider 'post'). Two payload schemas:
