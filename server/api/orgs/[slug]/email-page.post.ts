@@ -65,9 +65,18 @@ export default defineEventHandler(async (event) => {
     ? `<span style="display:inline-block;padding:4px 12px;border-radius:9999px;font-size:13px;font-weight:500;background:#f5f5f5;color:#737373;margin-bottom:12px;">${welcome.badge}</span>`
     : ''
 
-  // --- Welcome title ---
+  // --- Welcome title (with icon, larger font, dark-mode aware) ---
+  const welcomeIcon = config.icons.welcome
+  let welcomeIconHtml = ''
+  if (typeof welcomeIcon === 'string') {
+    if (welcomeIcon.startsWith('data:') || welcomeIcon.startsWith('http')) {
+      welcomeIconHtml = `<img src="${welcomeIcon}" width="32" height="32" alt="" style="display:inline-block;vertical-align:middle;width:32px;height:32px;" />`
+    } else {
+      welcomeIconHtml = `<img src="${origin}/api/icon.svg?name=${encodeURIComponent(welcomeIcon)}&color=${encodeURIComponent((config.theme as { primaryColor?: string }).primaryColor ?? '#F7D447')}" width="32" height="32" alt="" style="display:inline-block;vertical-align:middle;width:32px;height:32px;" />`
+    }
+  }
   const titleHtml = welcome.title
-    ? `<h2 style="margin:0 0 8px;font-size:22px;line-height:1.3;color:#0a0a0a;">${welcome.title}</h2>`
+    ? `<h2 class="ink" style="margin:0 0 8px;font-size:28px;line-height:1.3;font-weight:600;color:#0a0a0a;display:flex;align-items:center;justify-content:center;gap:8px;">${welcomeIconHtml}<span>${welcome.title}</span></h2>`
     : ''
 
   // --- Build the email HTML (neutral palette + dark mode) ---
