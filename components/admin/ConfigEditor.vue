@@ -276,9 +276,10 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
               <span class="text-xs text-muted-foreground">rem</span>
             </label>
           </div>
-          <label class="flex items-start gap-2 text-sm">
+          <label class="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
+              class="shrink-0"
               :checked="!!config.welcome.watermark"
               @change="config.welcome.watermark = ($event.target as HTMLInputElement).checked"
             />
