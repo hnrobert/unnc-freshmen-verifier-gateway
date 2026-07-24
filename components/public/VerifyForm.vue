@@ -89,14 +89,14 @@ async function onSendEmail(): Promise<void> {
 </script>
 
 <template>
-  <Card class="mx-auto mt-2 max-w-md">
+  <Card class="mx-auto mt-2 max-w-md gap-0">
     <CardHeader class="text-center">
       <CardTitle class="text-xl">{{ t('verify.heading') }}</CardTitle>
       <CardDescription>{{ t('verify.subheading') }}</CardDescription>
     </CardHeader>
 
     <!-- Switch (SMTP/POST style) -->
-    <div class="mx-6 mb-2 flex gap-1 rounded-md border p-1">
+    <div class="mx-6 mt-6 flex gap-1 rounded-md border p-1">
       <button
         class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors"
         :class="
