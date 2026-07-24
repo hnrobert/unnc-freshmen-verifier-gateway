@@ -267,7 +267,8 @@ function tabActive(to: string, exact: boolean) {
              tabs below scroll normally with the page. -->
         <div
           v-if="trail.length > 1"
-          class="sticky top-14 z-10 flex h-14 items-center border-b bg-background/95 px-4 backdrop-blur sm:px-6 lg:px-8 lg:top-0"
+          class="sticky z-10 flex h-14 items-center border-b bg-background/95 px-4 backdrop-blur transition-all duration-300 sm:px-6 lg:px-8 lg:top-0"
+          :class="mobileHeaderHidden ? 'top-0' : 'top-14'"
         >
           <Breadcrumb>
             <BreadcrumbList>
@@ -302,6 +303,7 @@ function tabActive(to: string, exact: boolean) {
               :key="tab.to"
               :to="tab.to"
               class="-mb-px flex items-center whitespace-nowrap border-b-2 px-4 py-4 text-sm font-medium transition-colors"
+              :style="tab.exact ? { paddingLeft: 0 } : {}"
               :class="
                 tabActive(tab.to, tab.exact)
                   ? 'border-primary text-foreground'
