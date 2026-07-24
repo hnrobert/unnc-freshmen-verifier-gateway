@@ -34,6 +34,7 @@ const orgSlug = computed(() => {
 })
 const { data: orgList } = useFetch<{ orgs: { slug: string; name: string; role: string }[] }>(
   '/api/orgs',
+  { default: () => ({ orgs: [] }), key: 'orgs-list' },
 )
 const currentOrg = computed(() =>
   orgSlug.value ? orgList.value?.orgs.find((o) => o.slug === orgSlug.value) : undefined,
