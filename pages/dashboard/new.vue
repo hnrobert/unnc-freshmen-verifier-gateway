@@ -20,6 +20,7 @@ async function onSubmit() {
       method: 'POST',
       body: { slug: slug.value.trim().toLowerCase(), name: name.value.trim() },
     })
+    await refreshNuxtData('orgs-list')
     await navigateTo(`/dashboard/${res.org.slug}/edit`)
   } catch (e) {
     toast.error(messageFromError(e, 'Could not create organization'))

@@ -206,7 +206,7 @@ async function copyUrl(url: string) {
       <CardContent class="flex flex-col gap-4">
         <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="onInvite">
           <div class="flex-1">
-            <Label for="invite-email">Email</Label>
+            <!-- <Label for="invite-email">Email</Label> -->
             <Input
               id="invite-email"
               v-model="inviteEmail"
@@ -216,7 +216,7 @@ async function copyUrl(url: string) {
             />
           </div>
           <div>
-            <Label for="invite-role">Role</Label>
+            <!-- <Label for="invite-role">Role</Label> -->
             <select
               id="invite-role"
               v-model="inviteRole"

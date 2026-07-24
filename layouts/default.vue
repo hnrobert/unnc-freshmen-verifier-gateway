@@ -14,7 +14,6 @@ const { data: config } = await useAsyncData(
   () => $fetch<SiteConfig>(`/api/orgs/${slug.value}/config`),
   { watch: [slug] },
 )
-if (!config.value) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
 
 provide(OrgConfigKey, { config: config as unknown as Ref<SiteConfig> })
 
@@ -92,6 +91,7 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
 
 <template>
   <div
+    v-if="config"
     class="relative min-h-screen text-foreground"
     :class="{ 'bg-background': !hasBg }"
     :style="themeVars"
@@ -135,5 +135,8 @@ const bgOverlay = computed(() => config.value?.background?.overlayOpacity ?? 0.5
       <slot />
     </main>
     <SiteFooter />
+  </div>
+  <div v-else class="flex min-h-screen items-center justify-center text-muted-foreground">
+    Loading…
   </div>
 </template>

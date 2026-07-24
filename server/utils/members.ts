@@ -104,12 +104,12 @@ export function generateInviteToken(): string {
   return randomBytes(24).toString('hex')
 }
 
-/** Build the `/invite/<token>` URL using the host the visitor/browser reached. */
-export function buildInviteUrl(event: H3Event, token: string): string {
+/** Build the `/<slug>/invitations` URL (GitHub-style, no token in URL). */
+export function buildInviteUrl(event: H3Event, slug: string): string {
   const xfh = getRequestHeader(event, 'x-forwarded-host')?.split(',')[0]?.trim()
   const host = xfh || getRequestHeader(event, 'host') || 'localhost'
   const proto = isSecureRequest(event) ? 'https' : 'http'
-  return `${proto}://${host}/invite/${token}`
+  return `${proto}://${host}/${slug}/invitations`
 }
 
 /**

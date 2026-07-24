@@ -1,9 +1,9 @@
 import { createI18n } from 'vue-i18n'
 import type { Locale } from '#shared/types'
+import defaultConfig from '#shared/lib/defaultConfig'
+import { escapeI18nMessages } from '#shared/lib/escapeMessage'
 
 // Dashboard/editor UI labels (always available, not per-org).
-// Org-specific messages (verify.heading, welcome.body, etc.) are merged on top
-// by `useOrgI18n` when the org layout loads its config.
 const dashboardMessages: Record<Locale, Record<string, unknown>> = {
   zh: {
     editor: {
@@ -148,6 +148,34 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
   },
 }
 
+// Deep-merge the default org config's messages (brand.title, welcome.badge,
+// etc.) into the base so they're always present — even before an org layout
+// calls `applyOrgI18n`. Org-specific messages are merged on top later.
+function deepMerge(
+  base: Record<string, unknown>,
+  override: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base }
+  for (const key of Object.keys(override)) {
+    const ov = override[key]
+    if (ov && typeof ov === 'object' && !Array.isArray(ov)) {
+      out[key] = deepMerge(
+        (base[key] as Record<string, unknown>) ?? {},
+        ov as Record<string, unknown>,
+      )
+    } else {
+      out[key] = ov
+    }
+  }
+  return out
+}
+
+const messages = structuredClone(dashboardMessages) as Record<Locale, Record<string, unknown>>
+for (const loc of defaultConfig.locales) {
+  const orgDefaults = escapeI18nMessages(defaultConfig.messages[loc]) as Record<string, unknown>
+  messages[loc] = deepMerge(messages[loc] ?? {}, orgDefaults)
+}
+
 export default defineNuxtPlugin((nuxtApp) => {
   const i18n = createI18n({
     legacy: false,
@@ -155,7 +183,7 @@ export default defineNuxtPlugin((nuxtApp) => {
     locale: 'zh',
     fallbackLocale: 'zh',
     availableLocales: ['zh', 'en'],
-    messages: structuredClone(dashboardMessages) as unknown as Parameters<typeof createI18n>[0]['messages'],
+    messages: messages as unknown as Parameters<typeof createI18n>[0]['messages'],
   })
   nuxtApp.vueApp.use(i18n)
 })

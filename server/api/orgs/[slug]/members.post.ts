@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
     invitedBy: me.id,
     expiresAt: new Date(Date.now() + INVITE_TTL_MS),
   })
-  const inviteUrl = buildInviteUrl(event, token)
+  const inviteUrl = buildInviteUrl(event, slug)
 
   // Send invitation email (best-effort — invite succeeds even if mail fails)
   void (async () => {
