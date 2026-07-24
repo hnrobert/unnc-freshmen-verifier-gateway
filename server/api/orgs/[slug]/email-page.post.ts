@@ -1,7 +1,58 @@
 import MarkdownIt from 'markdown-it'
+import sharp from 'sharp'
 import { isSecureRequest } from '#server/utils/request'
+import { buildWatermarkSvg } from '#server/utils/watermark'
 
 const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
+
+// Email-ready max width for the welcome image. Oversized uploads (e.g. a tall
+// 1290×2796 poster) balloon the base64 payload and get stripped by some mail
+// providers — downscaling keeps the email deliverable.
+const EMAIL_IMG_MAX_WIDTH = 800
+
+/** Resolve a welcome-image reference to an email-ready data URL: pull the bytes
+ * (from a `data:` URL, an absolute http(s) URL, or a same-origin path), then in
+ * a single sharp pass downscale, optionally composite the watermark, and
+ * re-encode — JPEG for opaque images (far smaller, more deliverable), PNG when
+ * the source has transparency. Returns null if the source can't be read. */
+async function resolveWelcomeImage(
+  ref: string,
+  origin: string,
+  watermarkText: string,
+): Promise<string | null> {
+  let buffer: Buffer
+  if (ref.startsWith('data:')) {
+    const m = ref.match(/^data:[^;]+;base64,(.*)$/s)
+    if (!m?.[1]) return null
+    buffer = Buffer.from(m[1], 'base64')
+  } else {
+    const url = ref.startsWith('http') ? ref : `${origin}/${ref.replace(/^\.?\//, '')}`
+    const ab = await $fetch<ArrayBuffer>(url, { responseType: 'arrayBuffer' }).catch(() => null)
+    if (!ab) return null
+    buffer = Buffer.from(ab)
+  }
+
+  const meta = await sharp(buffer).metadata()
+  const origW = meta.width ?? EMAIL_IMG_MAX_WIDTH
+  const origH = meta.height ?? Math.round(origW * 0.75)
+  const targetW = Math.min(origW, EMAIL_IMG_MAX_WIDTH)
+  const targetH = Math.round((origH * targetW) / origW)
+
+  let pipe = sharp(buffer).resize({ width: targetW, withoutEnlargement: true })
+  if (watermarkText) {
+    pipe = pipe.composite([
+      { input: buildWatermarkSvg(targetW, targetH, watermarkText), gravity: 'center' },
+    ])
+  }
+
+  // Opaque → JPEG (small, universal); transparent → PNG (preserve alpha).
+  if (meta.hasAlpha) {
+    const out = await pipe.png().toBuffer()
+    return `data:image/png;base64,${out.toString('base64')}`
+  }
+  const out = await pipe.flatten({ background: '#ffffff' }).jpeg({ quality: 85 }).toBuffer()
+  return `data:image/jpeg;base64,${out.toString('base64')}`
+}
 
 /** Public: email the org's welcome content (brand icon, welcome image,
  * title/badge/body) as a self-contained HTML email to a @nottingham.edu.cn
@@ -50,15 +101,19 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // --- Welcome image (with optional watermark = email prefix) ---
+  // --- Welcome image (resized for email + optional watermark = email prefix) ---
   let welcomeImageHtml = ''
-  let welcomeImg = config.welcome.image
-  if (welcomeImg && (welcomeImg.startsWith('data:') || welcomeImg.startsWith('http'))) {
-    if (config.welcome.watermark && welcomeImg.startsWith('data:')) {
-      const prefix = email.split('@')[0]
-      if (prefix) welcomeImg = await watermarkImage(welcomeImg, prefix)
+  const welcomeRef = config.welcome.image
+  const watermarkText = config.welcome.watermark ? (email.split('@')[0] ?? '') : ''
+  if (welcomeRef) {
+    try {
+      const img = await resolveWelcomeImage(welcomeRef, origin, watermarkText)
+      if (img) {
+        welcomeImageHtml = `<img src="${img}" alt="" style="display:block;width:100%;max-width:480px;margin:0 auto 24px;border-radius:12px;" />`
+      }
+    } catch {
+      // image unreadable — omit it rather than failing the whole email
     }
-    welcomeImageHtml = `<img src="${welcomeImg}" alt="" style="display:block;width:100%;max-width:480px;margin:0 auto 24px;border-radius:12px;" />`
   }
 
   // --- Welcome body (markdown → HTML) ---
