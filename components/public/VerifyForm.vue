@@ -63,7 +63,6 @@ async function onSubmit(): Promise<void> {
 
 const emailAddr = ref('')
 const emailSending = ref(false)
-const emailSent = ref(false)
 
 const emailValid = computed(() =>
   emailAddr.value.trim().toLowerCase().endsWith('@nottingham.edu.cn'),
@@ -72,14 +71,13 @@ const emailValid = computed(() =>
 async function onSendEmail(): Promise<void> {
   if (!emailValid.value) return
   emailSending.value = true
-  emailSent.value = false
   try {
     await $fetch(`/api/orgs/${props.slug}/email-page`, {
       method: 'POST',
       body: { email: emailAddr.value.trim().toLowerCase() },
     })
-    emailSent.value = true
     toast.success(t('verify.emailSent'))
+    emailAddr.value = ''
   } catch {
     toast.error(t('errors.generic'))
   } finally {
@@ -187,12 +185,6 @@ async function onSendEmail(): Promise<void> {
           <Icon v-if="!emailSending" spec="Send" :size="18" />
           {{ emailSending ? t('verify.emailSubmitting') : t('verify.emailSubmit') }}
         </Button>
-        <div
-          v-if="emailSent"
-          class="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-center text-sm text-emerald-600"
-        >
-          ✓ {{ t('verify.emailSent') }}
-        </div>
         <p class="text-center text-xs leading-relaxed text-muted-foreground">
           {{ t('verify.emailHint') }}
         </p>

@@ -13,13 +13,14 @@ const { reset, admission } = useVerifier()
 // Raw markdown body for the active locale (avoid vue-i18n `{` interpolation).
 const body = computed(() => {
   const messages = config.value.messages[locale.value as Locale] as
-    | { welcome?: { body?: string } }
-    | undefined
+    { welcome?: { body?: string } } | undefined
   return messages?.welcome?.body ?? ''
 })
 const image = computed(() => config.value.welcome.image)
 const imgError = ref(false)
-watch(image, () => { imgError.value = false })
+watch(image, () => {
+  imgError.value = false
+})
 const imageMaxWidth = computed(() => config.value.welcome.imageMaxWidth ?? '12rem')
 const imageRadius = computed(() => config.value.welcome.imageRadius ?? '0.5rem')
 
@@ -30,7 +31,8 @@ const details = computed(() => {
   if (a.name) rows.push({ label: t('admission.name'), value: a.name })
   if (a.university) rows.push({ label: t('admission.university'), value: a.university })
   if (a.date) rows.push({ label: t('admission.date'), value: a.date })
-  if (a.detail && a.detail !== a.message) rows.push({ label: t('admission.detail'), value: a.detail })
+  if (a.detail && a.detail !== a.message)
+    rows.push({ label: t('admission.detail'), value: a.detail })
   return rows.length ? rows : null
 })
 
@@ -44,6 +46,18 @@ function goBack(): void {
 
 <template>
   <div class="mx-auto mt-2 flex max-w-md flex-col items-center text-center">
+    <span
+      class="mb-3 inline-flex items-center gap-1.5 rounded-full border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+    >
+      <Icon :spec="config.icons.success" :size="14" />
+      {{ t('welcome.badge') }}
+    </span>
+
+    <h1 class="mb-6 flex items-center justify-center gap-2 text-3xl font-semibold tracking-tight">
+      <Icon :spec="config.icons.welcome" :size="28" />
+      <span>{{ t('welcome.title') }}</span>
+    </h1>
+
     <span
       v-if="image && !imgError"
       class="mb-6 flex w-full items-center justify-center"
@@ -64,16 +78,6 @@ function goBack(): void {
     >
       <Icon spec="ImageOff" :size="40" :stroke-width="1.5" />
     </div>
-
-    <span class="mb-3 inline-flex items-center gap-1.5 rounded-full border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-      <Icon :spec="config.icons.success" :size="14" />
-      {{ t('welcome.badge') }}
-    </span>
-
-    <h1 class="flex items-center justify-center gap-2 text-3xl font-semibold tracking-tight">
-      <Icon :spec="config.icons.welcome" :size="28" />
-      <span>{{ t('welcome.title') }}</span>
-    </h1>
 
     <Card v-if="details" class="mt-6 w-full text-left">
       <CardHeader>

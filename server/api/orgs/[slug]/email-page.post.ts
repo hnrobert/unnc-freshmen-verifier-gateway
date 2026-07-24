@@ -76,7 +76,7 @@ export default defineEventHandler(async (event) => {
     }
   }
   const titleHtml = welcome.title
-    ? `<h2 class="ink" style="margin:0 0 8px;font-size:28px;line-height:1.3;font-weight:600;color:#0a0a0a;display:flex;align-items:center;justify-content:center;gap:8px;">${welcomeIconHtml}<span>${welcome.title}</span></h2>`
+    ? `<h2 class="ink" style="margin:0 0 24px;font-size:28px;line-height:1.3;font-weight:600;color:#0a0a0a;display:flex;align-items:center;justify-content:center;gap:8px;">${welcomeIconHtml}<span>${welcome.title}</span></h2>`
     : ''
 
   // --- Build the email HTML (neutral palette + dark mode) ---
@@ -113,9 +113,9 @@ ${brand.subtitle ? `<br/><span class="muted" style="font-family:-apple-system,Bl
 
 <!-- Content -->
 <tr><td style="padding:28px 28px 8px;">
-${welcomeImageHtml}
 ${badgeHtml}
 ${titleHtml}
+${welcomeImageHtml}
 <div class="body-ink" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#404040;">${bodyHtml}</div>
 </td></tr>
 
