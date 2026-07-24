@@ -1,6 +1,7 @@
 import { AppDataSource } from '#server/utils/database'
 import { OrgMember } from '#server/entities/orgMember.entity'
 import { renderEmail } from '#server/mail/render'
+import { isSecureRequest } from '#server/utils/request'
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const ROLES = ['viewer', 'editor', 'manager'] as const
@@ -47,9 +48,13 @@ export default defineEventHandler(async (event) => {
     try {
       const cfg = await getMailConfig()
       if (!cfg) return
+      const xfh2 = getRequestHeader(event, 'x-forwarded-host')?.split(',')[0]?.trim()
+      const host2 = xfh2 || getRequestHeader(event, 'host') || 'localhost'
+      const proto2 = isSecureRequest(event) ? 'https' : 'http'
+      const orgLink = `${proto2}://${host2}/${slug}`
       const html = renderEmail({
         title: `Invitation to join ${org.name}`,
-        bodyHtml: `<p>You've been invited to join <strong>${org.name}</strong> as <strong>${role}</strong>.</p><p>Click the button to view and accept the invitation.</p>`,
+        bodyHtml: `<p>You've been invited to join <a href="${orgLink}" style="color: inherit; font-weight: 700;">${org.name}</a> as <strong>${role}</strong>.</p><p>Click the button to view and accept the invitation.</p>`,
         actionLabel: 'View invitation',
         actionUrl: inviteUrl,
         preheader: `You've been invited to join ${org.name} as ${role}`,
