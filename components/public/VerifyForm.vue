@@ -95,14 +95,14 @@ async function onSendEmail(): Promise<void> {
       <CardDescription>{{ t('verify.subheading') }}</CardDescription>
     </CardHeader>
 
-    <!-- Full-width tabs (each 50%) -->
-    <div class="grid grid-cols-2 border-b">
+    <!-- Switch (SMTP/POST style) -->
+    <div class="mx-6 mb-2 flex gap-1 rounded-md border p-1">
       <button
-        class="flex items-center justify-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
+        class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors"
         :class="
           tab === 'verify'
-            ? 'border-primary text-foreground'
-            : 'border-transparent text-muted-foreground hover:text-foreground'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-accent'
         "
         @click="tab = 'verify'"
       >
@@ -110,11 +110,11 @@ async function onSendEmail(): Promise<void> {
         {{ t('verify.tabVerify') }}
       </button>
       <button
-        class="flex items-center justify-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
+        class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors"
         :class="
           tab === 'email'
-            ? 'border-primary text-foreground'
-            : 'border-transparent text-muted-foreground hover:text-foreground'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-accent'
         "
         @click="tab = 'email'"
       >
