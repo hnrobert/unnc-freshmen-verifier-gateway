@@ -14,10 +14,8 @@ const { t } = useI18n()
 const router = useRouter()
 const { setVerified } = useVerifier()
 
-// --- Tab state ---
 const tab = ref<'verify' | 'email'>('verify')
 
-// --- Verify form (existing) ---
 const name = ref(props.defaultName ?? '')
 const idNumber = ref(props.defaultId ?? '')
 const submitting = ref(false)
@@ -34,7 +32,6 @@ const reasonKey: Record<VerifyReason, string> = {
 
 async function onSubmit(): Promise<void> {
   const dest = props.welcomePath ?? `/${props.slug}/welcome`
-  // Preview mode: skip the real portal check and jump straight to the welcome page.
   if (props.preview) {
     setVerified(true, {
       ok: true,
@@ -64,7 +61,6 @@ async function onSubmit(): Promise<void> {
   }
 }
 
-// --- Email form (new) ---
 const emailAddr = ref('')
 const emailSending = ref(false)
 const emailSent = ref(false)
@@ -83,9 +79,9 @@ async function onSendEmail(): Promise<void> {
       body: { email: emailAddr.value.trim().toLowerCase() },
     })
     emailSent.value = true
-    toast.success('Page sent to your email')
+    toast.success(t('verify.emailSent'))
   } catch {
-    toast.error('Failed to send email')
+    toast.error(t('errors.generic'))
   } finally {
     emailSending.value = false
   }
@@ -99,10 +95,10 @@ async function onSendEmail(): Promise<void> {
       <CardDescription>{{ t('verify.subheading') }}</CardDescription>
     </CardHeader>
 
-    <!-- Tabs -->
-    <div class="mx-6 flex gap-1 border-b">
+    <!-- Full-width tabs (each 50%) -->
+    <div class="grid grid-cols-2 border-b">
       <button
-        class="-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors"
+        class="flex items-center justify-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
         :class="
           tab === 'verify'
             ? 'border-primary text-foreground'
@@ -110,10 +106,11 @@ async function onSendEmail(): Promise<void> {
         "
         @click="tab = 'verify'"
       >
-        新生验证
+        <Icon :spec="config.icons.nameField" :size="14" />
+        {{ t('verify.tabVerify') }}
       </button>
       <button
-        class="-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors"
+        class="flex items-center justify-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
         :class="
           tab === 'email'
             ? 'border-primary text-foreground'
@@ -121,12 +118,13 @@ async function onSendEmail(): Promise<void> {
         "
         @click="tab = 'email'"
       >
-        邮箱验证
+        <Icon spec="Mail" :size="14" />
+        {{ t('verify.tabEmail') }}
       </button>
     </div>
 
     <CardContent class="pt-6">
-      <!-- Tab 1: Verify form (existing) -->
+      <!-- Tab 1: Verify form -->
       <form v-if="tab === 'verify'" class="flex flex-col gap-4" @submit.prevent="onSubmit">
         <div class="flex flex-col gap-2">
           <Label for="vg-name">
@@ -166,37 +164,37 @@ async function onSendEmail(): Promise<void> {
         </p>
       </form>
 
-      <!-- Tab 2: Email form (new) -->
+      <!-- Tab 2: Email form -->
       <form v-else class="flex flex-col gap-4" @submit.prevent="onSendEmail">
         <div class="flex flex-col gap-2">
           <Label for="vg-email">
             <Icon spec="Mail" :size="16" />
-            UNNC 邮箱
+            {{ t('verify.emailLabel') }}
           </Label>
           <Input
             id="vg-email"
             v-model="emailAddr"
             type="email"
-            placeholder="you@nottingham.edu.cn"
+            :placeholder="t('verify.emailPlaceholder')"
             autocomplete="email"
             :disabled="emailSending"
           />
           <p v-if="emailAddr && !emailValid" class="text-xs text-red-500">
-            仅支持 @nottingham.edu.cn 邮箱
+            {{ t('verify.emailInvalid') }}
           </p>
         </div>
         <Button type="submit" size="lg" :disabled="emailSending || !emailValid" class="mt-1 w-full">
-          <Icon spec="Send" :size="18" />
-          {{ emailSending ? '发送中…' : '发送页面到邮箱' }}
+          <Icon v-if="!emailSending" spec="Send" :size="18" />
+          {{ emailSending ? t('verify.emailSubmitting') : t('verify.emailSubmit') }}
         </Button>
         <div
           v-if="emailSent"
           class="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-center text-sm text-emerald-600"
         >
-          ✓ 页面已发送到 {{ emailAddr }}
+          ✓ {{ t('verify.emailSent') }}
         </div>
         <p class="text-center text-xs leading-relaxed text-muted-foreground">
-          输入你的 UNNC 邮箱，我们将把本页面的完整内容发送到你的邮箱。
+          {{ t('verify.emailHint') }}
         </p>
       </form>
     </CardContent>
