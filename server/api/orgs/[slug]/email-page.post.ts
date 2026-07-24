@@ -113,7 +113,6 @@ ${brand.subtitle ? `<br/><span class="muted" style="font-family:-apple-system,Bl
 
 <!-- Content -->
 <tr><td style="padding:28px 28px 8px;">
-${badgeHtml}
 ${titleHtml}
 ${welcomeImageHtml}
 <div class="body-ink" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#404040;">${bodyHtml}</div>
