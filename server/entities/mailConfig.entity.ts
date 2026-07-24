@@ -67,6 +67,19 @@ export class MailConfig {
   @Column({ name: 'max_len_body', type: 'integer', default: 50000 })
   maxLenBody!: number
 
+  // --- POST webhook (provider === 'post') ---
+  @Column({ type: 'text', default: 'smtp' })
+  provider!: string // 'smtp' | 'post'
+
+  @Column({ name: 'post_url', type: 'text', default: '' })
+  postUrl!: string
+
+  @Column({ name: 'post_schema', type: 'text', default: 'smtogo' })
+  postSchema!: string // 'smtogo' | 'powerautomate'
+
+  @Column({ name: 'post_auth_token', type: 'text', default: '' })
+  postAuthToken!: string
+
   @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date
 

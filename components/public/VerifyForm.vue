@@ -14,6 +14,8 @@ const { t } = useI18n()
 const router = useRouter()
 const { setVerified } = useVerifier()
 
+const tab = ref<'verify' | 'email'>('verify')
+
 const name = ref(props.defaultName ?? '')
 const idNumber = ref(props.defaultId ?? '')
 const submitting = ref(false)
@@ -30,7 +32,6 @@ const reasonKey: Record<VerifyReason, string> = {
 
 async function onSubmit(): Promise<void> {
   const dest = props.welcomePath ?? `/${props.slug}/welcome`
-  // Preview mode: skip the real portal check and jump straight to the welcome page.
   if (props.preview) {
     setVerified(true, {
       ok: true,
@@ -59,16 +60,70 @@ async function onSubmit(): Promise<void> {
     submitting.value = false
   }
 }
+
+const emailAddr = ref('')
+const emailSending = ref(false)
+
+const emailValid = computed(() =>
+  emailAddr.value.trim().toLowerCase().endsWith('@nottingham.edu.cn'),
+)
+
+async function onSendEmail(): Promise<void> {
+  if (!emailValid.value) return
+  emailSending.value = true
+  try {
+    await $fetch(`/api/orgs/${props.slug}/email-page`, {
+      method: 'POST',
+      body: { email: emailAddr.value.trim().toLowerCase() },
+    })
+    toast.success(t('verify.emailSent'))
+    emailAddr.value = ''
+  } catch {
+    toast.error(t('errors.generic'))
+  } finally {
+    emailSending.value = false
+  }
+}
 </script>
 
 <template>
-  <Card class="mx-auto mt-2 max-w-md">
+  <Card class="mx-auto mt-2 max-w-md gap-0">
     <CardHeader class="text-center">
       <CardTitle class="text-xl">{{ t('verify.heading') }}</CardTitle>
       <CardDescription>{{ t('verify.subheading') }}</CardDescription>
     </CardHeader>
-    <CardContent>
-      <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
+
+    <!-- Switch (SMTP/POST style) -->
+    <div class="mx-6 mt-6 flex gap-1 rounded-md border p-1">
+      <button
+        class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors"
+        :class="
+          tab === 'verify'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-accent'
+        "
+        @click="tab = 'verify'"
+      >
+        <Icon :spec="config.icons.nameField" :size="14" />
+        {{ t('verify.tabVerify') }}
+      </button>
+      <button
+        class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors"
+        :class="
+          tab === 'email'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-accent'
+        "
+        @click="tab = 'email'"
+      >
+        <Icon spec="Mail" :size="14" />
+        {{ t('verify.tabEmail') }}
+      </button>
+    </div>
+
+    <CardContent class="pt-6">
+      <!-- Tab 1: Verify form -->
+      <form v-if="tab === 'verify'" class="flex flex-col gap-4" @submit.prevent="onSubmit">
         <div class="flex flex-col gap-2">
           <Label for="vg-name">
             <Icon :spec="config.icons.nameField" :size="16" />
@@ -104,6 +159,34 @@ async function onSubmit(): Promise<void> {
         </Button>
         <p class="text-center text-xs leading-relaxed text-muted-foreground">
           {{ t('verify.hint') }}
+        </p>
+      </form>
+
+      <!-- Tab 2: Email form -->
+      <form v-else class="flex flex-col gap-4" @submit.prevent="onSendEmail">
+        <div class="flex flex-col gap-2">
+          <Label for="vg-email">
+            <Icon spec="Mail" :size="16" />
+            {{ t('verify.emailLabel') }}
+          </Label>
+          <Input
+            id="vg-email"
+            v-model="emailAddr"
+            type="email"
+            :placeholder="t('verify.emailPlaceholder')"
+            autocomplete="email"
+            :disabled="emailSending"
+          />
+          <p v-if="emailAddr && !emailValid" class="text-xs text-red-500">
+            {{ t('verify.emailInvalid') }}
+          </p>
+        </div>
+        <Button type="submit" size="lg" :disabled="emailSending || !emailValid" class="mt-1 w-full">
+          <Icon v-if="!emailSending" spec="Send" :size="18" />
+          {{ emailSending ? t('verify.emailSubmitting') : t('verify.emailSubmit') }}
+        </Button>
+        <p class="text-center text-xs leading-relaxed text-muted-foreground">
+          {{ t('verify.emailHint') }}
         </p>
       </form>
     </CardContent>

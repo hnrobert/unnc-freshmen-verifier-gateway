@@ -25,6 +25,7 @@ function escapeHtml(s: string): string {
 /** Render the site-themed HTML email (light by default, dark via prefers-color-scheme). */
 export function renderEmail(c: EmailContent): string {
   const template = useRuntimeConfig().emailTemplate as string | undefined
+  const logo = useRuntimeConfig().emailLogo as string | undefined
   if (!template) throw new Error('Email template missing (runtimeConfig.emailTemplate)')
 
   const action =
@@ -38,4 +39,5 @@ export function renderEmail(c: EmailContent): string {
     .replaceAll('{{BODY}}', c.bodyHtml)
     .replaceAll('{{ACTION_BLOCK}}', action)
     .replaceAll('{{YEAR}}', String(new Date().getUTCFullYear()))
+    .replaceAll('{{LOGO}}', logo ?? '')
 }

@@ -104,12 +104,12 @@ export function generateInviteToken(): string {
   return randomBytes(24).toString('hex')
 }
 
-/** Build the `/invite/<token>` URL using the host the visitor/browser reached. */
-export function buildInviteUrl(event: H3Event, token: string): string {
+/** Build the `/<slug>/invitations` URL (GitHub-style, no token in URL). */
+export function buildInviteUrl(event: H3Event, slug: string): string {
   const xfh = getRequestHeader(event, 'x-forwarded-host')?.split(',')[0]?.trim()
   const host = xfh || getRequestHeader(event, 'host') || 'localhost'
   const proto = isSecureRequest(event) ? 'https' : 'http'
-  return `${proto}://${host}/invite/${token}`
+  return `${proto}://${host}/${slug}/invitations`
 }
 
 /**
@@ -136,4 +136,19 @@ export async function claimInvite(token: string, user: SessionUser): Promise<Org
   member.acceptedAt = new Date()
   await repo.save(member)
   return member
+}
+
+/** Decline (delete) a pending invite. Validates email match + not-yet-active. */
+export async function declineInvite(token: string, user: SessionUser): Promise<void> {
+  const repo = AppDataSource.getRepository(OrgMember)
+  const member = await repo.findOne({ where: { inviteToken: token } })
+  if (!member) throw createError({ statusCode: 404, statusMessage: 'Invitation not found' })
+  if (member.status === 'active')
+    throw createError({ statusCode: 410, statusMessage: 'Invitation has already been used' })
+  if (member.invitedEmail.toLowerCase() !== user.email.toLowerCase())
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'This invitation is for a different email address',
+    })
+  await repo.delete({ id: member.id })
 }

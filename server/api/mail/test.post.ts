@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
       title: 'Test email',
       bodyHtml:
         '<p>This is a test email sent by the UNNC Freshmen Verifier Gateway mail feature.</p>' +
-        '<p>If you received it, your SMTP settings are working correctly.</p>',
+        '<p>If you received it, your Mail settings are working correctly.</p>',
       preheader: 'Your mail configuration is working.',
     })
     const messageId = await sendMailWithConfig(cfg, {
