@@ -17,6 +17,24 @@ const body = computed(() => {
   return messages?.welcome?.body ?? ''
 })
 const image = computed(() => config.value.welcome.image)
+const watermarkEnabled = computed(() => !!config.value.welcome.watermark)
+const watermarkedSrc = ref('')
+watchEffect(async () => {
+  const a = props.stubAdmission ?? admission.value
+  if (!watermarkEnabled.value || !image.value || !a?.name) {
+    watermarkedSrc.value = ''
+    return
+  }
+  try {
+    watermarkedSrc.value = await $fetch<string>(
+      `/api/orgs/${slug.value}/welcome-image?name=${encodeURIComponent(a.name)}`,
+      { responseType: 'text' },
+    )
+  } catch {
+    watermarkedSrc.value = ''
+  }
+})
+const displayImage = computed(() => watermarkedSrc.value || image.value)
 const imgError = ref(false)
 watch(image, () => {
   imgError.value = false
@@ -59,20 +77,22 @@ function goBack(): void {
     </h1>
 
     <span
-      v-if="image && !imgError"
+      v-if="displayImage && !imgError"
       class="mb-6 flex w-full items-center justify-center"
       :style="{ maxWidth: imageMaxWidth }"
     >
       <img
-        :src="image"
+        :src="displayImage"
         :alt="t('welcome.imageAlt')"
         class="w-full shadow-sm"
         :style="{ borderRadius: imageRadius }"
+        loading="lazy"
+        decoding="async"
         @error="imgError = true"
       />
     </span>
     <div
-      v-else-if="image && imgError"
+      v-else-if="displayImage && imgError"
       class="mb-6 flex aspect-video w-full items-center justify-center rounded-lg border bg-muted text-muted-foreground"
       :style="{ maxWidth: imageMaxWidth, borderRadius: imageRadius }"
     >

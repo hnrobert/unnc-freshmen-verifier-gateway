@@ -22,6 +22,8 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       maxWidth: '最大宽度',
       radius: '圆角',
       actualSizeHint: '实际尺寸与圆角',
+      watermark: '水印',
+      watermarkHint: '在欢迎图片上叠加访客姓名 / 邮箱前缀（用于追踪转发）',
       brand: '品牌',
       brandTitle: '标题',
       brandSubtitle: '副标题',
@@ -93,6 +95,9 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       maxWidth: 'Max Width',
       radius: 'Radius',
       actualSizeHint: 'Actual size & radius',
+      watermark: 'Watermark',
+      watermarkHint:
+        'Overlay the visitor name / email prefix onto the welcome image (tracks forwarding)',
       brand: 'Brand',
       brandTitle: 'Title',
       brandSubtitle: 'Subtitle',

@@ -50,10 +50,14 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // --- Welcome image ---
+  // --- Welcome image (with optional watermark = email prefix) ---
   let welcomeImageHtml = ''
-  const welcomeImg = config.welcome.image
+  let welcomeImg = config.welcome.image
   if (welcomeImg && (welcomeImg.startsWith('data:') || welcomeImg.startsWith('http'))) {
+    if (config.welcome.watermark && welcomeImg.startsWith('data:')) {
+      const prefix = email.split('@')[0]
+      if (prefix) welcomeImg = await watermarkImage(welcomeImg, prefix)
+    }
     welcomeImageHtml = `<img src="${welcomeImg}" alt="" style="display:block;width:100%;max-width:480px;margin:0 auto 24px;border-radius:12px;" />`
   }
 

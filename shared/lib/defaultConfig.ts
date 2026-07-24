@@ -49,6 +49,7 @@ const config: SiteConfig = {
     image: './welcome.svg',
     imageMaxWidth: '12rem',
     imageRadius: '0.5rem',
+    watermark: false,
   },
 
   // Optional full-page background (upload via the editor → img:background).
