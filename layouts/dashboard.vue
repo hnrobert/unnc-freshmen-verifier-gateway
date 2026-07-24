@@ -11,6 +11,23 @@ const sidebarOpen = ref(false)
 const route = useRoute()
 const trail = useBreadcrumbs()
 
+// Mobile header auto-hide: hide on scroll-down, show on scroll-up.
+const mobileHeaderHidden = ref(false)
+let lastScrollY = 0
+function onScroll() {
+  const y = window.scrollY
+  if (y < 10) {
+    mobileHeaderHidden.value = false
+  } else if (y > lastScrollY + 4) {
+    mobileHeaderHidden.value = true
+  } else if (y < lastScrollY - 4) {
+    mobileHeaderHidden.value = false
+  }
+  lastScrollY = y
+}
+onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
+onUnmounted(() => window.removeEventListener('scroll', onScroll))
+
 watch(
   () => route.path,
   () => {
@@ -222,9 +239,10 @@ function tabActive(to: string, exact: boolean) {
 
     <!-- Main -->
     <div class="flex flex-1 flex-col lg:pl-64">
-      <!-- Mobile top bar -->
+      <!-- Mobile top bar (auto-hides on scroll-down, reappears on scroll-up) -->
       <header
-        class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur lg:hidden"
+        class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur transition-transform duration-300 lg:hidden"
+        :class="mobileHeaderHidden ? '-translate-y-full' : 'translate-y-0'"
       >
         <button
           class="flex size-9 items-center justify-center rounded-lg border text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground active:scale-95"
@@ -275,23 +293,22 @@ function tabActive(to: string, exact: boolean) {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
-        <!-- Org tabs (full-width, NOT sticky — scrolls away with the page).
-             Each tab has its own icon (Home/Edit/Advanced/Members/Share/Preview). -->
+        <!-- Org tabs (full-width, taller, no horizontal scroll). -->
         <nav v-if="orgTabs.length" class="flex border-b px-4 sm:px-6 lg:px-8">
-          <div class="flex flex-1 gap-1 overflow-x-auto">
+          <div class="flex flex-1 gap-1 flex-nowrap overflow-hidden">
             <NuxtLink
               v-for="tab in orgTabs"
               v-show="tab.show"
               :key="tab.to"
               :to="tab.to"
-              class="-mb-px flex items-center whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors"
+              class="-mb-px flex items-center whitespace-nowrap border-b-2 px-4 py-4 text-sm font-medium transition-colors"
               :class="
                 tabActive(tab.to, tab.exact)
                   ? 'border-primary text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               "
             >
-              <Icon :spec="tab.icon" :size="14" class="mr-1.5 shrink-0" />
+              <Icon :spec="tab.icon" :size="16" class="mr-2 shrink-0" />
               {{ tab.label }}
             </NuxtLink>
           </div>
