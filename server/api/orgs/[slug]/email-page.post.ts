@@ -138,7 +138,8 @@ This email was sent automatically by the system. Please do not reply.
   try {
     await sendMailWithConfig(cfg, {
       to: email,
-      subject: `[no-reply] ${orgName}`,
+      subject: `${orgName}`,
+      // subject: `[no-reply] ${orgName}`,
       body: emailHtml,
       html: true,
     })
