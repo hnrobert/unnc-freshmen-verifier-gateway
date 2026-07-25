@@ -19,6 +19,7 @@ WORKDIR /app
 
 COPY --from=build /app/.output ./.output
 COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/tessdata ./tessdata
 
 # better-sqlite3 native binary lives in .output (bundled by Nitro).
 # If it doesn't, install only the runtime dep:

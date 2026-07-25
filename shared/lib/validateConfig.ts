@@ -69,6 +69,20 @@ export function validateConfig(config: SiteConfig): string[] {
 
   if (!config.messages) errors.push('messages is missing')
 
+  // Welcome QR expiry (optional, but if present must be a calendar date).
+  const expiresAt = config.welcome?.expiresAt
+  if (expiresAt !== undefined && expiresAt !== null && expiresAt !== '') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresAt) || Number.isNaN(Date.parse(expiresAt))) {
+      errors.push('welcome.expiresAt must be a YYYY-MM-DD date')
+    }
+  }
+  if (
+    config.welcome?.reminderEnabled !== undefined &&
+    typeof config.welcome.reminderEnabled !== 'boolean'
+  ) {
+    errors.push('welcome.reminderEnabled must be a boolean')
+  }
+
   for (const loc of config.locales ?? []) {
     const messages = config.messages[loc as Locale]
     if (!messages) {

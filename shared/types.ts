@@ -53,6 +53,10 @@ export interface WelcomeAssetsConfig {
   imageRadius?: string
   /** If true, the welcome image gets a watermark of the visitor's name / email prefix. */
   watermark?: boolean
+  /** Expiry date of the shared QR ('YYYY-MM-DD', server-local calendar day). Auto-detected via OCR on upload, manually editable. */
+  expiresAt?: string
+  /** Org master switch: send expiry-reminder emails to opted-in members at 12:00 the day before and 08:00 on the day. */
+  reminderEnabled?: boolean
 }
 
 /** Optional full-page background for the org's verify/welcome pages. */

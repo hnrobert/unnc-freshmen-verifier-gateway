@@ -50,6 +50,9 @@ const config: SiteConfig = {
     imageMaxWidth: '12rem',
     imageRadius: '0.5rem',
     watermark: false,
+    // Auto-detected from the uploaded QR image (OCR); manually editable. 'YYYY-MM-DD'.
+    expiresAt: undefined,
+    reminderEnabled: false,
   },
 
   // Optional full-page background (upload via the editor → img:background).
