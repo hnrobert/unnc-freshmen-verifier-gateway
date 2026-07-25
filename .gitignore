@@ -155,3 +155,5 @@ dist-cli/
 .data
 dist/
 data/
+
+public/*.txt
