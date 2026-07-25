@@ -1,5 +1,8 @@
 import MarkdownIt from 'markdown-it'
 import sharp from 'sharp'
+import { h } from 'vue'
+import { renderToString } from '@vue/server-renderer'
+import { resolveIcon } from '~/lib/icon'
 import { isSecureRequest } from '#server/utils/request'
 import { buildWatermarkSvg } from '#server/utils/watermark'
 
@@ -101,9 +104,10 @@ export default defineEventHandler(async (event) => {
   })()
 
   async function inlineIcon(iconName: string, size: number, color: string): Promise<string> {
-    const iconUrl = `${origin}/api/icon.svg?name=${encodeURIComponent(iconName)}&color=${encodeURIComponent(color)}`
     try {
-      const svgText = await $fetch<string>(iconUrl, { responseType: 'text' })
+      const comp = resolveIcon(iconName)
+      if (!comp) return ''
+      const svgText = await renderToString(h(comp, { size, color, strokeWidth: 2 }))
       return `data:image/svg+xml;base64,${Buffer.from(svgText).toString('base64')}`
     } catch {
       return ''
