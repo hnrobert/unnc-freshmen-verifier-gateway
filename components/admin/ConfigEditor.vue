@@ -276,6 +276,20 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
               <span class="text-xs text-muted-foreground">rem</span>
             </label>
           </div>
+          <label class="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              class="shrink-0"
+              :checked="!!config.welcome.watermark"
+              @change="config.welcome.watermark = ($event.target as HTMLInputElement).checked"
+            />
+            <span>
+              {{ t('editor.watermark') }}
+              <span class="block text-xs font-normal text-muted-foreground">{{
+                t('editor.watermarkHint')
+              }}</span>
+            </span>
+          </label>
           <Label
             >Preview
             <span class="text-xs font-normal text-muted-foreground"

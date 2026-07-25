@@ -51,6 +51,8 @@ export interface WelcomeAssetsConfig {
   imageMaxWidth?: string
   /** CSS border-radius for the welcome image, e.g. `"0.5rem"` or `"50%"`. */
   imageRadius?: string
+  /** If true, the welcome image gets a watermark of the visitor's name / email prefix. */
+  watermark?: boolean
 }
 
 /** Optional full-page background for the org's verify/welcome pages. */
