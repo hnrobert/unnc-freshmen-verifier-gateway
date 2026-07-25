@@ -90,16 +90,48 @@ export default defineEventHandler(async (event) => {
 
   const orgName = brand.title ?? slug
 
-  // --- Brand icon ---
+  // --- Brand icon (inline as data URI — external URLs don't render in email) ---
+  const primaryColor = (config.theme as { primaryColor?: string }).primaryColor ?? '#F7D447'
+  const contrastFg = (() => {
+    const hex = primaryColor.replace('#', '')
+    const r = parseInt(hex.slice(0, 2), 16) / 255
+    const g = parseInt(hex.slice(2, 4), 16) / 255
+    const b = parseInt(hex.slice(4, 6), 16) / 255
+    return 0.299 * r + 0.587 * g + 0.114 * b > 0.55 ? '#1c1917' : '#fafafa'
+  })()
+
+  async function inlineIcon(iconName: string, size: number, color: string): Promise<string> {
+    const iconUrl = `${origin}/api/icon.svg?name=${encodeURIComponent(iconName)}&color=${encodeURIComponent(color)}`
+    try {
+      const svgText = await $fetch<string>(iconUrl, { responseType: 'text' })
+      return `data:image/svg+xml;base64,${Buffer.from(svgText).toString('base64')}`
+    } catch {
+      return ''
+    }
+  }
+
   let brandIconHtml = ''
   const brandIcon = config.icons.brand
   if (typeof brandIcon === 'string') {
     if (brandIcon.startsWith('data:') || brandIcon.startsWith('http')) {
-      brandIconHtml = `<img src="${brandIcon}" width="40" height="40" alt="" style="display:inline-block;vertical-align:middle;width:40px;height:40px;border-radius:8px;" />`
+      brandIconHtml = brandIcon
     } else {
-      brandIconHtml = `<img src="${origin}/api/icon.svg?name=${encodeURIComponent(brandIcon)}&color=${encodeURIComponent((config.theme as { primaryColor?: string }).primaryColor ?? '#F7D447')}" width="40" height="40" alt="" style="display:inline-block;vertical-align:middle;width:40px;height:40px;" />`
+      brandIconHtml = await inlineIcon(brandIcon, 22, contrastFg)
     }
   }
+
+  // Brand header matches BrandMark.vue: icon in primary-colored box + title + subtitle
+  const brandIconBox = brandIconHtml
+    ? `<img src="${brandIconHtml}" width="22" height="22" alt="" style="display:block;width:22px;height:22px;" />`
+    : ''
+  const brandHeaderHtml = `
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:12px;"><tr>
+<td style="width:40px;height:40px;background-color:${primaryColor};border-radius:6px;vertical-align:middle;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);overflow:hidden;">${brandIconBox}</td>
+<td style="padding-left:12px;vertical-align:middle;">
+<div class="ink" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:600;color:#0a0a0a;line-height:1.3;">${orgName}</div>
+${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#737373;line-height:1.3;">${brand.subtitle}</div>` : ''}
+</td>
+</tr></table>`
 
   // --- Welcome image (resized for email + optional watermark = email prefix) ---
   let welcomeImageHtml = ''
@@ -124,18 +156,21 @@ export default defineEventHandler(async (event) => {
     ? `<span style="display:inline-block;padding:4px 12px;border-radius:9999px;font-size:13px;font-weight:500;background:#f5f5f5;color:#737373;margin-bottom:12px;">${welcome.badge}</span>`
     : ''
 
-  // --- Welcome title (with icon, larger font, dark-mode aware) ---
+  // --- Welcome title (with icon inlined as data URI) ---
   const welcomeIcon = config.icons.welcome
   let welcomeIconHtml = ''
   if (typeof welcomeIcon === 'string') {
     if (welcomeIcon.startsWith('data:') || welcomeIcon.startsWith('http')) {
-      welcomeIconHtml = `<img src="${welcomeIcon}" width="32" height="32" alt="" style="display:inline-block;vertical-align:middle;width:32px;height:32px;" />`
+      welcomeIconHtml = welcomeIcon
     } else {
-      welcomeIconHtml = `<img src="${origin}/api/icon.svg?name=${encodeURIComponent(welcomeIcon)}&color=${encodeURIComponent((config.theme as { primaryColor?: string }).primaryColor ?? '#F7D447')}" width="32" height="32" alt="" style="display:inline-block;vertical-align:middle;width:32px;height:32px;" />`
+      welcomeIconHtml = await inlineIcon(welcomeIcon, 28, primaryColor)
     }
   }
+  const welcomeIconImg = welcomeIconHtml
+    ? `<img src="${welcomeIconHtml}" width="28" height="28" alt="" style="display:inline-block;vertical-align:middle;width:28px;height:28px;margin-right:8px;" />`
+    : ''
   const titleHtml = welcome.title
-    ? `<h2 class="ink" style="margin:0 0 24px;font-size:28px;line-height:1.3;font-weight:600;color:#0a0a0a;display:flex;align-items:center;justify-content:center;gap:8px;">${welcomeIconHtml}<span>${welcome.title}</span></h2>`
+    ? `<h2 class="ink" style="margin:0 0 24px;font-size:28px;line-height:1.3;font-weight:600;color:#0a0a0a;text-align:center;">${welcomeIconImg}${welcome.title}</h2>`
     : ''
 
   // --- Build the email HTML (neutral palette + dark mode) ---
@@ -163,11 +198,9 @@ export default defineEventHandler(async (event) => {
 <tr><td align="center" style="padding:32px 16px;">
 <table role="presentation" class="surface" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #e5e5e5;border-radius:14px;overflow:hidden;">
 
-<!-- Brand header -->
+<!-- Brand header (matches BrandMark.vue layout) -->
 <tr><td class="rule" style="padding:22px 28px;border-bottom:1px solid #e5e5e5;">
-${brandIconHtml}
-${orgName !== slug ? `<span class="ink" style="margin-left:10px;vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:18px;font-weight:600;color:#0a0a0a;">${orgName}</span>` : ''}
-${brand.subtitle ? `<br/><span class="muted" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#737373;">${brand.subtitle}</span>` : ''}
+${brandHeaderHtml}
 </td></tr>
 
 <!-- Content -->
