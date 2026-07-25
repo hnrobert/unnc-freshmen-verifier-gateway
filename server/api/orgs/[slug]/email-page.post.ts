@@ -110,11 +110,26 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Inline any image URL (data: as-is, http: fetched → data URI) so email
+  // clients don't need external access.
+  async function inlineImg(url: string): Promise<string> {
+    if (url.startsWith('data:')) return url
+    if (url.startsWith('http')) {
+      try {
+        const ab = await $fetch<ArrayBuffer>(url, { responseType: 'arrayBuffer' })
+        return `data:image/png;base64,${Buffer.from(ab).toString('base64')}`
+      } catch {
+        return ''
+      }
+    }
+    return ''
+  }
+
   let brandIconHtml = ''
   const brandIcon = config.icons.brand
   if (typeof brandIcon === 'string') {
     if (brandIcon.startsWith('data:') || brandIcon.startsWith('http')) {
-      brandIconHtml = brandIcon
+      brandIconHtml = await inlineImg(brandIcon)
     } else {
       brandIconHtml = await inlineIcon(brandIcon, 22, contrastFg)
     }
@@ -207,6 +222,7 @@ ${brandHeaderHtml}
 <tr><td style="padding:28px 28px 8px;">
 ${titleHtml}
 ${welcomeImageHtml}
+${badgeHtml}
 <div class="body-ink" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#404040;">${bodyHtml}</div>
 </td></tr>
 
