@@ -3,7 +3,7 @@ import sharp from 'sharp'
 import { h } from 'vue'
 import { renderToString } from '@vue/server-renderer'
 import type { Locale } from '#shared/types'
-import { resolveIcon } from '~/lib/icon'
+import { isImageIcon, resolveIcon } from '~/lib/icon'
 import { isSecureRequest } from '#server/utils/request'
 import { buildWatermarkSvg } from '#server/utils/watermark'
 
@@ -145,23 +145,35 @@ export default defineEventHandler(async (event) => {
     return ''
   }
 
-  let brandIconHtml = ''
+  // Resolve the brand mark to an inlined data URI. Custom image logos are stored
+  // as { img: 'data:|http:...' } (see isImageIcon), NOT a bare string — so check
+  // the object form; a plain data:/http: string is also accepted as a fallback.
+  // Lucide icons are a bare name string.
   const brandIcon = config.icons.brand
-  if (typeof brandIcon === 'string') {
-    if (brandIcon.startsWith('data:') || brandIcon.startsWith('http')) {
-      brandIconHtml = await inlineImg(brandIcon)
-    } else {
-      brandIconHtml = await inlineIcon(brandIcon, 22, contrastFg)
-    }
-  }
+  const brandImgUrl = isImageIcon(brandIcon)
+    ? brandIcon.img
+    : typeof brandIcon === 'string' &&
+        (brandIcon.startsWith('data:') || brandIcon.startsWith('http'))
+      ? brandIcon
+      : undefined
+  const brandIconHtml = brandImgUrl
+    ? await inlineImg(brandImgUrl)
+    : typeof brandIcon === 'string'
+      ? await inlineIcon(brandIcon, 22, contrastFg)
+      : ''
 
-  // Brand header matches BrandMark.vue: icon in primary-colored box + title + subtitle
-  const brandIconBox = brandIconHtml
-    ? `<img src="${brandIconHtml}" width="22" height="22" alt="" style="display:block;width:22px;height:22px;" />`
-    : ''
+  // Brand header cell. A lucide glyph sits centered in a primary-colored rounded
+  // chip; a custom image logo is shown DIRECTLY — no accent chip/background, just
+  // the branding image. object-contain keeps the whole logo visible without
+  // cropping or distortion (the chip is for glyphs that need a backdrop).
+  const brandCellHtml = !brandIconHtml
+    ? ''
+    : brandImgUrl
+      ? `<td valign="middle" style="width:40px;height:40px;"><img src="${brandIconHtml}" width="40" height="40" alt="" style="display:block;width:40px;height:40px;object-fit:contain;" /></td>`
+      : `<td align="center" valign="middle" style="width:40px;height:40px;background-color:${primaryColor};border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);overflow:hidden;"><img src="${brandIconHtml}" width="22" height="22" alt="" style="display:block;width:22px;height:22px;margin:9px auto;" /></td>`
   const brandHeaderHtml = `
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:12px;"><tr>
-<td style="width:40px;height:40px;background-color:${primaryColor};border-radius:6px;vertical-align:middle;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);overflow:hidden;">${brandIconBox}</td>
+${brandCellHtml}
 <td style="padding-left:12px;vertical-align:middle;">
 <div class="ink" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:600;color:#0a0a0a;line-height:1.3;">${orgName}</div>
 ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#737373;line-height:1.3;">${brand.subtitle}</div>` : ''}
