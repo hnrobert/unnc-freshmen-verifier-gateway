@@ -16,29 +16,43 @@ const body = computed(() => {
     { welcome?: { body?: string } } | undefined
   return messages?.welcome?.body ?? ''
 })
-const image = computed(() => config.value.welcome.image)
+// The welcome image is lazy-loaded AFTER first paint. loadOrgConfig keeps it as
+// `img:<key>` (un-inlined) so it never blocks SSR or bloats the payload; this
+// component fetches it via /welcome-image once on the client. Both the plain and
+// watermarked cases share that endpoint — watermark just appends ?name=<visitor>.
+// A skeleton holds the layout until the bytes arrive (avoids layout shift).
+const hasImage = computed(() => !!config.value.welcome.image)
 const watermarkEnabled = computed(() => !!config.value.welcome.watermark)
-const watermarkedSrc = ref('')
+const imgSrc = ref('')
+const imgError = ref(false)
 watchEffect(async () => {
   const a = props.stubAdmission ?? admission.value
-  if (!watermarkEnabled.value || !image.value || !a?.name) {
-    watermarkedSrc.value = ''
+  const name = a?.name
+  if (!hasImage.value) {
+    imgSrc.value = ''
+    imgError.value = false
     return
   }
+  // Watermark needs the visitor's name to composite; until it's known, hold the
+  // skeleton rather than fetching an un-watermarked image.
+  if (watermarkEnabled.value && !name) {
+    imgSrc.value = ''
+    return
+  }
+  // Skip the self-fetch during SSR — the client loads it post-hydrate.
+  if (import.meta.server) return
+  imgError.value = false
   try {
-    watermarkedSrc.value = await $fetch<string>(
-      `/api/orgs/${slug.value}/welcome-image?name=${encodeURIComponent(a.name)}`,
-      { responseType: 'text' },
-    )
+    const qs = watermarkEnabled.value && name ? `?name=${encodeURIComponent(name)}` : ''
+    imgSrc.value = await $fetch<string>(`/api/orgs/${slug.value}/welcome-image${qs}`, {
+      responseType: 'text',
+    })
   } catch {
-    watermarkedSrc.value = ''
+    imgSrc.value = ''
+    imgError.value = true
   }
 })
-const displayImage = computed(() => watermarkedSrc.value || image.value)
-const imgError = ref(false)
-watch(image, () => {
-  imgError.value = false
-})
+const imgLoading = computed(() => hasImage.value && !imgSrc.value && !imgError.value)
 const imageMaxWidth = computed(() => config.value.welcome.imageMaxWidth ?? '12rem')
 const imageRadius = computed(() => config.value.welcome.imageRadius ?? '0.5rem')
 
@@ -76,13 +90,17 @@ function goBack(): void {
       <span>{{ t('welcome.title') }}</span>
     </h1>
 
-    <span
-      v-if="displayImage && !imgError"
-      class="mb-6 flex w-full items-center justify-center"
-      :style="{ maxWidth: imageMaxWidth }"
-    >
+    <div v-if="hasImage" class="mb-6 w-full" :style="{ maxWidth: imageMaxWidth }">
+      <!-- skeleton until the welcome image lazy-loads (holds layout, avoids CLS) -->
+      <div
+        v-if="imgLoading"
+        class="aspect-video w-full animate-pulse rounded-lg border bg-muted"
+        :style="{ borderRadius: imageRadius }"
+        aria-hidden="true"
+      ></div>
       <img
-        :src="displayImage"
+        v-else-if="imgSrc && !imgError"
+        :src="imgSrc"
         :alt="t('welcome.imageAlt')"
         class="w-full shadow-sm"
         :style="{ borderRadius: imageRadius }"
@@ -90,13 +108,13 @@ function goBack(): void {
         decoding="async"
         @error="imgError = true"
       />
-    </span>
-    <div
-      v-else-if="displayImage && imgError"
-      class="mb-6 flex aspect-video w-full items-center justify-center rounded-lg border bg-muted text-muted-foreground"
-      :style="{ maxWidth: imageMaxWidth, borderRadius: imageRadius }"
-    >
-      <Icon spec="ImageOff" :size="40" :stroke-width="1.5" />
+      <div
+        v-else
+        class="flex aspect-video w-full items-center justify-center rounded-lg border bg-muted text-muted-foreground"
+        :style="{ borderRadius: imageRadius }"
+      >
+        <Icon spec="ImageOff" :size="40" :stroke-width="1.5" />
+      </div>
     </div>
 
     <Card v-if="details" class="mt-6 w-full text-left">

@@ -158,9 +158,15 @@ ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMac
   const watermarkText = config.welcome.watermark ? (email.split('@')[0] ?? '') : ''
   if (welcomeRef) {
     try {
-      const img = await resolveWelcomeImage(welcomeRef, origin, watermarkText)
-      if (img) {
-        welcomeImageHtml = `<img src="${img}" alt="" style="display:block;width:100%;max-width:480px;margin:0 auto 24px;border-radius:12px;" />`
+      // config keeps welcome.image as `img:<key>` (un-inlined); resolve it to a
+      // data:/http: source before the resize/watermark pipeline runs.
+      const org = await getOrgBySlug(slug)
+      const src = org ? await resolveImgRef(welcomeRef, org.id) : null
+      if (src) {
+        const img = await resolveWelcomeImage(src, origin, watermarkText)
+        if (img) {
+          welcomeImageHtml = `<img src="${img}" alt="" style="display:block;width:100%;max-width:480px;margin:0 auto 24px;border-radius:12px;" />`
+        }
       }
     } catch {
       // image unreadable — omit it rather than failing the whole email
@@ -170,9 +176,9 @@ ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMac
   // --- Welcome body (markdown → HTML) ---
   const bodyHtml = welcome.body ? md.render(welcome.body) : ''
 
-  // --- Welcome badge ---
+  // --- Welcome badge (above the title, matching WelcomeContent.vue) ---
   const badgeHtml = welcome.badge
-    ? `<span style="display:inline-block;padding:4px 12px;border-radius:9999px;font-size:13px;font-weight:500;background:#f5f5f5;color:#737373;margin-bottom:12px;">${welcome.badge}</span>`
+    ? `<div style="text-align:center;margin-bottom:12px;"><span class="badge-bg" style="display:inline-block;padding:4px 12px;border-radius:9999px;font-size:13px;font-weight:500;background:#f5f5f5;color:#737373;">${welcome.badge}</span></div>`
     : ''
 
   // --- Welcome title (with icon inlined as data URI) ---
@@ -224,6 +230,7 @@ ${brandHeaderHtml}
 
 <!-- Content -->
 <tr><td style="padding:28px 28px 8px;">
+${badgeHtml}
 ${titleHtml}
 ${welcomeImageHtml}
 <div class="body-ink" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#404040;">${bodyHtml}</div>
