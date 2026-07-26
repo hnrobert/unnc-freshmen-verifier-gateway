@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it'
 import sharp from 'sharp'
 import { h } from 'vue'
 import { renderToString } from '@vue/server-renderer'
+import type { Locale } from '#shared/types'
 import { resolveIcon } from '~/lib/icon'
 import { isSecureRequest } from '#server/utils/request'
 import { buildWatermarkSvg } from '#server/utils/watermark'
@@ -12,6 +13,13 @@ const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
 // 1290×2796 poster) balloon the base64 payload and get stripped by some mail
 // providers — downscaling keeps the email deliverable.
 const EMAIL_IMG_MAX_WIDTH = 800
+
+// System-generated footer line (not org-customizable), localized to the locale
+// the visitor had selected on the page when they hit send.
+const FOOTER_NO_REPLY: Record<Locale, string> = {
+  zh: '本邮件由系统自动发送，请勿直接回复。',
+  en: 'This email was sent automatically by the system. Please do not reply.',
+}
 
 /** Resolve a welcome-image reference to an email-ready data URL: pull the bytes
  * (from a `data:` URL, an absolute http(s) URL, or a same-origin path), then in
@@ -62,10 +70,13 @@ async function resolveWelcomeImage(
  * address. Blocks student/staff emails. */
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
-  const body = await readBody<{ email?: unknown }>(event)
+  const body = await readBody<{ email?: unknown; locale?: unknown }>(event)
   const email = String(body?.email ?? '')
     .trim()
     .toLowerCase()
+  // Locale the visitor had selected on the page at send time (validated against
+  // the org's supported locales below; falls back to the org default).
+  const requestedLocale = String(body?.locale ?? '').trim()
 
   if (!email.endsWith('@nottingham.edu.cn'))
     throw createError({
@@ -87,7 +98,12 @@ export default defineEventHandler(async (event) => {
 
   // Load the org's resolved config (images already resolved to data:/http URLs)
   const config = await loadOrgConfig(slug)
-  const msgs = (config.messages.en ?? {}) as Record<string, unknown>
+  // Render the email in the locale the visitor had on the page — validated
+  // against the org's supported locales, falling back to its default.
+  const locale: Locale = config.locales.includes(requestedLocale as Locale)
+    ? (requestedLocale as Locale)
+    : config.defaultLocale
+  const msgs = (config.messages[locale] ?? config.messages.en ?? {}) as Record<string, unknown>
   const brand = (msgs.brand ?? {}) as { title?: string; subtitle?: string }
   const welcome = (msgs.welcome ?? {}) as { title?: string; badge?: string; body?: string }
 
@@ -239,7 +255,7 @@ ${welcomeImageHtml}
 <!-- Footer -->
 <tr><td class="rule" style="padding:20px 28px;border-top:1px solid #e5e5e5;">
 <p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#737373;">
-This email was sent automatically by the system. Please do not reply.
+${FOOTER_NO_REPLY[locale]}
 </p>
 </td></tr>
 
