@@ -51,6 +51,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
     dbPath: process.env.DB_PATH || './data/app.db',
+    // Cold-start seed only: the canonical public origin for background-email
+    // links is normally inferred from observed visitor traffic
+    // (server/utils/siteOrigin.ts). SITE_URL is used just until enough traffic
+    // has been tallied, then ignored.
+    siteUrl: process.env.SITE_URL || '',
     emailTemplate,
     emailLogo,
   },
