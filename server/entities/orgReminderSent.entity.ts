@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
+import type { ReminderSlot } from '#shared/types'
 
 /**
  * Tracks which QR-expiry reminder emails have already been sent for an org, so
@@ -10,8 +11,6 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
  * date gets fresh send slots automatically, and the unique constraint makes
  * sending idempotent even under races / restarts.
  */
-export type ReminderKind = 'day-before' | 'day-of'
-
 @Entity({ name: 'org_reminder_sents' })
 @Index('uq_org_reminder_org_date_kind', ['orgId', 'expiresAt', 'kind'], { unique: true })
 export class OrgReminderSent {
@@ -28,9 +27,9 @@ export class OrgReminderSent {
   @Column({ name: 'expires_at', type: 'text', nullable: false })
   expiresAt!: string
 
-  /** 'day-before' = noon the day before expiry; 'day-of' = 08:00 on expiry day. */
+  /** Which reminder slot was sent — a ReminderSlot ('-3d' | '-2d' | '-1d' | 'day-of'). */
   @Column({ type: 'text', nullable: false })
-  kind!: ReminderKind
+  kind!: ReminderSlot
 
   @Column({ name: 'sent_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   sentAt!: Date

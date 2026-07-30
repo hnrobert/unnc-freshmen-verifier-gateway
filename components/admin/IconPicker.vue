@@ -31,8 +31,8 @@ function onText(name: string | number): void {
   emit('update:modelValue', String(name))
 }
 
-function onUploaded(ref: string): void {
-  emit('update:modelValue', { img: ref })
+function onUploaded(payload: { ref: string; expiresAt: string | null }): void {
+  emit('update:modelValue', { img: payload.ref })
   showUpload.value = false
   // Refresh the preview after a short delay (wait for DB write)
   setTimeout(() => imgPreviewRef.value?.refresh(), 200)
@@ -43,7 +43,9 @@ function onUploaded(ref: string): void {
   <div class="grid gap-1.5">
     <Label>{{ slotName }}</Label>
     <div v-if="!isImg" class="flex items-center gap-2">
-      <span class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+      <span
+        class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border"
+      >
         <Icon :spec="modelValue" :size="18" :cover="isImg" />
       </span>
       <Input
@@ -67,8 +69,17 @@ function onUploaded(ref: string): void {
         />
       </div>
       <div class="flex flex-col gap-1">
-        <span class="text-xs text-muted-foreground">Using image: <code>{{ imgRef }}</code></span>
-        <Button size="sm" variant="ghost" type="button" class="w-fit" @click="pickLucide('CircleHelp')">Switch to icon</Button>
+        <span class="text-xs text-muted-foreground"
+          >Using image: <code>{{ imgRef }}</code></span
+        >
+        <Button
+          size="sm"
+          variant="ghost"
+          type="button"
+          class="w-fit"
+          @click="pickLucide('CircleHelp')"
+          >Switch to icon</Button
+        >
       </div>
     </div>
 
@@ -88,7 +99,11 @@ function onUploaded(ref: string): void {
       </div>
     </div>
 
-    <button type="button" class="w-fit text-xs text-muted-foreground underline" @click="showUpload = !showUpload">
+    <button
+      type="button"
+      class="w-fit text-xs text-muted-foreground underline"
+      @click="showUpload = !showUpload"
+    >
       or upload a custom image
     </button>
     <ImageUploader

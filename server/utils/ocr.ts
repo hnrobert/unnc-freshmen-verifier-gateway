@@ -24,6 +24,9 @@ function getWorker(): Promise<Worker> {
   if (!workerPromise) {
     workerPromise = createWorker(['chi_sim', 'chi_tra', 'eng'], 1, {
       langPath: TESSDATA_PATH,
+      // The committed files are uncompressed `<lang>.traineddata` (not `.gz`),
+      // so don't have tesseract.js append `.gz` / expect gzip magic bytes.
+      gzip: false,
     })
     workerPromise.catch(() => {
       workerPromise = null

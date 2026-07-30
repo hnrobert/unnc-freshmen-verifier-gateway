@@ -30,5 +30,18 @@ export default defineEventHandler(async (event) => {
     await repo.insert({ orgId: org.id, key, mime, base64 })
   }
   invalidateImageCache(org.id)
-  return { ok: true, key, ref: `img:${key}` }
+
+  // For the welcome QR image, try to OCR an expiry date so the editor can show
+  // it immediately (best-effort — never fails the upload). Other keys skip OCR.
+  let expiresAt: string | null = null
+  if (key === 'welcome') {
+    try {
+      const date = await detectWelcomeExpiry(Buffer.from(base64, 'base64'))
+      if (date) expiresAt = toLocalDateStr(date)
+    } catch {
+      // OCR unavailable/unreadable — leave expiresAt null
+    }
+  }
+
+  return { ok: true, key, ref: `img:${key}`, expiresAt }
 })

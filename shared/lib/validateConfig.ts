@@ -1,4 +1,5 @@
 import type { Locale, SiteConfig } from '../types'
+import { REMINDER_SLOTS } from '../types'
 
 /** Dotted i18n keys every org must provide for every enabled locale. */
 export const REQUIRED_KEYS = [
@@ -76,11 +77,17 @@ export function validateConfig(config: SiteConfig): string[] {
       errors.push('welcome.expiresAt must be a YYYY-MM-DD date')
     }
   }
-  if (
-    config.welcome?.reminderEnabled !== undefined &&
-    typeof config.welcome.reminderEnabled !== 'boolean'
-  ) {
-    errors.push('welcome.reminderEnabled must be a boolean')
+  // Reminder slots (optional; if present must be valid ReminderSlot values).
+  const reminders = config.welcome?.reminders
+  if (reminders !== undefined) {
+    if (!Array.isArray(reminders)) {
+      errors.push('welcome.reminders must be an array')
+    } else {
+      const valid = new Set(REMINDER_SLOTS)
+      for (const slot of reminders) {
+        if (!valid.has(slot)) errors.push(`welcome.reminders has invalid slot "${slot}"`)
+      }
+    }
   }
 
   for (const loc of config.locales ?? []) {
