@@ -34,6 +34,10 @@ export default defineEventHandler(async (event) => {
   if (existing)
     throw createError({ statusCode: 409, statusMessage: 'That email has already been invited' })
 
+  // Per-target invite throttle: at most 1/min and 10/day to one address.
+  const inviteLimit = checkEmailSend('invite', email)
+  if (!inviteLimit.allowed) throw createError(emailLimitError(inviteLimit))
+
   const token = generateInviteToken()
   const member = await repo.save({
     orgId: org.id,
@@ -74,5 +78,9 @@ export default defineEventHandler(async (event) => {
     }
   })()
 
-  return { id: member.id, inviteUrl }
+  return {
+    id: member.id,
+    inviteUrl,
+    warning: inviteLimit.nearLimit ? emailLimitWarning() : undefined,
+  }
 })

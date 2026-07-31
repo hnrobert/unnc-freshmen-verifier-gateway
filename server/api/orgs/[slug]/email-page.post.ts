@@ -277,6 +277,9 @@ ${FOOTER_NO_REPLY[locale]}
 </body>
 </html>`
 
+  const limit = checkEmailSend('welcome', email)
+  if (!limit.allowed) throw createError(emailLimitError(limit))
+
   try {
     await sendMailWithConfig(cfg, {
       to: email,
@@ -292,5 +295,5 @@ ${FOOTER_NO_REPLY[locale]}
     })
   }
 
-  return { ok: true }
+  return { ok: true, warning: limit.nearLimit ? emailLimitWarning() : undefined }
 })

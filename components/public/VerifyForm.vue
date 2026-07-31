@@ -72,16 +72,17 @@ async function onSendEmail(): Promise<void> {
   if (!emailValid.value) return
   emailSending.value = true
   try {
-    await $fetch(`/api/orgs/${props.slug}/email-page`, {
+    const res = await $fetch<{ warning?: string }>(`/api/orgs/${props.slug}/email-page`, {
       method: 'POST',
       // Send in the locale the visitor currently has selected, so the email
       // content (brand/welcome/footer) matches their page language.
       body: { email: emailAddr.value.trim().toLowerCase(), locale: locale.value },
     })
     toast.success(t('verify.emailSent'))
+    if (res.warning) toast.warning(res.warning)
     emailAddr.value = ''
-  } catch {
-    toast.error(t('errors.generic'))
+  } catch (e) {
+    toast.error(messageFromError(e, t('errors.generic')))
   } finally {
     emailSending.value = false
   }
