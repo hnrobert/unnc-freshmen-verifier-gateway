@@ -11,6 +11,14 @@ export type Locale = 'zh' | 'en'
 /** A string available in every supported locale. */
 export type Localized<T = string> = Record<Locale, T>
 
+/** Selectable QR-expiry reminder slots. All fire at 12:00 server-local on their
+ * respective day: `-3d`/`-2d`/`-1d` = that many days before `expiresAt`,
+ * `day-of` = on `expiresAt` itself. */
+export type ReminderSlot = '-3d' | '-2d' | '-1d' | 'day-of'
+
+/** All valid reminder slots (single source of truth for the UI, validator, scheduler). */
+export const REMINDER_SLOTS: readonly ReminderSlot[] = ['-3d', '-2d', '-1d', 'day-of']
+
 /** An icon reference: a lucide-vue-next name, or an image URL/key for custom art. */
 export interface IconSpec {
   /** A lucide-vue-next icon name, e.g. `"User"`, `"GraduationCap"`. */
@@ -53,6 +61,13 @@ export interface WelcomeAssetsConfig {
   imageRadius?: string
   /** If true, the welcome image gets a watermark of the visitor's name / email prefix. */
   watermark?: boolean
+  /** Expiry date of the shared QR ('YYYY-MM-DD', server-local calendar day). Auto-detected via OCR on upload, manually editable. */
+  expiresAt?: string
+  /** Which reminder slots are active (each fires at 12:00 server-local on its day).
+   * Empty/absent = reminders off. */
+  reminders?: ReminderSlot[]
+  /** @deprecated use `reminders`; read only to migrate old config rows. */
+  reminderEnabled?: boolean
 }
 
 /** Optional full-page background for the org's verify/welcome pages. */

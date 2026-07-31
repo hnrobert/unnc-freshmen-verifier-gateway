@@ -20,4 +20,12 @@ export class User {
 
   @Column({ type: 'text', default: 'admin' })
   role!: string
+
+  /** Preferred UI / notification locale ('zh' | 'en'). Null until first visit. */
+  @Column({ type: 'text', nullable: true })
+  locale!: string | null
+
+  /** Opt-in to QR-expiry reminder emails for shared orgs. */
+  @Column({ name: 'notify_expiry', type: 'boolean', default: false })
+  notifyExpiry!: boolean
 }

@@ -1,4 +1,5 @@
 import type { Locale, SiteConfig } from '../types'
+import { REMINDER_SLOTS } from '../types'
 
 /** Dotted i18n keys every org must provide for every enabled locale. */
 export const REQUIRED_KEYS = [
@@ -68,6 +69,26 @@ export function validateConfig(config: SiteConfig): string[] {
   }
 
   if (!config.messages) errors.push('messages is missing')
+
+  // Welcome QR expiry (optional, but if present must be a calendar date).
+  const expiresAt = config.welcome?.expiresAt
+  if (expiresAt !== undefined && expiresAt !== null && expiresAt !== '') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresAt) || Number.isNaN(Date.parse(expiresAt))) {
+      errors.push('welcome.expiresAt must be a YYYY-MM-DD date')
+    }
+  }
+  // Reminder slots (optional; if present must be valid ReminderSlot values).
+  const reminders = config.welcome?.reminders
+  if (reminders !== undefined) {
+    if (!Array.isArray(reminders)) {
+      errors.push('welcome.reminders must be an array')
+    } else {
+      const valid = new Set(REMINDER_SLOTS)
+      for (const slot of reminders) {
+        if (!valid.has(slot)) errors.push(`welcome.reminders has invalid slot "${slot}"`)
+      }
+    }
+  }
 
   for (const loc of config.locales ?? []) {
     const messages = config.messages[loc as Locale]

@@ -7,9 +7,9 @@
     </div>
     <div class="flex flex-1 items-center justify-center p-4">
       <div class="w-full max-w-sm">
-        <div class="mb-6 flex items-center justify-center gap-2 text-lg font-semibold">
+        <div class="mb-6 flex items-center justify-center gap-2 text-base font-semibold sm:text-lg">
           <img src="/favicon.svg" alt="" class="size-9 shrink-0 rounded-xl" />
-          <span>UNNC Freshmen Verifier Gateway</span>
+          <span class="whitespace-nowrap">UNNC Freshmen Verifier Gateway</span>
         </div>
         <slot />
       </div>

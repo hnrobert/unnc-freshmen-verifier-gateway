@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import type { Locale } from '#shared/types'
+import { REMINDER_SLOTS, type Locale, type ReminderSlot } from '#shared/types'
 
 const { config } = useOrgConfig()
 const { t } = useI18n()
@@ -17,6 +17,18 @@ function toggleLocale(loc: Locale, checked: boolean): void {
   if (!locales.includes(config.value.defaultLocale)) {
     config.value.defaultLocale = locales[0]!
   }
+}
+
+// QR-expiry reminder slot multi-select (4 fixed slots, toggled in/out of the array).
+function reminderChecked(slot: ReminderSlot): boolean {
+  return (config.value.welcome.reminders ?? []).includes(slot)
+}
+function toggleReminder(slot: ReminderSlot, checked: boolean): void {
+  const arr = [...(config.value.welcome.reminders ?? [])]
+  const i = arr.indexOf(slot)
+  if (checked && i < 0) arr.push(slot)
+  if (!checked && i >= 0) arr.splice(i, 1)
+  config.value.welcome.reminders = arr
 }
 
 // Template refs for refreshing preview after re-upload
@@ -64,15 +76,23 @@ const primaryVars = computed(() => {
   } as Record<string, string>
 })
 
-function onWelcomeImage(ref: string): void {
-  config.value.welcome.image = ref
+function onWelcomeImage(payload: { ref: string; expiresAt: string | null }): void {
+  config.value.welcome.image = payload.ref
+  // OCR ran on the upload — fold upload-success + detection into one toast
+  // (the uploader is `silent` for the welcome key to avoid a second toast).
+  if (payload.expiresAt) {
+    config.value.welcome.expiresAt = payload.expiresAt
+    toast.success(t('editor.welcomeUploadedDetected', { date: payload.expiresAt }))
+  } else {
+    toast.success(t('editor.welcomeUploadedNotDetected'))
+  }
   // Force preview refresh (same src value → watcher won't fire)
   setTimeout(() => welcomePreview.value?.refresh(), 100)
 }
-function onBackgroundImage(ref: string): void {
+function onBackgroundImage(payload: { ref: string; expiresAt: string | null }): void {
   config.value.background = {
     overlayOpacity: config.value.background?.overlayOpacity ?? 0.5,
-    image: ref,
+    image: payload.ref,
   }
   setTimeout(() => bgPreview.value?.refresh(), 100)
 }
@@ -255,6 +275,7 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           :slug="slug"
           image-key="welcome"
           :label="t('editor.uploadWelcome')"
+          :silent="true"
           @uploaded="onWelcomeImage"
         />
         <div
@@ -290,6 +311,47 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
               }}</span>
             </span>
           </label>
+
+          <!-- QR expiry date + reminder slots -->
+          <div class="space-y-2 rounded-lg border p-3">
+            <label class="flex items-center gap-2 text-sm">
+              <span class="shrink-0">{{ t('editor.expiresAt') }}</span>
+              <input
+                v-model="config.welcome.expiresAt"
+                type="date"
+                class="ml-auto rounded-md border bg-background px-2 py-1 text-sm"
+              />
+            </label>
+            <p class="text-xs text-muted-foreground">{{ t('editor.expiresAtHint') }}</p>
+
+            <div>
+              <span class="text-sm">{{ t('editor.reminders') }}</span>
+              <p class="mb-2 text-xs text-muted-foreground">{{ t('editor.remindersHint') }}</p>
+              <div class="grid grid-cols-2 gap-2">
+                <label
+                  v-for="slot in REMINDER_SLOTS"
+                  :key="slot"
+                  class="flex items-center gap-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    class="shrink-0"
+                    :checked="reminderChecked(slot)"
+                    @change="toggleReminder(slot, ($event.target as HTMLInputElement).checked)"
+                  />
+                  <span>{{
+                    slot === '-3d'
+                      ? t('editor.reminder3d')
+                      : slot === '-2d'
+                        ? t('editor.reminder2d')
+                        : slot === '-1d'
+                          ? t('editor.reminder1d')
+                          : t('editor.reminderDayOf')
+                  }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
           <Label
             >Preview
             <span class="text-xs font-normal text-muted-foreground"

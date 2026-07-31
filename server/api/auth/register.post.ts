@@ -6,11 +6,18 @@ import { getEmailWhitelist, emailMatchesWhitelist } from '#server/utils/registra
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ email?: unknown; password?: unknown }>(event)
+  const body = await readBody<{
+    email?: unknown
+    password?: unknown
+    code?: unknown
+    session?: unknown
+  }>(event)
   const email = String(body?.email ?? '')
     .trim()
     .toLowerCase()
   const password = String(body?.password ?? '')
+  const code = String(body?.code ?? '').trim()
+  const session = String(body?.session ?? '').trim()
   if (!EMAIL_RE.test(email) || password.length < 8)
     throw createError({ statusCode: 400, statusMessage: 'Invalid email or password (min 8 chars)' })
 
@@ -27,11 +34,21 @@ export default defineEventHandler(async (event) => {
   if (userCount > 0) {
     const wl = await getEmailWhitelist()
     if (wl.enabled && !emailMatchesWhitelist(email, wl.patterns)) {
+      const allowed = wl.patterns.length
+        ? `Allowed domains: ${wl.patterns.join(', ')}`
+        : 'No domains are currently allowed.'
       throw createError({
         statusCode: 403,
-        statusMessage: 'This email domain is not allowed to register',
+        statusMessage: `This email domain is not allowed to register — ${allowed}`,
       })
     }
+  }
+
+  // Email verification: every non-bootstrap registration must present the code
+  // that was emailed for this email+session. Bootstrap (userCount === 0) is
+  // exempt — mail may not be configured yet when the first admin sets up.
+  if (userCount > 0 && !consumeCode(email, session, code)) {
+    throw createError({ statusCode: 400, statusMessage: 'Invalid or expired verification code' })
   }
 
   const trustedUntil = new Date(Date.now() + getTrustWindowMs())

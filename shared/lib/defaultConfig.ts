@@ -50,6 +50,10 @@ const config: SiteConfig = {
     imageMaxWidth: '12rem',
     imageRadius: '0.5rem',
     watermark: false,
+    // Auto-detected from the uploaded QR image (OCR); manually editable. 'YYYY-MM-DD'.
+    expiresAt: undefined,
+    // Which reminder slots are on; empty = off. Each fires at 12:00 server-local.
+    reminders: [],
   },
 
   // Optional full-page background (upload via the editor → img:background).

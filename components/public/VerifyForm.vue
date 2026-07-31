@@ -10,7 +10,7 @@ const props = defineProps<{
   welcomePath?: string
 }>()
 const { config } = useOrgConfig()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const { setVerified } = useVerifier()
 
@@ -74,7 +74,9 @@ async function onSendEmail(): Promise<void> {
   try {
     await $fetch(`/api/orgs/${props.slug}/email-page`, {
       method: 'POST',
-      body: { email: emailAddr.value.trim().toLowerCase() },
+      // Send in the locale the visitor currently has selected, so the email
+      // content (brand/welcome/footer) matches their page language.
+      body: { email: emailAddr.value.trim().toLowerCase(), locale: locale.value },
     })
     toast.success(t('verify.emailSent'))
     emailAddr.value = ''

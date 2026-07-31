@@ -1,7 +1,8 @@
 import { AppDataSource } from '#server/utils/database'
 import { OrgImage } from '#server/entities/orgImage.entity'
 
-const MAX_BASE64 = 1_500_000
+// Base64 is ~4/3 the binary size, so allow a 100MB image with headroom.
+const MAX_BASE64 = 150_000_000
 const KEY_RE = /^[a-zA-Z0-9_-]{1,40}$/
 
 export default defineEventHandler(async (event) => {
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
   if (!mime.startsWith('image/'))
     throw createError({ statusCode: 400, statusMessage: 'mime must be image/*' })
   if (!base64 || base64.length > MAX_BASE64)
-    throw createError({ statusCode: 413, statusMessage: 'Image too large (max ~1MB)' })
+    throw createError({ statusCode: 413, statusMessage: 'Image too large (max ~100MB)' })
 
   const repo = AppDataSource.getRepository(OrgImage)
   const existing = await repo.findOne({ where: { orgId: org.id, key } })
@@ -30,5 +31,18 @@ export default defineEventHandler(async (event) => {
     await repo.insert({ orgId: org.id, key, mime, base64 })
   }
   invalidateImageCache(org.id)
-  return { ok: true, key, ref: `img:${key}` }
+
+  // For the welcome QR image, try to OCR an expiry date so the editor can show
+  // it immediately (best-effort — never fails the upload). Other keys skip OCR.
+  let expiresAt: string | null = null
+  if (key === 'welcome') {
+    try {
+      const date = await detectWelcomeExpiry(Buffer.from(base64, 'base64'))
+      if (date) expiresAt = toLocalDateStr(date)
+    } catch {
+      // OCR unavailable/unreadable — leave expiresAt null
+    }
+  }
+
+  return { ok: true, key, ref: `img:${key}`, expiresAt }
 })

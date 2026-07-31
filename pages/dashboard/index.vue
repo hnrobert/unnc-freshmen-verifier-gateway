@@ -294,8 +294,8 @@ async function onDeclineInvite(token: string) {
               </div>
             </div>
 
-            <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}/stats`)">
-              View stats →
+            <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}`)">
+              View →
             </Button>
           </div>
         </div>

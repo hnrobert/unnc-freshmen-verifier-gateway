@@ -1,6 +1,9 @@
 <script setup lang="ts">
-const props = defineProps<{ slug: string; imageKey: string; label?: string }>()
-const emit = defineEmits<{ uploaded: [ref: string] }>()
+import { useI18n } from 'vue-i18n'
+
+const props = defineProps<{ slug: string; imageKey: string; label?: string; silent?: boolean }>()
+const emit = defineEmits<{ uploaded: [payload: { ref: string; expiresAt: string | null }] }>()
+const { t } = useI18n()
 
 const uploading = ref(false)
 const error = ref('')
@@ -26,19 +29,25 @@ async function onFile(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-  if (file.size > 1_000_000) {
-    error.value = 'File too large (max 1MB)'
+  if (file.size > 100_000_000) {
+    error.value = 'File too large (max 100MB)'
     return
   }
   uploading.value = true
   error.value = ''
   try {
     const base64 = await fileToBase64(file)
-    await $fetch(`/api/orgs/${props.slug}/images`, {
-      method: 'POST',
-      body: { key: props.imageKey, mime: file.type, base64 },
+    const res = await $fetch<{ ref?: string; expiresAt?: string | null }>(
+      `/api/orgs/${props.slug}/images`,
+      { method: 'POST', body: { key: props.imageKey, mime: file.type, base64 } },
+    )
+    // When `silent`, the parent shows its own (combined) toast — e.g. the
+    // welcome uploader folds the OCR result into a single message.
+    if (!props.silent) toast.success(t('editor.imageUploaded'))
+    emit('uploaded', {
+      ref: res.ref ?? `img:${props.imageKey}`,
+      expiresAt: res.expiresAt ?? null,
     })
-    emit('uploaded', `img:${props.imageKey}`)
   } catch (err) {
     error.value = messageFromError(err, 'Upload failed')
   } finally {
@@ -58,7 +67,14 @@ async function onFile(e: Event): Promise<void> {
       class="hidden"
       @change="onFile"
     />
-    <Button type="button" variant="outline" size="sm" :disabled="uploading" class="w-fit" @click="triggerUpload">
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      :disabled="uploading"
+      class="w-fit"
+      @click="triggerUpload"
+    >
       <Icon v-if="uploading" spec="LoaderCircle" :size="16" class="animate-spin" />
       <Icon v-else spec="Upload" :size="16" />
       {{ uploading ? 'Uploading…' : (label ?? 'Upload image') }}

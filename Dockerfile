@@ -15,10 +15,12 @@ RUN pnpm build
 
 # --- production ---
 FROM node:24-slim AS production
+RUN apt-get update && apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 COPY --from=build /app/.output ./.output
 COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/tessdata ./tessdata
 
 # better-sqlite3 native binary lives in .output (bundled by Nitro).
 # If it doesn't, install only the runtime dep:

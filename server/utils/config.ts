@@ -19,6 +19,20 @@ async function toDataUrl(orgId: number, key: string): Promise<string | null> {
   return url
 }
 
+/** Resolve a single image ref to a usable URL, used by endpoints that need the
+ * welcome image bytes now that `resolveImageRefs` no longer inlines it (it's
+ * lazy-loaded by the welcome page instead, keeping big images out of SSR HTML).
+ * `img:<key>` → cached data URL; `data:`/`http:` → passthrough; else null. */
+export async function resolveImgRef(
+  ref: string | undefined,
+  orgId: number,
+): Promise<string | null> {
+  if (!ref) return null
+  if (ref.startsWith('img:')) return toDataUrl(orgId, ref.slice(4))
+  if (ref.startsWith('data:') || ref.startsWith('http')) return ref
+  return null
+}
+
 /** Resolve an `img:<key>` ref by fetching the base64 from DB → data URL. */
 async function resolveRef(ref: IconRef | undefined, orgId: number): Promise<IconRef | undefined> {
   if (!ref) return ref
@@ -55,11 +69,10 @@ export async function resolveImageRefs(
     icons[key] = (await resolveRef(icons[key], orgId)) as IconRef
   }
 
-  const welcome = { ...config.welcome }
-  if (welcome.image?.startsWith('img:')) {
-    const url = await toDataUrl(orgId, welcome.image.slice(4))
-    if (url) welcome.image = url
-  }
+  // NOTE: welcome.image is intentionally left unresolved (kept as `img:<key>`).
+  // The welcome page lazy-loads it via /api/orgs/<slug>/welcome-image after
+  // first paint, so a large poster image never blocks SSR or bloats the
+  // config/hydration payload. Endpoints that need its bytes call resolveImgRef.
 
   const background = { ...config.background }
   if (background.image?.startsWith('img:')) {
@@ -67,5 +80,5 @@ export async function resolveImageRefs(
     if (url) background.image = url
   }
 
-  return { ...config, icons, welcome, background }
+  return { ...config, icons, background }
 }

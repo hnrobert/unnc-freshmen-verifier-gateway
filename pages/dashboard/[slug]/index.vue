@@ -169,7 +169,7 @@ const { data: orgsData } = useFetch<{ orgs: { slug: string; name: string; role: 
 )
 const currentOrg = computed(() => orgsData.value?.orgs.find((o) => o.slug === slug.value))
 const orgName = computed(() => currentOrg.value?.name ?? slug.value)
-const isOwner = computed(() => currentOrg.value?.role === 'owner')
+const isOwner = computed(() => ['owner', 'superadmin'].includes(currentOrg.value?.role ?? ''))
 const canEdit = computed(() =>
   ['owner', 'manager', 'editor', 'superadmin'].includes(currentOrg.value?.role ?? ''),
 )

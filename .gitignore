@@ -155,3 +155,9 @@ dist-cli/
 .data
 dist/
 data/
+
+public/*.txt
+# tessdata/ — traineddata files ARE committed (needed for offline OCR)
+chi_sim.traineddata
+eng.traineddata
+chi_tra.traineddata
