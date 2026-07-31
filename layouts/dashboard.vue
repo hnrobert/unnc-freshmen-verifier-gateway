@@ -82,6 +82,9 @@ const orgTabs = computed(() => {
     { label: 'Preview', icon: 'Eye', to: `/dashboard/${s}/preview`, exact: false, show: true },
   ]
 })
+// Visible org tabs only (for the mobile sidebar list — the top tab bar uses
+// v-show on each item instead).
+const orgNavTabs = computed(() => orgTabs.value.filter((t) => t.show))
 function tabActive(to: string, exact: boolean) {
   return exact ? route.path === to : route.path.startsWith(to)
 }
@@ -130,6 +133,30 @@ function tabActive(to: string, exact: boolean) {
           <Icon spec="LayoutDashboard" :size="16" />
           Dashboard
         </NuxtLink>
+        <!-- Current-org sub-navigation. Desktop shows these as the top tab bar;
+             on mobile the tabs move into this slide-out sidebar section instead. -->
+        <div v-if="orgNavTabs.length" class="space-y-1 border-t pt-2 lg:hidden">
+          <div
+            class="flex items-center gap-2 px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/60"
+          >
+            <Icon spec="Building2" :size="14" />
+            <span class="truncate">{{ currentOrg?.name ?? orgSlug }}</span>
+          </div>
+          <NuxtLink
+            v-for="tab in orgNavTabs"
+            :key="tab.to"
+            :to="tab.to"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              tabActive(tab.to, tab.exact)
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon :spec="tab.icon" :size="16" />
+            {{ tab.label }}
+          </NuxtLink>
+        </div>
         <NuxtLink
           to="/dashboard/orgs"
           class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
@@ -266,7 +293,7 @@ function tabActive(to: string, exact: boolean) {
              top bar, top-0 on desktop). Only the breadcrumb is pinned; the org
              tabs below scroll normally with the page. -->
         <div
-          v-if="trail.length > 1"
+          v-if="trail.length"
           class="sticky z-10 flex h-14 items-center border-b bg-background/95 px-4 backdrop-blur transition-all duration-300 sm:px-6 lg:px-8 lg:top-0"
           :class="mobileHeaderHidden ? 'top-0' : 'top-14'"
         >
@@ -294,8 +321,9 @@ function tabActive(to: string, exact: boolean) {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
-        <!-- Org tabs (full-width, taller, no horizontal scroll). -->
-        <nav v-if="orgTabs.length" class="flex border-b px-4 sm:px-6 lg:px-8">
+        <!-- Org tabs (desktop only — full-width, taller, no horizontal scroll).
+             On mobile these move into the slide-out sidebar (see orgNavTabs). -->
+        <nav v-if="orgTabs.length" class="hidden border-b px-4 sm:px-6 lg:flex lg:px-8">
           <div class="flex flex-1 gap-1 flex-nowrap overflow-hidden">
             <NuxtLink
               v-for="tab in orgTabs"

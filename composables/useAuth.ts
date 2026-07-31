@@ -23,12 +23,22 @@ export function useAuth() {
     user.value = res.user
   }
 
-  async function register(email: string, password: string): Promise<void> {
+  async function register(
+    email: string,
+    password: string,
+    code: string,
+    session: string,
+  ): Promise<void> {
     const res = await $fetch<{ user: AuthUser }>('/api/auth/register', {
       method: 'POST',
-      body: { email, password },
+      body: { email, password, code, session },
     })
     user.value = res.user
+  }
+
+  /** Request a registration verification code (scoped to a client `session`). */
+  async function sendVerificationCode(email: string, session: string): Promise<void> {
+    await $fetch('/api/auth/send-code', { method: 'POST', body: { email, session } })
   }
 
   async function logout(): Promise<void> {
@@ -70,5 +80,15 @@ export function useAuth() {
     user.value = res.user
   }
 
-  return { user, login, register, logout, listPasskeys, addPasskey, removePasskey, loginWithPasskey }
+  return {
+    user,
+    login,
+    register,
+    sendVerificationCode,
+    logout,
+    listPasskeys,
+    addPasskey,
+    removePasskey,
+    loginWithPasskey,
+  }
 }

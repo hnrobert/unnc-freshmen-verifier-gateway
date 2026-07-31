@@ -13,6 +13,10 @@ export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
   const { org, rank } = await requireOrgRole(event, slug, RANK.manager)
 
+  // Per-account invite throttle: max 6 invites / minute (sliding window).
+  if (!rateLimit(`invite:${me.id}`, 6, 60_000))
+    throw createError({ statusCode: 429, statusMessage: 'Too many invites, try again in a minute' })
+
   const body = await readBody<{ email?: unknown; role?: unknown }>(event)
   const email = String(body?.email ?? '')
     .trim()
