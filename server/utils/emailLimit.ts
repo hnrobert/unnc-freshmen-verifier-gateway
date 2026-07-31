@@ -1,22 +1,31 @@
 /**
- * Per-recipient rate limiting for outbound transactional emails. Each sending
- * flow — welcome content ("welcome"), registration code ("code"), org invite
- * ("invite") — is capped INDEPENDENTLY per target address:
- *   • at most 1 per minute
- *   • at most {@link EMAIL_DAILY_LIMIT} per day
- * When a target's daily count for a flow exceeds 5, the result flags
- * `nearLimit` so the caller can warn the sender that the address is nearly
- * capped.
+ * Rate limiting for outbound transactional emails — two independent dimensions:
  *
+ *  • Per-target (recipient address), per flow: 1/minute, {@link EMAIL_DAILY_LIMIT}/day.
+ *    Applied to every user-initiated send (welcome content, registration code,
+ *    org invite, mail test) so one address can't be spammed. {@link checkEmailSend}
+ *  • Per-account (the authenticated sender), aggregated across all flows they
+ *    initiate: {@link ACCOUNT_PER_MINUTE}/min, {@link ACCOUNT_DAILY_LIMIT}/day.
+ *    Applies only to sends by a logged-in user (org invite, mail test);
+ *    unauthenticated flows (welcome/code) have no account and rely on the
+ *    per-target cap. {@link checkAccountSend}
+ *
+ * Each result carries a `warning` string once the daily count approaches the cap
+ * (per-target: >5, per-account: ≥20) so the caller can toast the sender.
  * In-memory, single-instance; counters are sliding windows of timestamps.
  */
 const MINUTE_MS = 60_000
 const DAY_MS = 24 * 60 * 60 * 1000
-const PER_MINUTE = 1
-/** Max emails per target address per flow per day. */
+
+/** Per-target caps. */
 export const EMAIL_DAILY_LIMIT = 10
-/** Warn the sender once the daily count exceeds this. */
-const WARN_AFTER = 5
+const TARGET_PER_MINUTE = 1
+const TARGET_WARN_AFTER = 5 // warn once the daily count exceeds this
+
+/** Per-account caps. */
+export const ACCOUNT_PER_MINUTE = 6
+export const ACCOUNT_DAILY_LIMIT = 24
+const ACCOUNT_WARN_AT = 20 // warn once the daily count reaches this
 
 const minuteBuckets = new Map<string, number[]>()
 const dayBuckets = new Map<string, number[]>()
@@ -37,62 +46,90 @@ export interface EmailLimitResult {
   allowed: boolean
   /** Which cap was hit, when not allowed. */
   reason?: 'minute' | 'day'
-  /** Daily send count for this flow+target (current, including this attempt when allowed). */
+  /** Daily send count for this key (including this attempt when allowed). */
   dailyCount: number
+  /** The daily cap this result was checked against (for error/warning wording). */
+  dailyLimit: number
+  /** Who the cap applies to — wording only. */
+  scope: 'address' | 'account'
   /** Seconds until the per-minute cap resets (only when reason === 'minute'). */
   retryInSeconds?: number
-  /** True when dailyCount > WARN_AFTER — caller should warn about the daily cap. */
-  nearLimit: boolean
+  /** Warning string when approaching the daily cap; undefined otherwise. */
+  warning?: string
 }
 
-/**
- * Check (and record) an outbound email to `email` under `flow`. Records the hit
- * only when allowed — a blocked request consumes no quota. `flow` is a stable
- * label: 'welcome' | 'code' | 'invite'.
- */
+/** Sliding-window check that records the hit only when allowed. */
+function slidingCheck(
+  key: string,
+  perMinute: number,
+  perDay: number,
+  now: number,
+): { allowed: boolean; reason?: 'minute' | 'day'; dailyCount: number; retryInSeconds?: number } {
+  const day = windowHits(dayBuckets, key, DAY_MS, now)
+  if (day.length >= perDay) return { allowed: false, reason: 'day', dailyCount: day.length }
+  const minute = windowHits(minuteBuckets, key, MINUTE_MS, now)
+  if (minute.length >= perMinute) {
+    const retry = Math.max(1, Math.ceil((minute[0]! + MINUTE_MS - now) / 1000))
+    return { allowed: false, reason: 'minute', dailyCount: day.length, retryInSeconds: retry }
+  }
+  minute.push(now)
+  day.push(now)
+  return { allowed: true, dailyCount: day.length }
+}
+
+function withWording(
+  r: ReturnType<typeof slidingCheck>,
+  scope: 'address' | 'account',
+  dailyLimit: number,
+  warnWhen: (n: number) => boolean,
+): EmailLimitResult {
+  return {
+    ...r,
+    dailyLimit,
+    scope,
+    warning: warnWhen(r.dailyCount)
+      ? `Heads up: this ${scope} is limited to ${dailyLimit} emails per day.`
+      : undefined,
+  }
+}
+
+/** Per-recipient cap for `flow` ('welcome' | 'code' | 'invite' | 'test'). 1/min, 10/day. */
 export function checkEmailSend(
   flow: string,
   email: string,
   now: Date = new Date(),
 ): EmailLimitResult {
-  const key = `${flow}:${email.toLowerCase()}`
-  const t = now.getTime()
-
-  const day = windowHits(dayBuckets, key, DAY_MS, t)
-  if (day.length >= EMAIL_DAILY_LIMIT) {
-    return { allowed: false, reason: 'day', dailyCount: day.length, nearLimit: true }
-  }
-
-  const minute = windowHits(minuteBuckets, key, MINUTE_MS, t)
-  if (minute.length >= PER_MINUTE) {
-    const retry = Math.max(1, Math.ceil((minute[0]! + MINUTE_MS - t) / 1000))
-    return {
-      allowed: false,
-      reason: 'minute',
-      dailyCount: day.length,
-      retryInSeconds: retry,
-      nearLimit: day.length > WARN_AFTER,
-    }
-  }
-
-  minute.push(t)
-  day.push(t)
-  return { allowed: true, dailyCount: day.length, nearLimit: day.length > WARN_AFTER }
+  const r = slidingCheck(
+    `target:${flow}:${email.toLowerCase()}`,
+    TARGET_PER_MINUTE,
+    EMAIL_DAILY_LIMIT,
+    now.getTime(),
+  )
+  return withWording(r, 'address', EMAIL_DAILY_LIMIT, (n) => n > TARGET_WARN_AFTER)
 }
 
-/** Build the HTTP error for a blocked send. Caller throws this as a 429. */
+/** Per-account cap (aggregated across flows). 6/min, 24/day; warn at ≥20/day. */
+export function checkAccountSend(
+  userId: number | string,
+  now: Date = new Date(),
+): EmailLimitResult {
+  const r = slidingCheck(
+    `account:${userId}`,
+    ACCOUNT_PER_MINUTE,
+    ACCOUNT_DAILY_LIMIT,
+    now.getTime(),
+  )
+  return withWording(r, 'account', ACCOUNT_DAILY_LIMIT, (n) => n >= ACCOUNT_WARN_AT)
+}
+
+/** Build the HTTP error for a blocked send (reads its own limit/scope). */
 export function emailLimitError(r: EmailLimitResult): {
   statusCode: number
   statusMessage: string
 } {
   const statusMessage =
     r.reason === 'minute'
-      ? `Please wait ${r.retryInSeconds ?? 60}s before sending another email to this address`
-      : `This address has reached its daily limit (${EMAIL_DAILY_LIMIT}/day)`
+      ? `Please wait ${r.retryInSeconds ?? 60}s before sending another email`
+      : `Daily sending limit reached (${r.dailyLimit}/day for this ${r.scope})`
   return { statusCode: 429, statusMessage }
-}
-
-/** Warning string to surface to the sender when `nearLimit` is true. */
-export function emailLimitWarning(): string {
-  return `Heads up: this address is limited to ${EMAIL_DAILY_LIMIT} emails per day.`
 }

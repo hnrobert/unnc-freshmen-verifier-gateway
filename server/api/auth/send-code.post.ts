@@ -78,5 +78,5 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  return { ok: true, warning: limit.nearLimit ? emailLimitWarning() : undefined }
+  return { ok: true, warning: limit.warning }
 })

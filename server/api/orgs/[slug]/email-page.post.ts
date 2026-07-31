@@ -295,5 +295,5 @@ ${FOOTER_NO_REPLY[locale]}
     })
   }
 
-  return { ok: true, warning: limit.nearLimit ? emailLimitWarning() : undefined }
+  return { ok: true, warning: limit.warning }
 })

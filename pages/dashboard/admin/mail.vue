@@ -103,8 +103,12 @@ async function onSendTest() {
   if (!mail.value) return
   mailTesting.value = true
   try {
-    await $fetch('/api/mail/test', { method: 'POST', body: { to: testRecipient.value } })
+    const res = await $fetch<{ warning?: string }>('/api/mail/test', {
+      method: 'POST',
+      body: { to: testRecipient.value },
+    })
     toast.success('Test email sent')
+    if (res.warning) toast.warning(res.warning)
   } catch (e) {
     toast.error(messageFromError(e, 'Test send failed'))
   } finally {
