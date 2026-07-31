@@ -34,9 +34,12 @@ export default defineEventHandler(async (event) => {
   if (userCount > 0) {
     const wl = await getEmailWhitelist()
     if (wl.enabled && !emailMatchesWhitelist(email, wl.patterns)) {
+      const allowed = wl.patterns.length
+        ? `Allowed domains: ${wl.patterns.join(', ')}`
+        : 'No domains are currently allowed.'
       throw createError({
         statusCode: 403,
-        statusMessage: 'This email domain is not allowed to register',
+        statusMessage: `This email domain is not allowed to register — ${allowed}`,
       })
     }
   }

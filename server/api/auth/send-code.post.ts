@@ -56,10 +56,14 @@ export default defineEventHandler(async (event) => {
   const html = renderEmail({
     title: 'Your verification code',
     bodyHtml:
-      '<p style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#404040;">' +
+      // No inline color on the lead/hint <p> → they inherit `.body-ink` (light
+      // #404040 / dark #d4d4d4). The code uses `.ink` (light #0a0a0a / dark
+      // #fafafa) so it stays readable in both themes. Classes win in dark mode
+      // via the template's `!important` overrides.
+      '<p style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;">' +
       'Use this code to complete your registration:</p>' +
-      `<p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:36px;font-weight:700;letter-spacing:10px;color:#0a0a0a;margin:16px 0;">${code}</p>` +
-      '<p style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#737373;">This code expires in 10 minutes. If you didn’t request it, you can ignore this email.</p>',
+      `<p class="ink" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:36px;font-weight:700;letter-spacing:10px;color:#0a0a0a;margin:16px 0;">${code}</p>` +
+      '<p class="muted" style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#737373;">This code expires in 10 minutes. If you didn’t request it, you can ignore this email.</p>',
     preheader: `Your verification code is ${code}`,
   })
 
