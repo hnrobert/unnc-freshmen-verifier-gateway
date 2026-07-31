@@ -133,30 +133,6 @@ function tabActive(to: string, exact: boolean) {
           <Icon spec="LayoutDashboard" :size="16" />
           Dashboard
         </NuxtLink>
-        <!-- Current-org sub-navigation. Desktop shows these as the top tab bar;
-             on mobile the tabs move into this slide-out sidebar section instead. -->
-        <div v-if="orgNavTabs.length" class="space-y-1 border-t pt-2 lg:hidden">
-          <div
-            class="flex items-center gap-2 px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/60"
-          >
-            <Icon spec="Building2" :size="14" />
-            <span class="truncate">{{ currentOrg?.name ?? orgSlug }}</span>
-          </div>
-          <NuxtLink
-            v-for="tab in orgNavTabs"
-            :key="tab.to"
-            :to="tab.to"
-            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
-            :class="
-              tabActive(tab.to, tab.exact)
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            "
-          >
-            <Icon :spec="tab.icon" :size="16" />
-            {{ tab.label }}
-          </NuxtLink>
-        </div>
         <NuxtLink
           to="/dashboard/orgs"
           class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
@@ -183,6 +159,31 @@ function tabActive(to: string, exact: boolean) {
           <Icon spec="Settings" :size="16" />
           Settings
         </NuxtLink>
+
+        <!-- Current-org sub-navigation (mobile only — desktop shows the top tab
+     bar). Placed at the bottom so the main site nav stays above it. -->
+        <div v-if="orgNavTabs.length" class="space-y-1 pt-2 lg:hidden">
+          <div
+            class="flex items-center gap-2 px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/60"
+          >
+            <Icon spec="Building2" :size="14" />
+            <span class="truncate">{{ currentOrg?.name ?? orgSlug }}</span>
+          </div>
+          <NuxtLink
+            v-for="tab in orgNavTabs"
+            :key="tab.to"
+            :to="tab.to"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              tabActive(tab.to, tab.exact)
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon :spec="tab.icon" :size="16" />
+            {{ tab.label }}
+          </NuxtLink>
+        </div>
 
         <!-- Superadmin section (site-wide: orgs / users / registration) -->
         <template v-if="isSuperAdmin">
@@ -263,7 +264,6 @@ function tabActive(to: string, exact: boolean) {
         </button>
       </div>
     </aside>
-
     <!-- Main -->
     <div class="flex flex-1 flex-col lg:pl-64">
       <!-- Mobile top bar (auto-hides on scroll-down, reappears on scroll-up) -->
@@ -345,7 +345,9 @@ function tabActive(to: string, exact: boolean) {
         </nav>
         <!-- Page content (centered) -->
         <div class="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <div class="mx-auto w-full max-w-4xl"><slot /></div>
+          <div class="mx-auto w-full max-w-4xl">
+            <slot />
+          </div>
         </div>
       </main>
       <SiteFooter />
