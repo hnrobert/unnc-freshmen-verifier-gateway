@@ -29,8 +29,8 @@ async function onFile(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-  if (file.size > 1_000_000) {
-    error.value = 'File too large (max 1MB)'
+  if (file.size > 100_000_000) {
+    error.value = 'File too large (max 100MB)'
     return
   }
   uploading.value = true
