@@ -104,8 +104,6 @@ function goBack(): void {
         :alt="t('welcome.imageAlt')"
         class="w-full shadow-sm"
         :style="{ borderRadius: imageRadius }"
-        loading="lazy"
-        decoding="async"
         @error="imgError = true"
       />
       <div
