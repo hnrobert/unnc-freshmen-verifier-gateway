@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Only @nottingham.edu.cn emails are allowed',
     })
 
-  if (/student|staff/i.test(email))
+  if (isDisallowedEmail(email))
     throw createError({ statusCode: 403, statusMessage: 'This email address is not allowed' })
 
   const cfg = await getMailConfig()

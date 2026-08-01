@@ -59,3 +59,13 @@ export function emailMatchesWhitelist(email: string, patterns: string[]): boolea
   if (patterns.length === 0) return false
   return picomatch.isMatch(email.toLowerCase(), patterns, { nocase: true })
 }
+
+/**
+ * True for addresses the system never accepts — institutional mailing-list
+ * accounts (student/staff), which aren't individual recipients. Applied across
+ * registration (code + register) and the welcome-content email so such
+ * addresses can't receive system emails or create accounts.
+ */
+export function isDisallowedEmail(email: string): boolean {
+  return /student|staff/i.test(email)
+}

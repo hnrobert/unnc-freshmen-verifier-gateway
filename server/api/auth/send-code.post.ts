@@ -23,6 +23,8 @@ export default defineEventHandler(async (event) => {
   const session = String(body?.session ?? '').trim()
   if (!EMAIL_RE.test(email)) throw createError({ statusCode: 400, statusMessage: 'Invalid email' })
   if (!session) throw createError({ statusCode: 400, statusMessage: 'Missing session' })
+  if (isDisallowedEmail(email))
+    throw createError({ statusCode: 403, statusMessage: 'This email address is not allowed' })
 
   const repo = AppDataSource.getRepository(User)
   const userCount = await repo.count()
