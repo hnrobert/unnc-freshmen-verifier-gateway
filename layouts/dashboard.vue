@@ -42,44 +42,64 @@ function toggleTheme() {
 }
 
 // Org tab bar (Home / Edit / Advanced / Members / Share) for an org's dashboard
-// area. Rendered in the sticky full-width header so the breadcrumb + tabs span
-// the main column (not the centered content box) and stay pinned.
+// area. Works under both /dashboard/<slug> and the admin-scoped
+// /dashboard/admin/organisations/<slug>. Rendered in the sticky full-width
+// header so the breadcrumb + tabs span the main column and stay pinned.
 const RESERVED_SEGS = new Set(['', 'admin', 'orgs', 'settings', 'new'])
+const pathParts = computed(() => route.path.split('/'))
+const isAdminOrg = computed(
+  () => pathParts.value[2] === 'admin' && pathParts.value[3] === 'organisations',
+)
 const orgSlug = computed(() => {
-  const seg = route.path.split('/')[2] ?? ''
+  if (isAdminOrg.value) return pathParts.value[4] ?? ''
+  const seg = pathParts.value[2] ?? ''
   return RESERVED_SEGS.has(seg) ? '' : seg
+})
+// Base path for the current org's tab links.
+const orgBase = computed(() => {
+  const s = orgSlug.value
+  if (!s) return ''
+  return isAdminOrg.value ? `/dashboard/admin/organisations/${s}` : `/dashboard/${s}`
 })
 const { data: orgList } = useFetch<{ orgs: { slug: string; name: string; role: string }[] }>(
   '/api/orgs',
   { default: () => ({ orgs: [] }), key: 'orgs-list' },
 )
-const currentOrg = computed(() =>
-  orgSlug.value ? orgList.value?.orgs.find((o) => o.slug === orgSlug.value) : undefined,
-)
-const orgTabs = computed(() => {
+const currentOrg = computed(() => {
   const s = orgSlug.value
-  if (!s || !currentOrg.value) return []
-  const canEdit = ['owner', 'manager', 'editor', 'superadmin'].includes(currentOrg.value.role)
-  const canManage = ['owner', 'manager', 'superadmin'].includes(currentOrg.value.role)
+  if (!s) return undefined
+  const found = orgList.value?.orgs.find((o) => o.slug === s)
+  if (found) return found
+  // Admin view of an org the superadmin doesn't own — synthesize full-access so
+  // the tab bar + permissions render (the APIs gate via getOrgAccess themselves).
+  if (isAdminOrg.value) return { slug: s, name: s, role: 'superadmin' }
+  return undefined
+})
+const orgTabs = computed(() => {
+  const base = orgBase.value
+  const org = currentOrg.value
+  if (!base || !org) return []
+  const canEdit = ['owner', 'manager', 'editor', 'superadmin'].includes(org.role)
+  const canManage = ['owner', 'manager', 'superadmin'].includes(org.role)
   return [
-    { label: 'Home', icon: 'Home', to: `/dashboard/${s}`, exact: true, show: true },
-    { label: 'Edit', icon: 'Pencil', to: `/dashboard/${s}/edit`, exact: false, show: canEdit },
+    { label: 'Home', icon: 'Home', to: base, exact: true, show: true },
+    { label: 'Edit', icon: 'Pencil', to: `${base}/edit`, exact: false, show: canEdit },
     {
       label: 'Advanced',
       icon: 'Settings',
-      to: `/dashboard/${s}/advanced`,
+      to: `${base}/advanced`,
       exact: false,
       show: canEdit,
     },
     {
       label: 'Members',
       icon: 'Users',
-      to: `/dashboard/${s}/members`,
+      to: `${base}/members`,
       exact: false,
       show: canManage,
     },
-    { label: 'Share', icon: 'Share2', to: `/dashboard/${s}/share`, exact: false, show: true },
-    { label: 'Preview', icon: 'Eye', to: `/dashboard/${s}/preview`, exact: false, show: true },
+    { label: 'Share', icon: 'Share2', to: `${base}/share`, exact: false, show: true },
+    { label: 'Preview', icon: 'Eye', to: `${base}/preview`, exact: false, show: true },
   ]
 })
 // Visible org tabs only (for the mobile sidebar list — the top tab bar uses
@@ -193,18 +213,6 @@ function tabActive(to: string, exact: boolean) {
             Admin
           </div>
           <NuxtLink
-            to="/dashboard/admin"
-            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
-            :class="
-              route.path === '/dashboard/admin'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            "
-          >
-            <Icon spec="Building2" :size="16" />
-            All Organizations
-          </NuxtLink>
-          <NuxtLink
             to="/dashboard/admin/users"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="
@@ -215,6 +223,19 @@ function tabActive(to: string, exact: boolean) {
           >
             <Icon spec="Users" :size="16" />
             Users
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin' ||
+              route.path.startsWith('/dashboard/admin/organisations')
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="Building2" :size="16" />
+            All Organizations
           </NuxtLink>
           <NuxtLink
             to="/dashboard/admin/registration"

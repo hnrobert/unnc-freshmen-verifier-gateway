@@ -107,4 +107,30 @@ export default defineNuxtConfig({
   future: {
     compatibilityVersion: 4,
   },
+
+  // Clone the org dashboard route subtree under the admin path so a superadmin
+  // can open any org at /dashboard/admin/organisations/<slug> with the FULL org
+  // dashboard (same components — no page duplication). Each cloned route also
+  // gets the 'superadmin' middleware so only superadmins can use the admin URL.
+  hooks: {
+    'pages:extend'(routes) {
+      const src = routes.find((r) => r.path === '/dashboard/:slug')
+      if (!src) return
+      const clone = (node: typeof src, pathOverride?: string): typeof src => {
+        const meta = (node.meta ?? {}) as Record<string, unknown> & {
+          middleware?: string[] | string
+        }
+        const mw = meta.middleware
+        const arr = Array.isArray(mw) ? mw : mw ? [mw] : []
+        return {
+          ...node,
+          path: pathOverride ?? node.path,
+          name: node.name ? `${node.name}__admin` : undefined,
+          meta: { ...meta, middleware: arr.includes('superadmin') ? arr : [...arr, 'superadmin'] },
+          children: node.children ? node.children.map((c) => clone(c)) : node.children,
+        }
+      }
+      routes.push(clone(src, '/dashboard/admin/organisations/:slug'))
+    },
+  },
 })

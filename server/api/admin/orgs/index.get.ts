@@ -14,6 +14,7 @@ export default defineEventHandler((event) => {
       slug: o.slug,
       name: o.name,
       createdAt: o.createdAt,
+      ownerId: o.ownerId,
       ownerEmail: userMap.get(o.ownerId) ?? 'unknown',
     }))
   })
