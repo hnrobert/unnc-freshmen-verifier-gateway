@@ -114,8 +114,12 @@ export default defineNuxtConfig({
   // gets the 'superadmin' middleware so only superadmins can use the admin URL.
   hooks: {
     'pages:extend'(routes) {
-      const src = routes.find((r) => r.path === '/dashboard/:slug')
+      // Source: the /dashboard/:slug org subtree. Nuxt renders the param as
+      // ':slug()' (not ':slug'), so match by prefix and rebuild the admin path
+      // by swapping the '/dashboard' prefix → '/dashboard/admin/organizations'.
+      const src = routes.find((r) => r.path.startsWith('/dashboard/:slug'))
       if (!src) return
+      const adminPath = `/dashboard/admin/organizations${src.path.replace(/^\/dashboard/, '')}`
       const clone = (node: typeof src, pathOverride?: string): typeof src => {
         const meta = (node.meta ?? {}) as Record<string, unknown> & {
           middleware?: string[] | string
@@ -130,7 +134,7 @@ export default defineNuxtConfig({
           children: node.children ? node.children.map((c) => clone(c)) : node.children,
         }
       }
-      routes.push(clone(src, '/dashboard/admin/organizations/:slug'))
+      routes.push(clone(src, adminPath))
     },
   },
 })

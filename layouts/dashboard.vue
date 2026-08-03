@@ -213,18 +213,6 @@ function tabActive(to: string, exact: boolean) {
             Admin
           </div>
           <NuxtLink
-            to="/dashboard/admin/users"
-            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
-            :class="
-              route.path === '/dashboard/admin/users'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            "
-          >
-            <Icon spec="Users" :size="16" />
-            Users
-          </NuxtLink>
-          <NuxtLink
             to="/dashboard/admin"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="
@@ -235,6 +223,18 @@ function tabActive(to: string, exact: boolean) {
           >
             <Icon spec="LayoutDashboard" :size="16" />
             Admin Dashboard
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin/users"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin/users'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="Users" :size="16" />
+            All Users
           </NuxtLink>
           <NuxtLink
             to="/dashboard/admin/organizations"
