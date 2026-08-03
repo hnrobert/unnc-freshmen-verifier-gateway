@@ -63,9 +63,10 @@ export interface WelcomeAssetsConfig {
   watermark?: boolean
   /** Expiry date of the shared QR ('YYYY-MM-DD', server-local calendar day). Auto-detected via OCR on upload, manually editable. */
   expiresAt?: string
-  /** Which reminder slots are active (each fires at 12:00 server-local on its day).
-   * Empty/absent = reminders off. */
+  /** Which reminder slots are active. Empty/absent = reminders off. */
   reminders?: ReminderSlot[]
+  /** Time-of-day (HH:MM, 24h, server-local) at which reminder slots fire. Default "12:00". */
+  reminderTime?: string
   /** @deprecated use `reminders`; read only to migrate old config rows. */
   reminderEnabled?: boolean
 }

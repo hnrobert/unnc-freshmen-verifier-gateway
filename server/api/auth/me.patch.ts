@@ -9,6 +9,7 @@ export default defineEventHandler(async (event) => {
     email?: unknown
     currentPassword?: unknown
     newPassword?: unknown
+    notifyExpiry?: unknown
   }>(event)
 
   const repo = AppDataSource.getRepository(User)
@@ -41,10 +42,16 @@ export default defineEventHandler(async (event) => {
     fullUser.passwordHash = hashPassword(newPassword)
   }
 
+  // Notification preference (QR-expiry reminder opt-in).
+  if (body.notifyExpiry !== undefined) fullUser.notifyExpiry = !!body.notifyExpiry
+
   await repo.save(fullUser)
 
   // Update session user state — just return the new email; the client
   // (useAuth composable) will update useState on the next /api/auth/me call.
 
-  return { user: { id: fullUser.id, email: fullUser.email, role: fullUser.role } }
+  return {
+    user: { id: fullUser.id, email: fullUser.email, role: fullUser.role },
+    notifyExpiry: fullUser.notifyExpiry,
+  }
 })

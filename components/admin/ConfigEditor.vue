@@ -31,6 +31,38 @@ function toggleReminder(slot: ReminderSlot, checked: boolean): void {
   config.value.welcome.reminders = arr
 }
 
+// Reminder time-of-day (HH:MM, server-local) — defaults to 12:00.
+const reminderTimeModel = computed({
+  get: () => config.value.welcome.reminderTime || '12:00',
+  set: (v: string) => {
+    config.value.welcome.reminderTime = v
+  },
+})
+
+// Live server clock (reminders fire at server-local time). Fetch the server-now
+// offset once, then tick client-side so the displayed time stays current.
+const { data: serverTimeData } = await useFetch<{ now: string; tz: string }>('/api/server-time')
+const serverOffsetMs = ref(0)
+watchEffect(() => {
+  if (serverTimeData.value) {
+    serverOffsetMs.value = new Date(serverTimeData.value.now).getTime() - Date.now()
+  }
+})
+const serverTick = ref(0)
+let serverTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  serverTimer = setInterval(() => {
+    serverTick.value++
+  }, 1000)
+})
+onUnmounted(() => {
+  if (serverTimer) clearInterval(serverTimer)
+})
+const serverNow = computed(() => {
+  serverTick.value // re-evaluate each second
+  return new Date(Date.now() + serverOffsetMs.value)
+})
+
 // Template refs for refreshing preview after re-upload
 const bgPreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
 const welcomePreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
@@ -350,6 +382,20 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
                   }}</span>
                 </label>
               </div>
+
+              <div class="flex items-center justify-between gap-2 pt-1 text-sm">
+                <span class="shrink-0">{{ t('editor.reminderTime') }}</span>
+                <input
+                  v-model="reminderTimeModel"
+                  type="time"
+                  class="rounded-md border bg-background px-2 py-1 text-sm"
+                />
+              </div>
+              <p class="text-xs text-muted-foreground">
+                {{ t('editor.serverTime') }}: {{ serverNow.toLocaleTimeString() }} ({{
+                  serverTimeData?.tz
+                }})
+              </p>
             </div>
           </div>
           <Label

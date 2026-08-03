@@ -36,10 +36,10 @@ export const REMINDER_TICK_MS = 5 * 60 * 1000
  * hours of downtime don't cause a miss, bounded so a fresh deploy doesn't emit
  * a burst of long-stale reminders. */
 const SEND_WINDOW_MS = 24 * 60 * 60 * 1000
-/** Every reminder slot fires at noon, server-local time. */
-const REMINDER_HOUR = 12
 /** Default slots enabled by the startup auto-detect (owner can widen in the UI). */
 const DEFAULT_SLOTS: ReminderSlot[] = ['-1d', 'day-of']
+/** Default time-of-day (server-local, HH:MM) when `welcome.reminderTime` is unset. */
+const DEFAULT_REMINDER_TIME = '12:00'
 
 const MONTHS_EN = [
   'January',
@@ -87,20 +87,22 @@ function effectiveReminders(w: SiteConfig['welcome']): ReminderSlot[] {
   return w?.reminderEnabled ? DEFAULT_SLOTS : []
 }
 
-/** The instant a given reminder slot should fire — noon server-local on its day.
- * `-Nd` → N days before `expiresAt` (d-N rolls back across the month boundary);
- * `day-of` → on `expiresAt` itself. */
-function reminderTarget(expiresAt: string, slot: ReminderSlot): Date {
+/** The instant a given reminder slot should fire — at `reminderTime` (HH:MM,
+ * server-local, default noon) on its day. `-Nd` → N days before `expiresAt`
+ * (d-N rolls back across the month boundary); `day-of` → on `expiresAt`. */
+function reminderTarget(expiresAt: string, slot: ReminderSlot, reminderTime?: string): Date {
   const parts = expiresAt.split('-').map(Number)
   const y = parts[0] ?? 0
   const m = (parts[1] ?? 1) - 1
   const d = parts[2] ?? 1
   const offset = slot === 'day-of' ? 0 : -Number.parseInt(slot.slice(1), 10)
-  return new Date(y, m, d + offset, REMINDER_HOUR, 0, 0, 0)
+  const [hh, mm] = (reminderTime || DEFAULT_REMINDER_TIME).split(':').map(Number)
+  return new Date(y, m, d + offset, hh ?? 12, mm ?? 0, 0, 0)
 }
 
-/** Opted-in reminder recipients for an org: active members + the owner, each with
- * their preferred locale (falling back to zh). Deduped by email. */
+/** Reminder recipients for an org: the owner ALWAYS (they configured the
+ * schedule) plus active members who opted in via `notifyExpiry`, each with their
+ * preferred locale (falling back to zh). Deduped by email. */
 async function reminderRecipients(
   orgId: number,
   ownerId: number,
@@ -114,7 +116,8 @@ async function reminderRecipients(
   const users = await userRepo.find({ where: [...ids].map((id) => ({ id })) })
   const byEmail = new Map<string, Locale>()
   for (const u of users) {
-    if (!u.notifyExpiry) continue
+    const isOwner = u.id === ownerId
+    if (!isOwner && !u.notifyExpiry) continue // owner always; members opt in
     const locale: Locale = u.locale === 'en' ? 'en' : 'zh'
     byEmail.set(u.email, locale)
   }
@@ -249,7 +252,7 @@ export async function sendDueReminders(): Promise<void> {
       if (!org) continue
 
       for (const slot of slots) {
-        const target = reminderTarget(expiresAt, slot).getTime()
+        const target = reminderTarget(expiresAt, slot, config.welcome?.reminderTime).getTime()
         if (now < target || now >= target + SEND_WINDOW_MS) continue // not yet / too late
 
         // Idempotency: skip if already sent for this org/date/slot.

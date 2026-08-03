@@ -52,8 +52,10 @@ const config: SiteConfig = {
     watermark: false,
     // Auto-detected from the uploaded QR image (OCR); manually editable. 'YYYY-MM-DD'.
     expiresAt: undefined,
-    // Which reminder slots are on; empty = off. Each fires at 12:00 server-local.
+    // Which reminder slots are on; empty = off.
     reminders: [],
+    // Time-of-day (HH:MM, server-local) when slots fire.
+    reminderTime: '12:00',
   },
 
   // Optional full-page background (upload via the editor → img:background).

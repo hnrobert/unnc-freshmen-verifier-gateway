@@ -89,6 +89,15 @@ export function validateConfig(config: SiteConfig): string[] {
       }
     }
   }
+  // Reminder time-of-day (optional HH:MM, 24h).
+  const reminderTime = config.welcome?.reminderTime
+  if (
+    reminderTime !== undefined &&
+    reminderTime !== '' &&
+    !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)
+  ) {
+    errors.push('welcome.reminderTime must be HH:MM (24-hour)')
+  }
 
   for (const loc of config.locales ?? []) {
     const messages = config.messages[loc as Locale]
