@@ -8,7 +8,7 @@ const props = withDefaults(
     endpoint: string
     /** Render the per-org sparkline cards (the user dashboard). Admin hides them. */
     showOrgCards?: boolean
-    /** Base path for per-org card links, e.g. '/dashboard' or '/dashboard/admin/organisations'. */
+    /** Base path for per-org card links, e.g. '/dashboard' or '/dashboard/admin/organizations'. */
     orgLinkBase?: string
   }>(),
   { showOrgCards: true, orgLinkBase: '/dashboard' },

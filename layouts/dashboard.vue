@@ -43,12 +43,12 @@ function toggleTheme() {
 
 // Org tab bar (Home / Edit / Advanced / Members / Share) for an org's dashboard
 // area. Works under both /dashboard/<slug> and the admin-scoped
-// /dashboard/admin/organisations/<slug>. Rendered in the sticky full-width
+// /dashboard/admin/organizations/<slug>. Rendered in the sticky full-width
 // header so the breadcrumb + tabs span the main column and stay pinned.
 const RESERVED_SEGS = new Set(['', 'admin', 'orgs', 'settings', 'new'])
 const pathParts = computed(() => route.path.split('/'))
 const isAdminOrg = computed(
-  () => pathParts.value[2] === 'admin' && pathParts.value[3] === 'organisations',
+  () => pathParts.value[2] === 'admin' && pathParts.value[3] === 'organizations',
 )
 const orgSlug = computed(() => {
   if (isAdminOrg.value) return pathParts.value[4] ?? ''
@@ -59,7 +59,7 @@ const orgSlug = computed(() => {
 const orgBase = computed(() => {
   const s = orgSlug.value
   if (!s) return ''
-  return isAdminOrg.value ? `/dashboard/admin/organisations/${s}` : `/dashboard/${s}`
+  return isAdminOrg.value ? `/dashboard/admin/organizations/${s}` : `/dashboard/${s}`
 })
 const { data: orgList } = useFetch<{ orgs: { slug: string; name: string; role: string }[] }>(
   '/api/orgs',
@@ -228,8 +228,20 @@ function tabActive(to: string, exact: boolean) {
             to="/dashboard/admin"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="
-              route.path === '/dashboard/admin' ||
-              route.path.startsWith('/dashboard/admin/organisations')
+              route.path === '/dashboard/admin'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="LayoutDashboard" :size="16" />
+            Admin Dashboard
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin/organizations"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin/organizations' ||
+              route.path.startsWith('/dashboard/admin/organizations/')
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             "
