@@ -73,9 +73,9 @@ function formatExpiryDate(expiresAt: string, locale: Locale): string {
   return locale === 'zh' ? `${y}年${m}月${d}日` : `${MONTHS_EN[m - 1] ?? ''} ${d}, ${y}`
 }
 
-/** Absolute (or relative, if no origin known) URL to an org's public page. */
+/** Absolute URL to the org's edit page (so the recipient can refresh the QR). */
 function orgUrl(slug: string, base: string): string {
-  return `${base}/${slug}`
+  return `${base}/dashboard/${slug}/edit`
 }
 
 /** Resolve the configured reminder slots, falling back to the legacy
@@ -151,7 +151,7 @@ function reminderEmail(
   const html = renderEmail({
     title,
     bodyHtml,
-    actionLabel: isZh ? '查看组织' : 'View organization',
+    actionLabel: isZh ? '更换二维码' : 'Update QR code',
     actionUrl: orgUrl(slug, base),
     preheader: title,
   })
