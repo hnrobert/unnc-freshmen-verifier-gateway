@@ -25,7 +25,7 @@ export class User {
   @Column({ type: 'text', nullable: true })
   locale!: string | null
 
-  /** Opt-in to QR-expiry reminder emails for shared orgs. */
-  @Column({ name: 'notify_expiry', type: 'boolean', default: false })
+  /** Opt-in to QR-expiry reminder emails (default on; users can turn it off). */
+  @Column({ name: 'notify_expiry', type: 'boolean', default: true })
   notifyExpiry!: boolean
 }

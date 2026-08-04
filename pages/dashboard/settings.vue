@@ -150,7 +150,8 @@ onMounted(loadPasskeys)
         <label class="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            class="shrink-0"
+            class="size-4 shrink-0"
+            style="accent-color: var(--primary)"
             :checked="!!notifPrefs?.notifyExpiry"
             :disabled="notifSaving"
             @change="onToggleNotif"
