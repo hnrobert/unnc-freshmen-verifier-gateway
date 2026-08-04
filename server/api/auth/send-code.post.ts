@@ -23,6 +23,8 @@ export default defineEventHandler(async (event) => {
   const session = String(body?.session ?? '').trim()
   if (!EMAIL_RE.test(email)) throw createError({ statusCode: 400, statusMessage: 'Invalid email' })
   if (!session) throw createError({ statusCode: 400, statusMessage: 'Missing session' })
+  if (isDisallowedEmail(email))
+    throw createError({ statusCode: 403, statusMessage: 'This email address is not allowed' })
 
   const repo = AppDataSource.getRepository(User)
   const userCount = await repo.count()
@@ -44,11 +46,8 @@ export default defineEventHandler(async (event) => {
   const cfg = await getMailConfig()
   if (!cfg) throw createError({ statusCode: 400, statusMessage: 'Mail is not configured' })
 
-  if (!rateLimit(`code:${email}`, 1, 60_000))
-    throw createError({
-      statusCode: 429,
-      statusMessage: 'Please wait a minute before requesting another code',
-    })
+  const limit = checkEmailSend('code', email)
+  if (!limit.allowed) throw createError(emailLimitError(limit))
 
   const code = String(randomInt(100000, 1000000))
   issueCode(email, session, code)
@@ -81,5 +80,5 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  return { ok: true }
+  return { ok: true, warning: limit.warning }
 })

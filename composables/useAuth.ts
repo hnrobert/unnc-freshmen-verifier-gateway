@@ -37,8 +37,14 @@ export function useAuth() {
   }
 
   /** Request a registration verification code (scoped to a client `session`). */
-  async function sendVerificationCode(email: string, session: string): Promise<void> {
-    await $fetch('/api/auth/send-code', { method: 'POST', body: { email, session } })
+  async function sendVerificationCode(
+    email: string,
+    session: string,
+  ): Promise<{ warning?: string }> {
+    return await $fetch<{ warning?: string }>('/api/auth/send-code', {
+      method: 'POST',
+      body: { email, session },
+    })
   }
 
   async function logout(): Promise<void> {

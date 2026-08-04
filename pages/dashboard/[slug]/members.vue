@@ -44,13 +44,17 @@ async function onInvite() {
   inviting.value = true
   lastInvite.value = null
   try {
-    const res = await $fetch<{ inviteUrl: string }>(`/api/orgs/${slug.value}/members`, {
-      method: 'POST',
-      body: { email: inviteEmail.value.trim().toLowerCase(), role: inviteRole.value },
-    })
+    const res = await $fetch<{ inviteUrl: string; warning?: string }>(
+      `/api/orgs/${slug.value}/members`,
+      {
+        method: 'POST',
+        body: { email: inviteEmail.value.trim().toLowerCase(), role: inviteRole.value },
+      },
+    )
     lastInvite.value = { email: inviteEmail.value, url: res.inviteUrl }
     inviteEmail.value = ''
     toast.success('Invitation created — share the link')
+    if (res.warning) toast.warning(res.warning)
     await refresh()
   } catch (e) {
     toast.error(messageFromError(e, 'Invite failed'))

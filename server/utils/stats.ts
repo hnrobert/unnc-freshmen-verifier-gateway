@@ -4,6 +4,7 @@ import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
 import { OrgEvent } from '#server/entities/orgEvent.entity'
 import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
+import { Organization } from '#server/entities/organization.entity'
 import { listAccessibleOrgs, type EffectiveRole } from './members'
 
 const RETENTION_DAYS = 90
@@ -374,17 +375,16 @@ export interface OverviewResult {
 }
 
 /**
- * Aggregate stats across every org the user can access (owned ∪ shared), for the
- * dashboard 看板: cross-org totals + a summed daily trend + a per-org breakdown
- * (each org's quick KPIs + a views sparkline). UV is a true `COUNT(DISTINCT
- * ip_hash)` across all the orgs (a visitor shared between orgs isn't double
- * counted — the stats salt is stable across orgs).
+ * Aggregate stats across a set of orgs, for the dashboard 看板: cross-org totals
+ * + a summed daily trend + a per-org breakdown (each org's quick KPIs + a views
+ * sparkline). UV is a true `COUNT(DISTINCT ip_hash)` across all the orgs (a
+ * visitor shared between orgs isn't double counted — the stats salt is stable
+ * across orgs).
  */
-export async function readOverviewStats(
-  userId: number,
+async function aggregateOverview(
+  accessible: { org: Organization; role: EffectiveRole }[],
   rangeQuery: unknown,
 ): Promise<OverviewResult> {
-  const accessible = await listAccessibleOrgs(userId)
   const range = rangeDays(rangeQuery)
   const now = Date.now()
   const sinceMs = range > 0 ? now - range * 24 * 60 * 60 * 1000 : 0
@@ -562,4 +562,21 @@ export async function readOverviewStats(
     },
     orgs,
   }
+}
+
+/** Dashboard overview for a single user — aggregates their accessible orgs. */
+export async function readOverviewStats(
+  userId: number,
+  rangeQuery: unknown,
+): Promise<OverviewResult> {
+  return aggregateOverview(await listAccessibleOrgs(userId), rangeQuery)
+}
+
+/** Site-wide overview for the admin panel — aggregates EVERY org. */
+export async function readOverviewStatsAll(rangeQuery: unknown): Promise<OverviewResult> {
+  const all = await AppDataSource.getRepository(Organization).find()
+  return aggregateOverview(
+    all.map((org) => ({ org, role: 'superadmin' as EffectiveRole })),
+    rangeQuery,
+  )
 }

@@ -31,11 +31,25 @@ function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
   // Admin section (superadmin): /dashboard/admin is the index; users /
   // registration / mail are sub-pages. (The section used to be a single page
   // with a ?tab= query — now it's a route dir, so match the sub-routes.)
-  if (path === '/dashboard/admin') return [{ label: 'Admin' }]
+  if (path === '/dashboard/admin') return [{ label: 'Admin Dashboard' }]
   const adminPage = path.match(/^\/dashboard\/admin\/(users|registration|mail)$/)
   if (adminPage && adminPage[1]) {
     const label = ADMIN_TAB_LABELS[adminPage[1]] ?? adminPage[1]
-    return [{ label: 'Admin', to: '/dashboard/admin' }, { label }]
+    return [{ label: 'Admin Dashboard', to: '/dashboard/admin' }, { label }]
+  }
+  if (path === '/dashboard/admin/organizations') {
+    return [{ label: 'Admin Dashboard', to: '/dashboard/admin' }, { label: 'All Organizations' }]
+  }
+
+  // Admin org view: /dashboard/admin/organizations/<slug>(/<tab>).
+  const adminOrg = path.match(
+    /^\/dashboard\/admin\/organizations\/([^/]+)(?:\/(edit|advanced|members|share|preview))?$/,
+  )
+  if (adminOrg && adminOrg[1]) {
+    return [
+      { label: 'All Organizations', to: '/dashboard/admin/organizations' },
+      { label: adminOrg[1] },
+    ]
   }
 
   // /dashboard/<slug>/{edit,advanced,members,share,preview} — breadcrumb stops at the

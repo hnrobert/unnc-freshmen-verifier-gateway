@@ -1,10 +1,18 @@
 import { getMailConfig, sendMailWithConfig } from '#server/utils/mail'
 import { renderEmail } from '#server/mail/render'
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
 export default defineEventHandler(async (event) => {
+  // Superadmin-only diagnostic — intentionally NOT rate-limited so admins can
+  // test mail delivery freely.
   requireSuperAdmin(event)
   const body = await readBody<{ to?: unknown }>(event)
-  const to = String(body?.to ?? '').trim()
+  const to = String(body?.to ?? '')
+    .trim()
+    .toLowerCase()
+  if (!EMAIL_RE.test(to))
+    throw createError({ statusCode: 400, statusMessage: 'Invalid recipient email' })
 
   const cfg = await getMailConfig()
   if (!cfg) throw createError({ statusCode: 400, statusMessage: 'Mail is not configured yet' })

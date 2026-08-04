@@ -3,7 +3,6 @@ import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
 import { Organization } from '#server/entities/organization.entity'
 import { OrgMember } from '#server/entities/orgMember.entity'
-import { User } from '#server/entities/user.entity'
 import { isSecureRequest } from './request'
 import type { SessionUser } from './auth'
 
@@ -79,14 +78,10 @@ export async function listAccessibleOrgs(
   const orgRepo = AppDataSource.getRepository(Organization)
   const memberRepo = AppDataSource.getRepository(OrgMember)
 
-  // Superadmins can access every org on the site (treated as owner-equivalent),
-  // so they see + can manage orgs they don't own and aren't a member of.
-  const caller = await AppDataSource.getRepository(User).findOneBy({ id: userId })
-  if (caller?.role === 'superadmin') {
-    const all = await orgRepo.find()
-    return all.map((org) => ({ org, role: 'superadmin' as EffectiveRole }))
-  }
-
+  // Lists the orgs to show on a user's dashboard / Organizations page: those
+  // they own ∪ active memberships. Superadmins are NOT special-cased here (they
+  // see their own orgs like anyone else) — the site-wide "all orgs" view is the
+  // admin panel. Superadmins can still *access* any org via getOrgAccess.
   const [owned, memberships] = await Promise.all([
     orgRepo.find({ where: { ownerId: userId } }),
     memberRepo.find({ where: { userId, status: 'active' } }),

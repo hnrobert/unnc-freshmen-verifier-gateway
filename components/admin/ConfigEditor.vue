@@ -31,6 +31,38 @@ function toggleReminder(slot: ReminderSlot, checked: boolean): void {
   config.value.welcome.reminders = arr
 }
 
+// Reminder time-of-day (HH:MM, server-local) — defaults to 12:00.
+const reminderTimeModel = computed({
+  get: () => config.value.welcome.reminderTime || '12:00',
+  set: (v: string) => {
+    config.value.welcome.reminderTime = v
+  },
+})
+
+// Live server clock (reminders fire at server-local time). Fetch the server-now
+// offset once, then tick client-side so the displayed time stays current.
+const { data: serverTimeData } = await useFetch<{ now: string; tz: string }>('/api/server-time')
+const serverOffsetMs = ref(0)
+watchEffect(() => {
+  if (serverTimeData.value) {
+    serverOffsetMs.value = new Date(serverTimeData.value.now).getTime() - Date.now()
+  }
+})
+const serverTick = ref(0)
+let serverTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  serverTimer = setInterval(() => {
+    serverTick.value++
+  }, 1000)
+})
+onUnmounted(() => {
+  if (serverTimer) clearInterval(serverTimer)
+})
+const serverNow = computed(() => {
+  serverTick.value // re-evaluate each second
+  return new Date(Date.now() + serverOffsetMs.value)
+})
+
 // Template refs for refreshing preview after re-upload
 const bgPreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
 const welcomePreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
@@ -350,6 +382,20 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
                   }}</span>
                 </label>
               </div>
+
+              <div class="flex items-center justify-between gap-2 pt-1 text-sm">
+                <span class="shrink-0">{{ t('editor.reminderTime') }}</span>
+                <input
+                  v-model="reminderTimeModel"
+                  type="time"
+                  class="rounded-md border bg-background px-2 py-1 text-sm"
+                />
+              </div>
+              <p class="text-xs text-muted-foreground">
+                {{ t('editor.serverTime') }}: {{ serverNow.toLocaleTimeString() }} ({{
+                  serverTimeData?.tz
+                }})
+              </p>
             </div>
           </div>
           <Label
@@ -495,6 +541,52 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           :messages="msgs"
           path="verify.hint"
         />
+
+        <h4 class="pt-2 text-sm font-semibold text-muted-foreground">
+          {{ t('editor.verifyEmailTab') }}
+        </h4>
+        <LocaleField
+          :label="t('editor.verifyEmailLabel')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="verify.emailLabel"
+        />
+        <LocaleField
+          :label="t('editor.verifyEmailPlaceholder')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="verify.emailPlaceholder"
+        />
+        <LocaleField
+          :label="t('editor.verifyEmailInvalid')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="verify.emailInvalid"
+        />
+        <LocaleField
+          :label="t('editor.verifyEmailSubmit')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="verify.emailSubmit"
+        />
+        <LocaleField
+          :label="t('editor.verifyEmailSubmitting')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="verify.emailSubmitting"
+        />
+        <LocaleField
+          :label="t('editor.verifyEmailSent')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="verify.emailSent"
+        />
+        <LocaleField
+          :label="t('editor.verifyEmailHint')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="verify.emailHint"
+        />
       </section>
 
       <!-- Errors -->
@@ -608,6 +700,92 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           <Input v-model.number="themeRadiusNum" type="number" step="0.05" class="h-8 w-20" />
           <span class="text-xs text-muted-foreground">rem</span>
         </div>
+      </section>
+
+      <!-- Emails: org-customizable text for outbound emails -->
+      <section class="space-y-3">
+        <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          {{ t('editor.emailsSection') }}
+        </h4>
+        <p class="text-xs text-muted-foreground">{{ t('editor.emailsHint') }}</p>
+
+        <h5 class="pt-1 text-xs font-medium text-muted-foreground">
+          {{ t('editor.emailInviteGroup') }}
+        </h5>
+        <LocaleField
+          :label="t('editor.emailInviteSubject')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.inviteSubject"
+        />
+        <LocaleField
+          :label="t('editor.emailInviteBody')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.inviteBody"
+        />
+        <LocaleField
+          :label="t('editor.emailInviteAction')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.inviteAction"
+        />
+        <LocaleField
+          :label="t('editor.emailInviteButton')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.inviteButton"
+        />
+        <LocaleField
+          :label="t('editor.emailInvitePreheader')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.invitePreheader"
+        />
+
+        <h5 class="pt-2 text-xs font-medium text-muted-foreground">
+          {{ t('editor.emailReminderGroup') }}
+        </h5>
+        <LocaleField
+          :label="t('editor.emailReminderTitleToday')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.reminderTitleToday"
+        />
+        <LocaleField
+          :label="t('editor.emailReminderTitleTomorrow')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.reminderTitleTomorrow"
+        />
+        <LocaleField
+          :label="t('editor.emailReminderTitleInDays')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.reminderTitleInDays"
+        />
+        <LocaleField
+          :label="t('editor.emailReminderBody')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.reminderBody"
+        />
+        <LocaleField
+          :label="t('editor.emailReminderButton')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.reminderButton"
+        />
+
+        <h5 class="pt-2 text-xs font-medium text-muted-foreground">
+          {{ t('editor.emailFooterGroup') }}
+        </h5>
+        <LocaleField
+          :label="t('editor.emailNoReply')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="email.noReply"
+        />
       </section>
     </template>
   </div>

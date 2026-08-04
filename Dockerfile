@@ -12,6 +12,12 @@ FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
+# Nitro externalizes tesseract.js-core and copies its .js into the bundled
+# node_modules, but NOT the .wasm binaries the core loads at runtime — OCR would
+# ENOENT on the wasm. Copy them next to the .js so upload/OCR works in the image.
+RUN mkdir -p .output/server/node_modules/tesseract.js-core && \
+    find node_modules -path '*tesseract.js-core*' -name '*.wasm' \
+      -exec cp -fL {} .output/server/node_modules/tesseract.js-core/ \;
 
 # --- production ---
 FROM node:24-slim AS production

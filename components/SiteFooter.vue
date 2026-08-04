@@ -8,7 +8,12 @@ const REPO = 'https://github.com/hnrobert/unnc-freshmen-verifier-gateway'
 <template>
   <footer class="mt-[1vh] px-4 py-4 text-center text-xs text-muted-foreground">
     <div class="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
-      <span>© {{ year }} UNNC Freshmen Verifier Gateway</span>
+      <span
+        >© {{ year }}
+        <NuxtLink to="/" class="underline-offset-2 hover:underline"
+          >UNNC Freshmen Verifier Gateway</NuxtLink
+        ></span
+      >
       <span aria-hidden="true">·</span>
       <a
         :href="`${REPO}/blob/main/LICENSE`"

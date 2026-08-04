@@ -20,6 +20,8 @@ export default defineEventHandler(async (event) => {
   const session = String(body?.session ?? '').trim()
   if (!EMAIL_RE.test(email) || password.length < 8)
     throw createError({ statusCode: 400, statusMessage: 'Invalid email or password (min 8 chars)' })
+  if (isDisallowedEmail(email))
+    throw createError({ statusCode: 403, statusMessage: 'This email address is not allowed' })
 
   const repo = AppDataSource.getRepository(User)
   const existing = await repo.findOne({ where: { email } })

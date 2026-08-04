@@ -14,13 +14,6 @@ const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
 // providers — downscaling keeps the email deliverable.
 const EMAIL_IMG_MAX_WIDTH = 800
 
-// System-generated footer line (not org-customizable), localized to the locale
-// the visitor had selected on the page when they hit send.
-const FOOTER_NO_REPLY: Record<Locale, string> = {
-  zh: '本邮件由系统自动发送，请勿直接回复。',
-  en: 'This email was sent automatically by the system. Please do not reply.',
-}
-
 /** Resolve a welcome-image reference to an email-ready data URL: pull the bytes
  * (from a `data:` URL, an absolute http(s) URL, or a same-origin path), then in
  * a single sharp pass downscale, optionally composite the watermark, and
@@ -84,7 +77,7 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Only @nottingham.edu.cn emails are allowed',
     })
 
-  if (/student|staff/i.test(email))
+  if (isDisallowedEmail(email))
     throw createError({ statusCode: 403, statusMessage: 'This email address is not allowed' })
 
   const cfg = await getMailConfig()
@@ -235,7 +228,7 @@ ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMac
 <meta name="supported-color-schemes" content="light dark" />
 <style>
 @media (prefers-color-scheme: dark) {
-  .bg { background-color: #0a0a0a !important; }
+  .bg { background-color: #0a0a0a !important; color: #0a0a0a !important; }
   .surface { background-color: #171717 !important; border-color: #232323 !important; }
   .rule { border-color: #232323 !important; }
   .ink { color: #fafafa !important; }
@@ -246,7 +239,7 @@ ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMac
 }
 </style>
 </head>
-<body class="bg" style="margin:0;padding:0;background-color:#fafafa;">
+<body class="bg" style="margin:0;padding:0;background-color:#fafafa;color:#fafafa;">
 <table role="presentation" class="bg" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafafa;">
 <tr><td align="center" style="padding:32px 16px;">
 <table role="presentation" class="surface" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #e5e5e5;border-radius:14px;overflow:hidden;">
@@ -267,7 +260,7 @@ ${welcomeImageHtml}
 <!-- Footer -->
 <tr><td class="rule" style="padding:20px 28px;border-top:1px solid #e5e5e5;">
 <p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#737373;">
-${FOOTER_NO_REPLY[locale]}
+${emailMsg(config, locale, 'noReply')}
 </p>
 </td></tr>
 
@@ -276,6 +269,9 @@ ${FOOTER_NO_REPLY[locale]}
 </table>
 </body>
 </html>`
+
+  const limit = checkEmailSend('welcome', email)
+  if (!limit.allowed) throw createError(emailLimitError(limit))
 
   try {
     await sendMailWithConfig(cfg, {
@@ -292,5 +288,5 @@ ${FOOTER_NO_REPLY[locale]}
     })
   }
 
-  return { ok: true }
+  return { ok: true, warning: limit.warning }
 })

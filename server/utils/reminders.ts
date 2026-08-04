@@ -36,10 +36,10 @@ export const REMINDER_TICK_MS = 5 * 60 * 1000
  * hours of downtime don't cause a miss, bounded so a fresh deploy doesn't emit
  * a burst of long-stale reminders. */
 const SEND_WINDOW_MS = 24 * 60 * 60 * 1000
-/** Every reminder slot fires at noon, server-local time. */
-const REMINDER_HOUR = 12
 /** Default slots enabled by the startup auto-detect (owner can widen in the UI). */
 const DEFAULT_SLOTS: ReminderSlot[] = ['-1d', 'day-of']
+/** Default time-of-day (server-local, HH:MM) when `welcome.reminderTime` is unset. */
+const DEFAULT_REMINDER_TIME = '12:00'
 
 const MONTHS_EN = [
   'January',
@@ -73,9 +73,9 @@ function formatExpiryDate(expiresAt: string, locale: Locale): string {
   return locale === 'zh' ? `${y}年${m}月${d}日` : `${MONTHS_EN[m - 1] ?? ''} ${d}, ${y}`
 }
 
-/** Absolute (or relative, if no origin known) URL to an org's public page. */
+/** Absolute URL to the org's edit page (so the recipient can refresh the QR). */
 function orgUrl(slug: string, base: string): string {
-  return `${base}/${slug}`
+  return `${base}/dashboard/${slug}/edit`
 }
 
 /** Resolve the configured reminder slots, falling back to the legacy
@@ -87,20 +87,22 @@ function effectiveReminders(w: SiteConfig['welcome']): ReminderSlot[] {
   return w?.reminderEnabled ? DEFAULT_SLOTS : []
 }
 
-/** The instant a given reminder slot should fire — noon server-local on its day.
- * `-Nd` → N days before `expiresAt` (d-N rolls back across the month boundary);
- * `day-of` → on `expiresAt` itself. */
-function reminderTarget(expiresAt: string, slot: ReminderSlot): Date {
+/** The instant a given reminder slot should fire — at `reminderTime` (HH:MM,
+ * server-local, default noon) on its day. `-Nd` → N days before `expiresAt`
+ * (d-N rolls back across the month boundary); `day-of` → on `expiresAt`. */
+function reminderTarget(expiresAt: string, slot: ReminderSlot, reminderTime?: string): Date {
   const parts = expiresAt.split('-').map(Number)
   const y = parts[0] ?? 0
   const m = (parts[1] ?? 1) - 1
   const d = parts[2] ?? 1
   const offset = slot === 'day-of' ? 0 : -Number.parseInt(slot.slice(1), 10)
-  return new Date(y, m, d + offset, REMINDER_HOUR, 0, 0, 0)
+  const [hh, mm] = (reminderTime || DEFAULT_REMINDER_TIME).split(':').map(Number)
+  return new Date(y, m, d + offset, hh ?? 12, mm ?? 0, 0, 0)
 }
 
-/** Opted-in reminder recipients for an org: active members + the owner, each with
- * their preferred locale (falling back to zh). Deduped by email. */
+/** Reminder recipients for an org: the owner ALWAYS (they configured the
+ * schedule) plus active members who opted in via `notifyExpiry`, each with their
+ * preferred locale (falling back to zh). Deduped by email. */
 async function reminderRecipients(
   orgId: number,
   ownerId: number,
@@ -114,15 +116,18 @@ async function reminderRecipients(
   const users = await userRepo.find({ where: [...ids].map((id) => ({ id })) })
   const byEmail = new Map<string, Locale>()
   for (const u of users) {
-    if (!u.notifyExpiry) continue
+    const isOwner = u.id === ownerId
+    if (!isOwner && !u.notifyExpiry) continue // owner always; members opt in
     const locale: Locale = u.locale === 'en' ? 'en' : 'zh'
     byEmail.set(u.email, locale)
   }
   return [...byEmail.entries()].map(([email, locale]) => ({ email, locale }))
 }
 
-/** Build the localized reminder email (subject + themed HTML) for one recipient. */
+/** Build the localized reminder email (subject + themed HTML) for one recipient,
+ * using the org's customizable `email.*` text. */
 function reminderEmail(
+  config: SiteConfig,
   locale: Locale,
   slot: ReminderSlot,
   orgName: string,
@@ -130,25 +135,22 @@ function reminderEmail(
   slug: string,
   base: string,
 ): { subject: string; html: string } {
-  const isZh = locale === 'zh'
   const dateStr = formatExpiryDate(expiresAt, locale)
-  // Slot-specific headline (all slots fire at noon on their day).
-  const title = isZh
-    ? slot === 'day-of'
-      ? '你的二维码今天过期'
-      : `你的二维码 ${Number.parseInt(slot.slice(1), 10)} 天后过期`
-    : slot === 'day-of'
-      ? 'Your QR code expires today'
+  const n = String(Number.parseInt(slot.slice(1), 10))
+  const title =
+    slot === 'day-of'
+      ? emailMsg(config, locale, 'reminderTitleToday')
       : slot === '-1d'
-        ? 'Your QR code expires tomorrow'
-        : `Your QR code expires in ${Number.parseInt(slot.slice(1), 10)} days`
-  const bodyHtml = isZh
-    ? `<p>组织 <strong>${escapeHtml(orgName)}</strong> 欢迎页的二维码将于 <strong>${dateStr}</strong> 过期。请尽快更换最新的二维码图片，以免新生扫码失效。</p>`
-    : `<p>The welcome-page QR code for <strong>${escapeHtml(orgName)}</strong> expires on <strong>${dateStr}</strong>. Please refresh it soon so new students can still scan it.</p>`
+        ? emailMsg(config, locale, 'reminderTitleTomorrow')
+        : tpl(emailMsg(config, locale, 'reminderTitleInDays'), { n })
+  const bodyHtml = `<p>${tpl(emailMsg(config, locale, 'reminderBody'), {
+    org: `<strong>${escapeHtml(orgName)}</strong>`,
+    date: `<strong>${dateStr}</strong>`,
+  })}</p>`
   const html = renderEmail({
     title,
     bodyHtml,
-    actionLabel: isZh ? '查看组织' : 'View organization',
+    actionLabel: emailMsg(config, locale, 'reminderButton'),
     actionUrl: orgUrl(slug, base),
     preheader: title,
   })
@@ -249,7 +251,7 @@ export async function sendDueReminders(): Promise<void> {
       if (!org) continue
 
       for (const slot of slots) {
-        const target = reminderTarget(expiresAt, slot).getTime()
+        const target = reminderTarget(expiresAt, slot, config.welcome?.reminderTime).getTime()
         if (now < target || now >= target + SEND_WINDOW_MS) continue // not yet / too late
 
         // Idempotency: skip if already sent for this org/date/slot.
@@ -258,6 +260,7 @@ export async function sendDueReminders(): Promise<void> {
         const recipients = await reminderRecipients(org.id, org.ownerId)
         for (const r of recipients) {
           const { subject, html } = reminderEmail(
+            config,
             r.locale,
             slot,
             org.name,

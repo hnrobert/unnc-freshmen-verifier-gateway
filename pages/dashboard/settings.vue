@@ -97,6 +97,26 @@ function passkeyLabel(p: PasskeyInfo): string {
   return 'Passkey'
 }
 
+// --- Notification preference (QR-expiry reminder opt-in for joined orgs) ---
+const { data: notifPrefs, refresh: refreshNotif } = await useFetch<{ notifyExpiry: boolean }>(
+  '/api/auth/me',
+)
+const notifSaving = ref(false)
+async function onToggleNotif(e: Event): Promise<void> {
+  const val = (e.target as HTMLInputElement).checked
+  notifSaving.value = true
+  try {
+    await $fetch('/api/auth/me', { method: 'PATCH', body: { notifyExpiry: val } })
+    notifPrefs.value = { notifyExpiry: val }
+    toast.success(val ? 'Reminder emails enabled' : 'Reminder emails disabled')
+  } catch (err) {
+    toast.error(messageFromError(err, 'Could not update'))
+    await refreshNotif()
+  } finally {
+    notifSaving.value = false
+  }
+}
+
 onMounted(loadPasskeys)
 </script>
 
@@ -115,6 +135,29 @@ onMounted(loadPasskeys)
           <Label for="settings-email">New email</Label>
           <Input id="settings-email" v-model="draft.email" type="email" :disabled="saving" />
         </div>
+      </CardContent>
+    </Card>
+
+    <!-- Notifications -->
+    <Card>
+      <CardHeader>
+        <CardTitle class="text-base">Notifications</CardTitle>
+        <CardDescription
+          >Get QR-expiry reminder emails for organizations you've joined.</CardDescription
+        >
+      </CardHeader>
+      <CardContent>
+        <label class="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            class="size-4 shrink-0"
+            style="accent-color: var(--primary)"
+            :checked="!!notifPrefs?.notifyExpiry"
+            :disabled="notifSaving"
+            @change="onToggleNotif"
+          />
+          <span>Send me expiry reminder emails</span>
+        </label>
       </CardContent>
     </Card>
 

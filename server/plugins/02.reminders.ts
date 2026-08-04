@@ -21,10 +21,10 @@ export default defineNitroPlugin(() => {
   )
 
   const boot = setTimeout(() => {
-    void sendDueReminders().catch(() => {})
+    void sendDueReminders().catch((e) => console.error('[reminders] tick error:', e))
   }, 30_000)
   const tick = setInterval(() => {
-    void sendDueReminders().catch(() => {})
+    void sendDueReminders().catch((e) => console.error('[reminders] tick error:', e))
   }, REMINDER_TICK_MS)
 
   boot.unref?.()

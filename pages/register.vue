@@ -37,8 +37,9 @@ async function onSendCode() {
   sending.value = true
   try {
     if (!session.value) session.value = crypto.randomUUID()
-    await sendVerificationCode(email.value.trim(), session.value)
+    const res = await sendVerificationCode(email.value.trim(), session.value)
     toast.success('Verification code sent — check your email')
+    if (res.warning) toast.warning(res.warning)
     startCountdown()
   } catch (e: unknown) {
     toast.error(messageFromError(e, 'Could not send code'))
