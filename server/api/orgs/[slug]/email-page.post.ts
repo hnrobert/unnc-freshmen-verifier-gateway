@@ -228,7 +228,7 @@ ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMac
 <meta name="supported-color-schemes" content="light dark" />
 <style>
 @media (prefers-color-scheme: dark) {
-  .bg { background-color: #0a0a0a !important; }
+  .bg { background-color: #0a0a0a !important; color: #0a0a0a !important; }
   .surface { background-color: #171717 !important; border-color: #232323 !important; }
   .rule { border-color: #232323 !important; }
   .ink { color: #fafafa !important; }
@@ -239,7 +239,7 @@ ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMac
 }
 </style>
 </head>
-<body class="bg" style="margin:0;padding:0;background-color:#fafafa;">
+<body class="bg" style="margin:0;padding:0;background-color:#fafafa;color:#fafafa;">
 <table role="presentation" class="bg" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafafa;">
 <tr><td align="center" style="padding:32px 16px;">
 <table role="presentation" class="surface" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background-color:#ffffff;border:1px solid #e5e5e5;border-radius:14px;overflow:hidden;">

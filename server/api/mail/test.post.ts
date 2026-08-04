@@ -4,7 +4,9 @@ import { renderEmail } from '#server/mail/render'
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 export default defineEventHandler(async (event) => {
-  const me = requireSuperAdmin(event)
+  // Superadmin-only diagnostic — intentionally NOT rate-limited so admins can
+  // test mail delivery freely.
+  requireSuperAdmin(event)
   const body = await readBody<{ to?: unknown }>(event)
   const to = String(body?.to ?? '')
     .trim()
@@ -14,12 +16,6 @@ export default defineEventHandler(async (event) => {
 
   const cfg = await getMailConfig()
   if (!cfg) throw createError({ statusCode: 400, statusMessage: 'Mail is not configured yet' })
-
-  // Rate limits: per sender account (6/min, 24/day) + per recipient (1/min, 10/day).
-  const accountLimit = checkAccountSend(me.id)
-  if (!accountLimit.allowed) throw createError(emailLimitError(accountLimit))
-  const targetLimit = checkEmailSend('test', to)
-  if (!targetLimit.allowed) throw createError(emailLimitError(targetLimit))
 
   try {
     const html = renderEmail({
@@ -35,9 +31,7 @@ export default defineEventHandler(async (event) => {
       body: html,
       html: true,
     })
-    const warning =
-      [accountLimit.warning, targetLimit.warning].filter(Boolean).join(' ') || undefined
-    return { messageId, warning }
+    return { messageId }
   } catch (e) {
     throw createError({
       statusCode: 502,
