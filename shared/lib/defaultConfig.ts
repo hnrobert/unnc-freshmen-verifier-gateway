@@ -128,6 +128,20 @@ const config: SiteConfig = {
       theme: { toggle: '切换明暗主题' },
       lang: { label: '语言' },
       footer: 'Made with heart by HNRobert',
+      email: {
+        inviteSubject: '加入 {org} 的邀请',
+        inviteBody: '你受邀以 {role} 身份加入 {org}。',
+        inviteAction: '点击按钮查看并接受邀请。',
+        inviteButton: '查看邀请',
+        invitePreheader: '你受邀以 {role} 身份加入 {org}',
+        reminderTitleToday: '你的二维码今天过期',
+        reminderTitleTomorrow: '你的二维码明天过期',
+        reminderTitleInDays: '你的二维码 {n} 天后过期',
+        reminderBody:
+          '组织 {org} 欢迎页的二维码将于 {date} 过期。请尽快更换最新的二维码图片，以免新生扫码失效。',
+        reminderButton: '更换二维码',
+        noReply: '本邮件由系统自动发送，请勿直接回复。',
+      },
     },
 
     en: {
@@ -193,6 +207,20 @@ const config: SiteConfig = {
       theme: { toggle: 'Toggle dark/light theme' },
       lang: { label: 'Language' },
       footer: 'Made with heart by HNRobert',
+      email: {
+        inviteSubject: 'Invitation to join {org}',
+        inviteBody: "You've been invited to join {org} as {role}.",
+        inviteAction: 'Click the button to view and accept the invitation.',
+        inviteButton: 'View invitation',
+        invitePreheader: "You've been invited to join {org} as {role}",
+        reminderTitleToday: 'Your QR code expires today',
+        reminderTitleTomorrow: 'Your QR code expires tomorrow',
+        reminderTitleInDays: 'Your QR code expires in {n} days',
+        reminderBody:
+          'The welcome-page QR code for {org} expires on {date}. Please refresh it soon so new students can still scan it.',
+        reminderButton: 'Update QR code',
+        noReply: 'This email was sent automatically by the system. Please do not reply.',
+      },
     },
   },
 }

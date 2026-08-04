@@ -124,8 +124,10 @@ async function reminderRecipients(
   return [...byEmail.entries()].map(([email, locale]) => ({ email, locale }))
 }
 
-/** Build the localized reminder email (subject + themed HTML) for one recipient. */
+/** Build the localized reminder email (subject + themed HTML) for one recipient,
+ * using the org's customizable `email.*` text. */
 function reminderEmail(
+  config: SiteConfig,
   locale: Locale,
   slot: ReminderSlot,
   orgName: string,
@@ -133,25 +135,22 @@ function reminderEmail(
   slug: string,
   base: string,
 ): { subject: string; html: string } {
-  const isZh = locale === 'zh'
   const dateStr = formatExpiryDate(expiresAt, locale)
-  // Slot-specific headline (all slots fire at noon on their day).
-  const title = isZh
-    ? slot === 'day-of'
-      ? '你的二维码今天过期'
-      : `你的二维码 ${Number.parseInt(slot.slice(1), 10)} 天后过期`
-    : slot === 'day-of'
-      ? 'Your QR code expires today'
+  const n = String(Number.parseInt(slot.slice(1), 10))
+  const title =
+    slot === 'day-of'
+      ? emailMsg(config, locale, 'reminderTitleToday')
       : slot === '-1d'
-        ? 'Your QR code expires tomorrow'
-        : `Your QR code expires in ${Number.parseInt(slot.slice(1), 10)} days`
-  const bodyHtml = isZh
-    ? `<p>组织 <strong>${escapeHtml(orgName)}</strong> 欢迎页的二维码将于 <strong>${dateStr}</strong> 过期。请尽快更换最新的二维码图片，以免新生扫码失效。</p>`
-    : `<p>The welcome-page QR code for <strong>${escapeHtml(orgName)}</strong> expires on <strong>${dateStr}</strong>. Please refresh it soon so new students can still scan it.</p>`
+        ? emailMsg(config, locale, 'reminderTitleTomorrow')
+        : tpl(emailMsg(config, locale, 'reminderTitleInDays'), { n })
+  const bodyHtml = `<p>${tpl(emailMsg(config, locale, 'reminderBody'), {
+    org: `<strong>${escapeHtml(orgName)}</strong>`,
+    date: `<strong>${dateStr}</strong>`,
+  })}</p>`
   const html = renderEmail({
     title,
     bodyHtml,
-    actionLabel: isZh ? '更换二维码' : 'Update QR code',
+    actionLabel: emailMsg(config, locale, 'reminderButton'),
     actionUrl: orgUrl(slug, base),
     preheader: title,
   })
@@ -261,6 +260,7 @@ export async function sendDueReminders(): Promise<void> {
         const recipients = await reminderRecipients(org.id, org.ownerId)
         for (const r of recipients) {
           const { subject, html } = reminderEmail(
+            config,
             r.locale,
             slot,
             org.name,

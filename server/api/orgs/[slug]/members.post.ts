@@ -6,6 +6,14 @@ import { isSecureRequest } from '#server/utils/request'
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const ROLES = ['viewer', 'editor', 'manager'] as const
 
+function escapeHtml(s: string): string {
+  return s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+}
+
 /** Invite a user by email (creates a pending member + one-time token) and sends
  * an invitation email via the site mail config. Manager+. */
 export default defineEventHandler(async (event) => {
@@ -56,20 +64,24 @@ export default defineEventHandler(async (event) => {
     try {
       const cfg = await getMailConfig()
       if (!cfg) return
+      const orgConfig = await loadOrgConfig(slug)
+      const locale = orgConfig.defaultLocale
       const xfh2 = getRequestHeader(event, 'x-forwarded-host')?.split(',')[0]?.trim()
       const host2 = xfh2 || getRequestHeader(event, 'host') || 'localhost'
       const proto2 = isSecureRequest(event) ? 'https' : 'http'
       const orgLink = `${proto2}://${host2}/${slug}`
+      const orgNameHtml = `<a href="${orgLink}" style="color: inherit; font-weight: 700;">${escapeHtml(org.name)}</a>`
+      const subject = tpl(emailMsg(orgConfig, locale, 'inviteSubject'), { org: org.name })
       const html = renderEmail({
-        title: `Invitation to join ${org.name}`,
-        bodyHtml: `<p>You've been invited to join <a href="${orgLink}" style="color: inherit; font-weight: 700;">${org.name}</a> as <strong>${role}</strong>.</p><p>Click the button to view and accept the invitation.</p>`,
-        actionLabel: 'View invitation',
+        title: subject,
+        bodyHtml: `<p>${tpl(emailMsg(orgConfig, locale, 'inviteBody'), { org: orgNameHtml, role: escapeHtml(role) })}</p><p>${emailMsg(orgConfig, locale, 'inviteAction')}</p>`,
+        actionLabel: emailMsg(orgConfig, locale, 'inviteButton'),
         actionUrl: inviteUrl,
-        preheader: `You've been invited to join ${org.name} as ${role}`,
+        preheader: tpl(emailMsg(orgConfig, locale, 'invitePreheader'), { org: org.name, role }),
       })
       await sendMailWithConfig(cfg, {
         to: email,
-        subject: `Invitation to join ${org.name}`,
+        subject,
         body: html,
         html: true,
       })

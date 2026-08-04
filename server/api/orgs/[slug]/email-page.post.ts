@@ -14,13 +14,6 @@ const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
 // providers — downscaling keeps the email deliverable.
 const EMAIL_IMG_MAX_WIDTH = 800
 
-// System-generated footer line (not org-customizable), localized to the locale
-// the visitor had selected on the page when they hit send.
-const FOOTER_NO_REPLY: Record<Locale, string> = {
-  zh: '本邮件由系统自动发送，请勿直接回复。',
-  en: 'This email was sent automatically by the system. Please do not reply.',
-}
-
 /** Resolve a welcome-image reference to an email-ready data URL: pull the bytes
  * (from a `data:` URL, an absolute http(s) URL, or a same-origin path), then in
  * a single sharp pass downscale, optionally composite the watermark, and
@@ -267,7 +260,7 @@ ${welcomeImageHtml}
 <!-- Footer -->
 <tr><td class="rule" style="padding:20px 28px;border-top:1px solid #e5e5e5;">
 <p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#737373;">
-${FOOTER_NO_REPLY[locale]}
+${emailMsg(config, locale, 'noReply')}
 </p>
 </td></tr>
 
