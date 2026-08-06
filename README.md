@@ -157,4 +157,4 @@ Optional env vars: `SITE_URL` (for email links), `TZ` (timezone, via host
 
 ## License
 
-Apache-2.0 · © Robert He · Built for the UNNC community.
+[Apache-2.0](./LICENSE) · © [Robert He](https://github.com/hnrobert) @ [Computer Psycho Union](https://github.com/CompPsyUnion) · Built for the [UNNC](https://www.nottingham.edu.cn) community.
