@@ -33,6 +33,12 @@ import { invalidateOrgConfig } from './orgs'
 import { renderEmail } from '#server/mail/render'
 import { getMailConfig, sendMailWithConfig } from './mail'
 import { getSiteOrigin } from './siteOrigin'
+import {
+  DEFAULT_REMINDER_TZ,
+  isValidTz,
+  shiftCalendarDate,
+  zonedDateTimeToUtcMs,
+} from '#shared/lib/reminderTz'
 
 /** How often the scheduler wakes to check for due reminders. */
 export const REMINDER_TICK_MS = 5 * 60 * 1000
@@ -44,51 +50,6 @@ const SEND_WINDOW_MS = 24 * 60 * 60 * 1000
 const DEFAULT_SLOTS: ReminderSlot[] = ['-1d', 'day-of']
 /** Default time-of-day (HH:MM) when `welcome.reminderTime` is unset. */
 const DEFAULT_REMINDER_TIME = '12:00'
-/** Default IANA timezone when `welcome.reminderTz` is unset. */
-const DEFAULT_REMINDER_TZ = 'Asia/Shanghai'
-
-function isValidTz(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: tz })
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** Offset (ms east of UTC) of `tz` at the given instant, via Intl. */
-function tzOffsetMs(tz: string, epochMs: number): number {
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    hourCycle: 'h23', // avoid "24:00" for midnight
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-  const p: Record<string, string> = {}
-  for (const part of fmt.formatToParts(new Date(epochMs))) p[part.type] = part.value
-  const asUtc = Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour!, +p.minute!, +p.second!)
-  return asUtc - epochMs
-}
-
-/** 'YYYY-MM-DD' + 'HH:MM' wall-clock in `tz` → epoch ms. DST-correct: starting
- * from the offset at the UTC-equal instant, the corrected target converges
- * after a couple of iterations. */
-function zonedDateTimeToUtcMs(dateStr: string, timeStr: string, tz: string): number {
-  const [y = 0, m = 1, d = 1] = dateStr.split('-').map(Number)
-  const [hh = 0, mm = 0] = timeStr.split(':').map(Number)
-  const wall = Date.UTC(y, m - 1, d, hh, mm, 0, 0)
-  let target = wall
-  for (let i = 0; i < 3; i++) {
-    const corrected = wall - tzOffsetMs(tz, target)
-    if (corrected === target) break
-    target = corrected
-  }
-  return target
-}
 
 const MONTHS_EN = [
   'January',
@@ -146,17 +107,10 @@ function reminderTarget(
   reminderTime: string | undefined,
   tz: string,
 ): number {
-  const parts = expiresAt.split('-').map(Number)
-  const y = parts[0] ?? 0
-  const m = (parts[1] ?? 1) - 1
-  const d = parts[2] ?? 1
   const offset = slot === 'day-of' ? 0 : -Number.parseInt(slot.slice(1), 10)
-  // Normalize the shifted calendar day with a plain Date (day arithmetic is
-  // timezone-independent), then resolve the wall-clock in `tz` to a UTC instant.
-  const cal = new Date(y, m, d + offset)
-  const dateStr = `${cal.getFullYear()}-${String(cal.getMonth() + 1).padStart(2, '0')}-${String(
-    cal.getDate(),
-  ).padStart(2, '0')}`
+  // Shift the calendar day (timezone-independent), then resolve the wall-clock
+  // in `tz` to a UTC instant.
+  const dateStr = shiftCalendarDate(expiresAt, offset)
   return zonedDateTimeToUtcMs(dateStr, reminderTime || DEFAULT_REMINDER_TIME, tz)
 }
 

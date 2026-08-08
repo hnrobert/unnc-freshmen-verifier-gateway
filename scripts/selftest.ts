@@ -6,8 +6,19 @@
  *
  *   pnpm test
  */
-import { AdmissionQueryError, parseJsonBody, parseResultHtml, rankOffsets } from '../shared/lib/admissionCore'
+import {
+  AdmissionQueryError,
+  parseJsonBody,
+  parseResultHtml,
+  rankOffsets,
+} from '../shared/lib/admissionCore'
 import type { DecodedImage } from '../shared/types'
+import {
+  DEFAULT_REMINDER_TZ,
+  isValidTz,
+  shiftCalendarDate,
+  zonedDateTimeToUtcMs,
+} from '../shared/lib/reminderTz'
 
 let passed = 0
 let failed = 0
@@ -49,18 +60,29 @@ check('unrecognized page → ok=false, admitted=null', r5.ok === false && r5.adm
 
 /* ------------------------------------------------------------- parseJsonBody */
 
-check('parseJsonBody parses JSON object', JSON.stringify(await parseJsonBody('{"status":"success"}', '/x')) === '{"status":"success"}')
+check(
+  'parseJsonBody parses JSON object',
+  JSON.stringify(await parseJsonBody('{"status":"success"}', '/x')) === '{"status":"success"}',
+)
 check('parseJsonBody tolerates empty body', JSON.stringify(await parseJsonBody('', '/x')) === '{}')
 try {
   await parseJsonBody('<!DOCTYPE html><html>…</html>', '/ajax/init')
   check('parseJsonBody throws on HTML', false)
 } catch (e) {
-  check('parseJsonBody throws AdmissionQueryError on HTML', e instanceof AdmissionQueryError && /not JSON/.test((e as Error).message), (e as Error).message)
+  check(
+    'parseJsonBody throws AdmissionQueryError on HTML',
+    e instanceof AdmissionQueryError && /not JSON/.test((e as Error).message),
+    (e as Error).message,
+  )
 }
 
 /* --------------------------------------------------------------- rankOffsets */
 
-function makeImage(w: number, h: number, fill: (x: number, y: number) => [number, number, number]): DecodedImage {
+function makeImage(
+  w: number,
+  h: number,
+  fill: (x: number, y: number) => [number, number, number],
+): DecodedImage {
   const data = new Uint8ClampedArray(w * h * 4)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -98,14 +120,68 @@ const bg = makeImage(BW, BH, (x, y) => {
 const piece = makeImage(PW, PH, (x, y) => pattern(x, y))
 
 const offsets = rankOffsets(bg, piece, TARGET_Y)
-check('rankOffsets returns candidates', Array.isArray(offsets) && offsets.length > 0, `count=${offsets.length}`)
-check('rankOffsets values are in range', offsets.every((x) => x >= 0 && x <= BW - PW))
-check('rankOffsets ranks the matching notch highly', offsets.includes(NOTCH_X), `top=${offsets.slice(0, 5).join(',')}`)
+check(
+  'rankOffsets returns candidates',
+  Array.isArray(offsets) && offsets.length > 0,
+  `count=${offsets.length}`,
+)
+check(
+  'rankOffsets values are in range',
+  offsets.every((x) => x >= 0 && x <= BW - PW),
+)
+check(
+  'rankOffsets ranks the matching notch highly',
+  offsets.includes(NOTCH_X),
+  `top=${offsets.slice(0, 5).join(',')}`,
+)
 // The algorithm returns candidates from four heuristic buckets (std/border/ncc
 // asc/desc); the portal verifies each. The meaningful guarantee is that the
 // matching offset lands within the tried window (default maxOffsetTries = 25).
 const notchIndex = offsets.indexOf(NOTCH_X)
-check('rankOffsets notch is within the tried window', notchIndex >= 0 && notchIndex < 25, `index=${notchIndex}`)
+check(
+  'rankOffsets notch is within the tried window',
+  notchIndex >= 0 && notchIndex < 25,
+  `index=${notchIndex}`,
+)
+
+/* ------------------------------------------------------------- reminderTz */
+
+// Wall-clock → UTC conversion for the QR-expiry reminder scheduler.
+check(
+  '12:00 Asia/Shanghai → 04:00Z',
+  zonedDateTimeToUtcMs('2026-08-13', '12:00', 'Asia/Shanghai') === Date.UTC(2026, 7, 13, 4, 0),
+)
+check(
+  '12:00 UTC → 12:00Z',
+  zonedDateTimeToUtcMs('2026-08-13', '12:00', 'UTC') === Date.UTC(2026, 7, 13, 12, 0),
+)
+check(
+  '12:00 New_York winter (EST −5) → 17:00Z',
+  zonedDateTimeToUtcMs('2026-01-13', '12:00', 'America/New_York') === Date.UTC(2026, 0, 13, 17, 0),
+)
+check(
+  '12:00 New_York summer (EDT −4) → 16:00Z',
+  zonedDateTimeToUtcMs('2026-08-13', '12:00', 'America/New_York') === Date.UTC(2026, 7, 13, 16, 0),
+)
+check(
+  '00:00 Hong_Kong → previous UTC day 16:00Z',
+  zonedDateTimeToUtcMs('2026-08-13', '00:00', 'Asia/Hong_Kong') === Date.UTC(2026, 7, 12, 16, 0),
+)
+
+// Calendar-day shifting for the -3d/-2d/-1d slots.
+check(
+  'shiftCalendarDate rolls back across month',
+  shiftCalendarDate('2026-08-01', -2) === '2026-07-30' &&
+    shiftCalendarDate('2026-08-01', -1) === '2026-07-31',
+)
+check(
+  'shiftCalendarDate rolls back across year',
+  shiftCalendarDate('2026-01-01', -1) === '2025-12-31',
+)
+
+// Timezone validity + default.
+check('isValidTz accepts IANA, rejects junk', isValidTz('Asia/Shanghai') && !isValidTz('Not/AZone'))
+check('DEFAULT_REMINDER_TZ is Asia/Shanghai', DEFAULT_REMINDER_TZ === 'Asia/Shanghai')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
