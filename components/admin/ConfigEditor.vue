@@ -31,7 +31,7 @@ function toggleReminder(slot: ReminderSlot, checked: boolean): void {
   config.value.welcome.reminders = arr
 }
 
-// Reminder time-of-day (HH:MM, server-local) — defaults to 12:00.
+// Reminder time-of-day (HH:MM, in the org timezone) — defaults to 12:00.
 const reminderTimeModel = computed({
   get: () => config.value.welcome.reminderTime || '12:00',
   set: (v: string) => {
@@ -39,8 +39,45 @@ const reminderTimeModel = computed({
   },
 })
 
-// Live server clock (reminders fire at server-local time). Fetch the server-now
-// offset once, then tick client-side so the displayed time stays current.
+// Curated IANA timezones for the reminder schedule.
+const REMINDER_TZS = [
+  'Asia/Shanghai',
+  'Asia/Hong_Kong',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Asia/Kolkata',
+  'Europe/London',
+  'America/New_York',
+  'America/Los_Angeles',
+  'UTC',
+]
+
+// Reminder timezone (IANA) the schedule runs against — defaults to Asia/Shanghai.
+const reminderTzModel = computed({
+  get: () => config.value.welcome.reminderTz || 'Asia/Shanghai',
+  set: (v: string) => {
+    config.value.welcome.reminderTz = v
+  },
+})
+
+/** IANA tz → "Asia/Shanghai (GMT+8)" style label (current offset). */
+function tzLabel(tz: string): string {
+  try {
+    const off = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      timeZoneName: 'shortOffset',
+    })
+      .formatToParts(new Date())
+      .find((p) => p.type === 'timeZoneName')?.value
+    return off ? `${tz} (${off})` : tz
+  } catch {
+    return tz
+  }
+}
+
+// Live server clock (informational — reminders fire in the org timezone, see
+// reminderTzModel). Fetch the server-now offset once, then tick client-side so
+// the displayed time stays current.
 const { data: serverTimeData } = await useFetch<{ now: string; tz: string }>('/api/server-time')
 const serverOffsetMs = ref(0)
 watchEffect(() => {
@@ -391,7 +428,17 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
                   class="rounded-md border bg-background px-2 py-1 text-sm"
                 />
               </div>
+              <div class="flex items-center justify-between gap-2 text-sm">
+                <span class="shrink-0">{{ t('editor.reminderTz') }}</span>
+                <select
+                  v-model="reminderTzModel"
+                  class="h-8 rounded-md border bg-background px-2 text-sm"
+                >
+                  <option v-for="z in REMINDER_TZS" :key="z" :value="z">{{ tzLabel(z) }}</option>
+                </select>
+              </div>
               <p class="text-xs text-muted-foreground">
+                {{ t('editor.remindersFireAt') }}: {{ reminderTimeModel }} ({{ reminderTzModel }}) ·
                 {{ t('editor.serverTime') }}: {{ serverNow.toLocaleTimeString() }} ({{
                   serverTimeData?.tz
                 }})
