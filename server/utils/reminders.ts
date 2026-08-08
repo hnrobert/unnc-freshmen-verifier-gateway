@@ -7,11 +7,15 @@
  *    `expiresAt` and seeds a default `reminders` set (auto-creating the schedule).
  *  • {@link sendDueReminders} — the scheduler tick (every few minutes): for each
  *    scheduled org, fires each enabled reminder slot (`-3d`/`-2d`/`-1d`/`day-of`,
- *    all at 12:00 server-local on their day) to opted-in members, recording each
- *    send in `OrgReminderSent` so it never repeats (the table's unique constraint
- *    also makes it race-safe across instances).
+ *    all at `welcome.reminderTime` — default 12:00 — in the org's
+ *    `welcome.reminderTz`, default Asia/Shanghai) to opted-in members, recording
+ *    each send in `OrgReminderSent` so it never repeats (the table's unique
+ *    constraint also makes it race-safe across instances).
  *
- * All server-local time, matching `qrExpiry.ts`. Everything is best-effort:
+ * Reminder targets are resolved to UTC instants in the org's timezone, so they
+ * fire at the configured wall-clock regardless of the server's own timezone
+ * (e.g. a UTC host fires "12:00 Asia/Shanghai" at 04:00Z). `qrExpiry.ts` OCR
+ * dates remain server-local calendar days. Everything is best-effort:
  * OCR failures, missing mail config, or no opted-in recipients degrade to a
  * silent no-op rather than crashing the scheduler.
  */
@@ -38,8 +42,53 @@ export const REMINDER_TICK_MS = 5 * 60 * 1000
 const SEND_WINDOW_MS = 24 * 60 * 60 * 1000
 /** Default slots enabled by the startup auto-detect (owner can widen in the UI). */
 const DEFAULT_SLOTS: ReminderSlot[] = ['-1d', 'day-of']
-/** Default time-of-day (server-local, HH:MM) when `welcome.reminderTime` is unset. */
+/** Default time-of-day (HH:MM) when `welcome.reminderTime` is unset. */
 const DEFAULT_REMINDER_TIME = '12:00'
+/** Default IANA timezone when `welcome.reminderTz` is unset. */
+const DEFAULT_REMINDER_TZ = 'Asia/Shanghai'
+
+function isValidTz(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Offset (ms east of UTC) of `tz` at the given instant, via Intl. */
+function tzOffsetMs(tz: string, epochMs: number): number {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hourCycle: 'h23', // avoid "24:00" for midnight
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+  const p: Record<string, string> = {}
+  for (const part of fmt.formatToParts(new Date(epochMs))) p[part.type] = part.value
+  const asUtc = Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour!, +p.minute!, +p.second!)
+  return asUtc - epochMs
+}
+
+/** 'YYYY-MM-DD' + 'HH:MM' wall-clock in `tz` → epoch ms. DST-correct: starting
+ * from the offset at the UTC-equal instant, the corrected target converges
+ * after a couple of iterations. */
+function zonedDateTimeToUtcMs(dateStr: string, timeStr: string, tz: string): number {
+  const [y = 0, m = 1, d = 1] = dateStr.split('-').map(Number)
+  const [hh = 0, mm = 0] = timeStr.split(':').map(Number)
+  const wall = Date.UTC(y, m - 1, d, hh, mm, 0, 0)
+  let target = wall
+  for (let i = 0; i < 3; i++) {
+    const corrected = wall - tzOffsetMs(tz, target)
+    if (corrected === target) break
+    target = corrected
+  }
+  return target
+}
 
 const MONTHS_EN = [
   'January',
@@ -87,17 +136,28 @@ function effectiveReminders(w: SiteConfig['welcome']): ReminderSlot[] {
   return w?.reminderEnabled ? DEFAULT_SLOTS : []
 }
 
-/** The instant a given reminder slot should fire — at `reminderTime` (HH:MM,
- * server-local, default noon) on its day. `-Nd` → N days before `expiresAt`
- * (d-N rolls back across the month boundary); `day-of` → on `expiresAt`. */
-function reminderTarget(expiresAt: string, slot: ReminderSlot, reminderTime?: string): Date {
+/** The epoch instant a given reminder slot should fire — at `reminderTime`
+ * (HH:MM, default noon) interpreted in `tz` (IANA) on its day. `-Nd` → N days
+ * before `expiresAt` (rolls back across the month boundary); `day-of` → on
+ * `expiresAt`. */
+function reminderTarget(
+  expiresAt: string,
+  slot: ReminderSlot,
+  reminderTime: string | undefined,
+  tz: string,
+): number {
   const parts = expiresAt.split('-').map(Number)
   const y = parts[0] ?? 0
   const m = (parts[1] ?? 1) - 1
   const d = parts[2] ?? 1
   const offset = slot === 'day-of' ? 0 : -Number.parseInt(slot.slice(1), 10)
-  const [hh, mm] = (reminderTime || DEFAULT_REMINDER_TIME).split(':').map(Number)
-  return new Date(y, m, d + offset, hh ?? 12, mm ?? 0, 0, 0)
+  // Normalize the shifted calendar day with a plain Date (day arithmetic is
+  // timezone-independent), then resolve the wall-clock in `tz` to a UTC instant.
+  const cal = new Date(y, m, d + offset)
+  const dateStr = `${cal.getFullYear()}-${String(cal.getMonth() + 1).padStart(2, '0')}-${String(
+    cal.getDate(),
+  ).padStart(2, '0')}`
+  return zonedDateTimeToUtcMs(dateStr, reminderTime || DEFAULT_REMINDER_TIME, tz)
 }
 
 /** Reminder recipients for an org: the owner ALWAYS (they configured the
@@ -251,7 +311,9 @@ export async function sendDueReminders(): Promise<void> {
       if (!org) continue
 
       for (const slot of slots) {
-        const target = reminderTarget(expiresAt, slot, config.welcome?.reminderTime).getTime()
+        const rawTz = config.welcome?.reminderTz || DEFAULT_REMINDER_TZ
+        const tz = isValidTz(rawTz) ? rawTz : DEFAULT_REMINDER_TZ
+        const target = reminderTarget(expiresAt, slot, config.welcome?.reminderTime, tz)
         if (now < target || now >= target + SEND_WINDOW_MS) continue // not yet / too late
 
         // Idempotency: skip if already sent for this org/date/slot.
