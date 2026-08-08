@@ -54,8 +54,10 @@ const config: SiteConfig = {
     expiresAt: undefined,
     // Which reminder slots are on; empty = off.
     reminders: [],
-    // Time-of-day (HH:MM, server-local) when slots fire.
+    // Time-of-day (HH:MM) when slots fire.
     reminderTime: '12:00',
+    // IANA timezone the reminder schedule runs against.
+    reminderTz: 'Asia/Shanghai',
   },
 
   // Optional full-page background (upload via the editor → img:background).
