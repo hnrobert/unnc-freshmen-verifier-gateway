@@ -60,8 +60,15 @@ const reminderTzModel = computed({
   },
 })
 
-/** IANA tz → "Asia/Shanghai (GMT+8)" style label (current offset). */
+/** IANA tz → human-friendly display ("America/New_York" → "America/New York").
+ * The stored value keeps underscores; only the label is prettified. */
+function tzDisplayName(tz: string): string {
+  return tz.replaceAll('_', ' ')
+}
+
+/** IANA tz → "America/New York (GMT-4)" style option label (current offset). */
 function tzLabel(tz: string): string {
+  const display = tzDisplayName(tz)
   try {
     const off = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
@@ -69,9 +76,9 @@ function tzLabel(tz: string): string {
     })
       .formatToParts(new Date())
       .find((p) => p.type === 'timeZoneName')?.value
-    return off ? `${tz} (${off})` : tz
+    return off ? `${display} (${off})` : display
   } catch {
-    return tz
+    return display
   }
 }
 
@@ -438,9 +445,10 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
                 </select>
               </div>
               <p class="text-xs text-muted-foreground">
-                {{ t('editor.remindersFireAt') }}: {{ reminderTimeModel }} ({{ reminderTzModel }}) ·
-                {{ t('editor.serverTime') }}: {{ serverNow.toLocaleTimeString() }} ({{
-                  serverTimeData?.tz
+                {{ t('editor.remindersFireAt') }}: {{ reminderTimeModel }} ({{
+                  tzDisplayName(reminderTzModel)
+                }}) · {{ t('editor.serverTime') }}: {{ serverNow.toLocaleTimeString() }} ({{
+                  tzDisplayName(serverTimeData?.tz ?? '')
                 }})
               </p>
             </div>
