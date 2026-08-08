@@ -98,6 +98,15 @@ export function validateConfig(config: SiteConfig): string[] {
   ) {
     errors.push('welcome.reminderTime must be HH:MM (24-hour)')
   }
+  // Reminder timezone (optional IANA tz — invalid values throw on construction).
+  const reminderTz = config.welcome?.reminderTz
+  if (reminderTz !== undefined && reminderTz !== '') {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: reminderTz })
+    } catch {
+      errors.push('welcome.reminderTz must be a valid IANA timezone')
+    }
+  }
 
   for (const loc of config.locales ?? []) {
     const messages = config.messages[loc as Locale]
