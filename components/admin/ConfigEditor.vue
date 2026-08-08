@@ -427,22 +427,23 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
                 </label>
               </div>
 
-              <div class="flex items-center justify-between gap-2 pt-1 text-sm">
+              <div
+                class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 pt-1 text-sm"
+              >
                 <span class="shrink-0">{{ t('editor.reminderTime') }}</span>
-                <input
-                  v-model="reminderTimeModel"
-                  type="time"
-                  class="rounded-md border bg-background px-2 py-1 text-sm"
-                />
-              </div>
-              <div class="flex items-center justify-between gap-2 text-sm">
-                <span class="shrink-0">{{ t('editor.reminderTz') }}</span>
-                <select
-                  v-model="reminderTzModel"
-                  class="h-8 rounded-md border bg-background px-2 text-sm"
-                >
-                  <option v-for="z in REMINDER_TZS" :key="z" :value="z">{{ tzLabel(z) }}</option>
-                </select>
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <input
+                    v-model="reminderTimeModel"
+                    type="time"
+                    class="min-w-0 rounded-md border bg-background px-2 py-1 text-sm"
+                  />
+                  <select
+                    v-model="reminderTzModel"
+                    class="h-8 min-w-0 rounded-md border bg-background px-2 text-sm"
+                  >
+                    <option v-for="z in REMINDER_TZS" :key="z" :value="z">{{ tzLabel(z) }}</option>
+                  </select>
+                </div>
               </div>
               <p class="text-xs text-muted-foreground">
                 {{ t('editor.remindersFireAt') }}: {{ reminderTimeModel }} ({{
