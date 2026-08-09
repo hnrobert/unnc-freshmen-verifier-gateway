@@ -39,24 +39,32 @@ const reminderTimeModel = computed({
   },
 })
 
-// Curated IANA timezones for the reminder schedule.
-const REMINDER_TZS = [
-  'Asia/Shanghai',
-  'Asia/Hong_Kong',
-  'Asia/Singapore',
-  'Asia/Tokyo',
-  'Asia/Kolkata',
-  'Europe/London',
-  'America/New_York',
-  'America/Los_Angeles',
-  'UTC',
-]
+// Timezones available on this server, grouped by region (Africa, America, Asia,
+// …) for the reminder-timezone <select>. The server is the authority (it runs
+// the scheduler), so the set of zones comes from /api/timezones rather than a
+// hardcoded client list. Derives reactively from that fetch (SSR-resolved, so
+// the picker is populated on first paint). `timezones` is declared below — safe
+// because computed getters run lazily.
+const ALL_TZ_GROUPS = computed<{ region: string; zones: string[] }[]>(() => {
+  const list = timezones.value ?? []
+  const byRegion = new Map<string, string[]>()
+  for (const tz of list) {
+    const region = tz.includes('/') ? tz.slice(0, tz.indexOf('/')) : tz
+    const arr = byRegion.get(region)
+    if (arr) arr.push(tz)
+    else byRegion.set(region, [tz])
+  }
+  return [...byRegion.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([region, zones]) => ({ region, zones }))
+})
 
 // Reminder timezone (IANA) the schedule runs in. Defaults to the server's local
-// tz (reported by /api/server-time) when the org hasn't set one; falls back to
-// the first curated zone while that fetch is in flight.
+// tz (reported by /api/server-time) when the org hasn't set one; 'UTC' is a safe
+// non-empty guard for the brief pre-hydration moment (both fetches are
+// SSR-resolved, so it is effectively never shown).
 const reminderTzModel = computed({
-  get: () => config.value.welcome.reminderTz || serverTimeData.value?.tz || REMINDER_TZS[0]!,
+  get: () => config.value.welcome.reminderTz || serverTimeData.value?.tz || 'UTC',
   set: (v: string) => {
     config.value.welcome.reminderTz = v
   },
@@ -88,6 +96,8 @@ function tzLabel(tz: string): string {
 // reminderTzModel). Fetch the server-now offset once, then tick client-side so
 // the displayed time stays current.
 const { data: serverTimeData } = await useFetch<{ now: string; tz: string }>('/api/server-time')
+// All timezones the server supports — drives the reminder-timezone picker.
+const { data: timezones } = await useFetch<string[]>('/api/timezones')
 const serverOffsetMs = ref(0)
 watchEffect(() => {
   if (serverTimeData.value) {
@@ -443,7 +453,9 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
                     v-model="reminderTzModel"
                     class="h-8 min-w-0 rounded-md border bg-background px-2 text-sm"
                   >
-                    <option v-for="z in REMINDER_TZS" :key="z" :value="z">{{ tzLabel(z) }}</option>
+                    <optgroup v-for="g in ALL_TZ_GROUPS" :key="g.region" :label="g.region">
+                      <option v-for="z in g.zones" :key="z" :value="z">{{ tzLabel(z) }}</option>
+                    </optgroup>
                   </select>
                 </div>
               </div>
