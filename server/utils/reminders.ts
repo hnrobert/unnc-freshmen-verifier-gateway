@@ -31,6 +31,7 @@ import { REMINDER_SLOTS, type Locale, type ReminderSlot, type SiteConfig } from 
 import { detectWelcomeExpiry } from './ocr'
 import { toLocalDateStr } from './qrExpiry'
 import { invalidateOrgConfig } from './orgs'
+import { resolveServerTz } from './serverTz'
 import { renderEmail } from '#server/mail/render'
 import { getMailConfig, sendMailWithConfig } from './mail'
 import { getSiteOrigin } from './siteOrigin'
@@ -46,22 +47,6 @@ const SEND_WINDOW_MS = 24 * 60 * 60 * 1000
 const DEFAULT_SLOTS: ReminderSlot[] = ['-1d', 'day-of']
 /** Default time-of-day (HH:MM) when `welcome.reminderTime` is unset. */
 const DEFAULT_REMINDER_TIME = '12:00'
-
-/**
- * The server's local timezone — the default for `welcome.reminderTz` when an org
- * leaves it unset. Resolved once from Intl (reads `TZ`, then `/etc/localtime`)
- * and logged on first resolution: Intl returns "UTC" silently when the host
- * zone can't be identified (missing/broken `/etc/localtime`, bad `TZ`), so the
- * log is the only way to spot that reminders would fire in UTC. Cached; the
- * host timezone is fixed for the process lifetime.
- */
-let serverTzCache: string | null = null
-export function resolveServerTz(): string {
-  if (serverTzCache !== null) return serverTzCache
-  serverTzCache = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-  console.log(`[reminders] server timezone resolved: ${serverTzCache} (default reminder tz)`)
-  return serverTzCache
-}
 
 const MONTHS_EN = [
   'January',

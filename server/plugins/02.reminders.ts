@@ -1,9 +1,9 @@
 import {
   REMINDER_TICK_MS,
   autoEnableRemindersFromImages,
-  resolveServerTz,
   sendDueReminders,
 } from '#server/utils/reminders'
+import { resolveServerTz } from '#server/utils/serverTz'
 
 /**
  * Boots the QR-expiry reminder system. Runs after `01.db.ts` (Nitro awaits
