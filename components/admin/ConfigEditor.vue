@@ -31,7 +31,7 @@ function toggleReminder(slot: ReminderSlot, checked: boolean): void {
   config.value.welcome.reminders = arr
 }
 
-// Reminder time-of-day (HH:MM, server-local) — defaults to 12:00.
+// Reminder time-of-day (HH:MM, in the org timezone) — defaults to 12:00.
 const reminderTimeModel = computed({
   get: () => config.value.welcome.reminderTime || '12:00',
   set: (v: string) => {
@@ -39,8 +39,54 @@ const reminderTimeModel = computed({
   },
 })
 
-// Live server clock (reminders fire at server-local time). Fetch the server-now
-// offset once, then tick client-side so the displayed time stays current.
+// Curated IANA timezones for the reminder schedule.
+const REMINDER_TZS = [
+  'Asia/Shanghai',
+  'Asia/Hong_Kong',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Asia/Kolkata',
+  'Europe/London',
+  'America/New_York',
+  'America/Los_Angeles',
+  'UTC',
+]
+
+// Reminder timezone (IANA) the schedule runs in. Defaults to the server's local
+// tz (reported by /api/server-time) when the org hasn't set one; falls back to
+// the first curated zone while that fetch is in flight.
+const reminderTzModel = computed({
+  get: () => config.value.welcome.reminderTz || serverTimeData.value?.tz || REMINDER_TZS[0]!,
+  set: (v: string) => {
+    config.value.welcome.reminderTz = v
+  },
+})
+
+/** IANA tz → human-friendly display ("America/New_York" → "America/New York").
+ * The stored value keeps underscores; only the label is prettified. */
+function tzDisplayName(tz: string): string {
+  return tz.replaceAll('_', ' ')
+}
+
+/** IANA tz → "America/New York (GMT-4)" style option label (current offset). */
+function tzLabel(tz: string): string {
+  const display = tzDisplayName(tz)
+  try {
+    const off = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      timeZoneName: 'shortOffset',
+    })
+      .formatToParts(new Date())
+      .find((p) => p.type === 'timeZoneName')?.value
+    return off ? `${display} (${off})` : display
+  } catch {
+    return display
+  }
+}
+
+// Live server clock (informational — reminders fire in the org timezone, see
+// reminderTzModel). Fetch the server-now offset once, then tick client-side so
+// the displayed time stays current.
 const { data: serverTimeData } = await useFetch<{ now: string; tz: string }>('/api/server-time')
 const serverOffsetMs = ref(0)
 watchEffect(() => {
@@ -383,17 +429,29 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
                 </label>
               </div>
 
-              <div class="flex items-center justify-between gap-2 pt-1 text-sm">
+              <div
+                class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 pt-1 text-sm"
+              >
                 <span class="shrink-0">{{ t('editor.reminderTime') }}</span>
-                <input
-                  v-model="reminderTimeModel"
-                  type="time"
-                  class="rounded-md border bg-background px-2 py-1 text-sm"
-                />
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <input
+                    v-model="reminderTimeModel"
+                    type="time"
+                    class="min-w-0 rounded-md border bg-background px-2 py-1 text-sm"
+                  />
+                  <select
+                    v-model="reminderTzModel"
+                    class="h-8 min-w-0 rounded-md border bg-background px-2 text-sm"
+                  >
+                    <option v-for="z in REMINDER_TZS" :key="z" :value="z">{{ tzLabel(z) }}</option>
+                  </select>
+                </div>
               </div>
               <p class="text-xs text-muted-foreground">
-                {{ t('editor.serverTime') }}: {{ serverNow.toLocaleTimeString() }} ({{
-                  serverTimeData?.tz
+                {{ t('editor.remindersFireAt') }}: {{ reminderTimeModel }} ({{
+                  tzDisplayName(reminderTzModel)
+                }}) · {{ t('editor.serverTime') }}: {{ serverNow.toLocaleTimeString() }} ({{
+                  tzDisplayName(serverTimeData?.tz ?? '')
                 }})
               </p>
             </div>
