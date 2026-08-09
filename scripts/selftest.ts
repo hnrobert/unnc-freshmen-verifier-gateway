@@ -13,12 +13,7 @@ import {
   rankOffsets,
 } from '../shared/lib/admissionCore'
 import type { DecodedImage } from '../shared/types'
-import {
-  DEFAULT_REMINDER_TZ,
-  isValidTz,
-  shiftCalendarDate,
-  zonedDateTimeToUtcMs,
-} from '../shared/lib/reminderTz'
+import { isValidTz, shiftCalendarDate, zonedDateTimeToUtcMs } from '../shared/lib/reminderTz'
 
 let passed = 0
 let failed = 0
@@ -179,9 +174,8 @@ check(
   shiftCalendarDate('2026-01-01', -1) === '2025-12-31',
 )
 
-// Timezone validity + default.
+// Timezone validity.
 check('isValidTz accepts IANA, rejects junk', isValidTz('Asia/Shanghai') && !isValidTz('Not/AZone'))
-check('DEFAULT_REMINDER_TZ is Asia/Shanghai', DEFAULT_REMINDER_TZ === 'Asia/Shanghai')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

@@ -8,9 +8,6 @@
  * server's own timezone (e.g. a UTC host fires "12:00 Asia/Shanghai" at 04:00Z).
  */
 
-/** Default IANA timezone the reminder schedule runs against when unset. */
-export const DEFAULT_REMINDER_TZ = 'Asia/Shanghai'
-
 export function isValidTz(tz: string): boolean {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: tz })

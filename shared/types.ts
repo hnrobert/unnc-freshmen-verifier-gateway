@@ -12,7 +12,7 @@ export type Locale = 'zh' | 'en'
 export type Localized<T = string> = Record<Locale, T>
 
 /** Selectable QR-expiry reminder slots. All fire at `welcome.reminderTime`
- * (default 12:00) in the org's `welcome.reminderTz` (default Asia/Shanghai) on
+ * (default 12:00) in the org's `welcome.reminderTz` (unset = server-local) on
  * their respective day: `-3d`/`-2d`/`-1d` = that many days before `expiresAt`,
  * `day-of` = on `expiresAt` itself. */
 export type ReminderSlot = '-3d' | '-2d' | '-1d' | 'day-of'
@@ -69,8 +69,9 @@ export interface WelcomeAssetsConfig {
   /** Time-of-day (HH:MM, 24h) at which reminder slots fire. Default "12:00". */
   reminderTime?: string
   /** IANA timezone (e.g. "Asia/Shanghai") in which `reminderTime` slots fire.
-   * Default "Asia/Shanghai". The scheduler resolves the wall-clock to a UTC
-   * instant, so reminders fire on time regardless of the server's own timezone. */
+   * Empty/unset = use the server's local timezone (logged at boot). The
+   * scheduler resolves the wall-clock to a UTC instant, so when set, reminders
+   * fire on time regardless of the server's own timezone. */
   reminderTz?: string
   /** @deprecated use `reminders`; read only to migrate old config rows. */
   reminderEnabled?: boolean

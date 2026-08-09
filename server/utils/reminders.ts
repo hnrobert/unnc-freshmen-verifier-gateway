@@ -8,16 +8,17 @@
  *  • {@link sendDueReminders} — the scheduler tick (every few minutes): for each
  *    scheduled org, fires each enabled reminder slot (`-3d`/`-2d`/`-1d`/`day-of`,
  *    all at `welcome.reminderTime` — default 12:00 — in the org's
- *    `welcome.reminderTz`, default Asia/Shanghai) to opted-in members, recording
+ *    `welcome.reminderTz`, default server-local) to opted-in members, recording
  *    each send in `OrgReminderSent` so it never repeats (the table's unique
  *    constraint also makes it race-safe across instances).
  *
- * Reminder targets are resolved to UTC instants in the org's timezone, so they
- * fire at the configured wall-clock regardless of the server's own timezone
- * (e.g. a UTC host fires "12:00 Asia/Shanghai" at 04:00Z). `qrExpiry.ts` OCR
- * dates remain server-local calendar days. Everything is best-effort:
- * OCR failures, missing mail config, or no opted-in recipients degrade to a
- * silent no-op rather than crashing the scheduler.
+ * Reminder targets are resolved to UTC instants in the org's timezone: when an
+ * org sets `reminderTz`, targets fire at that wall-clock regardless of the
+ * server's own timezone (e.g. a UTC host fires "12:00 Asia/Shanghai" at 04:00Z);
+ * when unset, the server's local timezone is used (see `resolveServerTz`).
+ * `qrExpiry.ts` OCR dates remain server-local calendar days. Everything is
+ * best-effort: OCR failures, missing mail config, or no opted-in recipients
+ * degrade to a silent no-op rather than crashing the scheduler.
  */
 import { AppDataSource } from './database'
 import { Organization } from '#server/entities/organization.entity'
@@ -33,12 +34,7 @@ import { invalidateOrgConfig } from './orgs'
 import { renderEmail } from '#server/mail/render'
 import { getMailConfig, sendMailWithConfig } from './mail'
 import { getSiteOrigin } from './siteOrigin'
-import {
-  DEFAULT_REMINDER_TZ,
-  isValidTz,
-  shiftCalendarDate,
-  zonedDateTimeToUtcMs,
-} from '#shared/lib/reminderTz'
+import { isValidTz, shiftCalendarDate, zonedDateTimeToUtcMs } from '#shared/lib/reminderTz'
 
 /** How often the scheduler wakes to check for due reminders. */
 export const REMINDER_TICK_MS = 5 * 60 * 1000
@@ -50,6 +46,22 @@ const SEND_WINDOW_MS = 24 * 60 * 60 * 1000
 const DEFAULT_SLOTS: ReminderSlot[] = ['-1d', 'day-of']
 /** Default time-of-day (HH:MM) when `welcome.reminderTime` is unset. */
 const DEFAULT_REMINDER_TIME = '12:00'
+
+/**
+ * The server's local timezone — the default for `welcome.reminderTz` when an org
+ * leaves it unset. Resolved once from Intl (reads `TZ`, then `/etc/localtime`)
+ * and logged on first resolution: Intl returns "UTC" silently when the host
+ * zone can't be identified (missing/broken `/etc/localtime`, bad `TZ`), so the
+ * log is the only way to spot that reminders would fire in UTC. Cached; the
+ * host timezone is fixed for the process lifetime.
+ */
+let serverTzCache: string | null = null
+export function resolveServerTz(): string {
+  if (serverTzCache !== null) return serverTzCache
+  serverTzCache = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  console.log(`[reminders] server timezone resolved: ${serverTzCache} (default reminder tz)`)
+  return serverTzCache
+}
 
 const MONTHS_EN = [
   'January',
@@ -265,8 +277,8 @@ export async function sendDueReminders(): Promise<void> {
       if (!org) continue
 
       for (const slot of slots) {
-        const rawTz = config.welcome?.reminderTz || DEFAULT_REMINDER_TZ
-        const tz = isValidTz(rawTz) ? rawTz : DEFAULT_REMINDER_TZ
+        const rawTz = config.welcome?.reminderTz || resolveServerTz()
+        const tz = isValidTz(rawTz) ? rawTz : resolveServerTz()
         const target = reminderTarget(expiresAt, slot, config.welcome?.reminderTime, tz)
         if (now < target || now >= target + SEND_WINDOW_MS) continue // not yet / too late
 

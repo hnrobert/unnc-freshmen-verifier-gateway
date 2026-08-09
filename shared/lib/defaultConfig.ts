@@ -56,8 +56,8 @@ const config: SiteConfig = {
     reminders: [],
     // Time-of-day (HH:MM) when slots fire.
     reminderTime: '12:00',
-    // IANA timezone the reminder schedule runs against.
-    reminderTz: 'Asia/Shanghai',
+    // IANA timezone the schedule runs in. '' = use the server's local timezone.
+    reminderTz: '',
   },
 
   // Optional full-page background (upload via the editor → img:background).

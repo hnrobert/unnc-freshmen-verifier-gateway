@@ -52,9 +52,11 @@ const REMINDER_TZS = [
   'UTC',
 ]
 
-// Reminder timezone (IANA) the schedule runs against — defaults to Asia/Shanghai.
+// Reminder timezone (IANA) the schedule runs in. Defaults to the server's local
+// tz (reported by /api/server-time) when the org hasn't set one; falls back to
+// the first curated zone while that fetch is in flight.
 const reminderTzModel = computed({
-  get: () => config.value.welcome.reminderTz || 'Asia/Shanghai',
+  get: () => config.value.welcome.reminderTz || serverTimeData.value?.tz || REMINDER_TZS[0]!,
   set: (v: string) => {
     config.value.welcome.reminderTz = v
   },
