@@ -3,6 +3,7 @@ import {
   autoEnableRemindersFromImages,
   sendDueReminders,
 } from '#server/utils/reminders'
+import { resolveServerTz } from '#server/utils/serverTz'
 
 /**
  * Boots the QR-expiry reminder system. Runs after `01.db.ts` (Nitro awaits
@@ -16,6 +17,9 @@ import {
  * Both timers are unref'd so they never keep the process alive on shutdown.
  */
 export default defineNitroPlugin(() => {
+  // Resolve + log the server's timezone once at boot, so a silent-UTC
+  // misconfiguration (missing/broken /etc/localtime, bad TZ) is visible.
+  resolveServerTz()
   void autoEnableRemindersFromImages().catch((e) =>
     console.error('[reminders] startup scan error:', e),
   )
