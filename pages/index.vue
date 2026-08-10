@@ -154,7 +154,7 @@ const vReveal = {
 
 <template>
   <div
-    class="relative min-h-screen bg-background text-foreground antialiased"
+    class="relative min-h-screen overflow-x-clip bg-background text-foreground antialiased"
     :style="{
       '--radius': '0.65rem',
       '--primary': '#F7D447',
@@ -174,14 +174,16 @@ const vReveal = {
 
     <!-- Header -->
     <header class="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-md">
-      <div class="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5">
-        <a href="/" class="group flex items-center gap-2.5">
+      <div
+        class="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:gap-4 sm:px-5"
+      >
+        <a href="/" class="group flex min-w-0 items-center gap-2.5">
           <img
             src="/favicon.svg"
             alt=""
-            class="size-9 rounded-lg shadow-sm transition-transform duration-300 group-hover:-rotate-6"
+            class="size-9 shrink-0 rounded-lg shadow-sm transition-transform duration-300 group-hover:-rotate-6"
           />
-          <span class="text-[15px] font-semibold tracking-tight"
+          <span class="min-w-0 truncate text-sm font-semibold tracking-tight sm:text-[15px]"
             >UNNC Freshmen Verifier Gateway</span
           >
         </a>
@@ -202,7 +204,7 @@ const vReveal = {
             rel="noopener"
             :aria-label="t('home.navSource')"
             :title="t('home.navSource')"
-            class="inline-flex size-9 items-center justify-center rounded-md text-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+            class="hidden size-9 items-center justify-center rounded-md text-foreground/70 transition-colors hover:bg-accent hover:text-foreground sm:inline-flex"
           >
             <GithubMark :size="18" />
           </a>
@@ -250,10 +252,10 @@ const vReveal = {
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-6xl px-5">
+    <main class="mx-auto w-full max-w-6xl px-4 sm:px-5">
       <!-- Hero -->
       <section
-        class="grid items-center gap-12 py-16 md:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16"
+        class="grid items-center gap-10 py-14 md:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16"
       >
         <div>
           <span
