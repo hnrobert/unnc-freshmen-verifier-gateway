@@ -7,10 +7,14 @@ import {
   ArrowRight,
   BarChart3,
   Check,
+  EyeOff,
+  Fingerprint,
+  LockKeyhole,
   Mail,
   Moon,
   Palette,
   ScanLine,
+  ServerCog,
   ShieldCheck,
   Sun,
   Users,
@@ -132,6 +136,13 @@ const steps = computed(() => [
   { n: '03', title: t('home.step3Title'), desc: t('home.step3Desc') },
 ])
 
+const security = computed(() => [
+  { icon: LockKeyhole, title: t('home.s1Title'), desc: t('home.s1Desc') },
+  { icon: Fingerprint, title: t('home.s2Title'), desc: t('home.s2Desc') },
+  { icon: ServerCog, title: t('home.s3Title'), desc: t('home.s3Desc') },
+  { icon: EyeOff, title: t('home.s4Title'), desc: t('home.s4Desc') },
+])
+
 // Fade/translate an element in once it scrolls into view. The `.reveal` base
 // class holds the pre-animation state (so SSR + first paint are identical and
 // screen readers still read opacity:0 content); this just flips `.is-in`.
@@ -197,6 +208,11 @@ const vReveal = {
             href="#how"
             class="hidden rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
             >{{ t('home.navHow') }}</a
+          >
+          <a
+            href="#security"
+            class="hidden rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
+            >{{ t('home.navSecurity') }}</a
           >
           <a
             :href="SITE_REPO_URL"
@@ -431,6 +447,32 @@ const vReveal = {
             <h3 class="mt-4 text-base font-semibold">{{ s.title }}</h3>
             <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">{{ s.desc }}</p>
           </div>
+        </div>
+      </section>
+
+      <!-- Security & privacy -->
+      <section id="security" class="scroll-mt-20 py-16 md:py-24">
+        <div v-reveal class="reveal max-w-2xl">
+          <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
+            {{ t('home.securityTitle') }}
+          </h2>
+          <p class="mt-3 text-muted-foreground">{{ t('home.securitySubtitle') }}</p>
+        </div>
+        <div class="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <article
+            v-for="(s, i) in security"
+            :key="i"
+            v-reveal="i * 70"
+            class="reveal group rounded-2xl border border-border/70 bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-black/5"
+          >
+            <span
+              class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-foreground transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground"
+            >
+              <component :is="s.icon" :size="20" :stroke-width="2" />
+            </span>
+            <h3 class="mt-4 text-base font-semibold leading-tight">{{ s.title }}</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">{{ s.desc }}</p>
+          </article>
         </div>
       </section>
 

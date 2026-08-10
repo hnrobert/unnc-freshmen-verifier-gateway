@@ -6,6 +6,7 @@ import { OrgImage } from '#server/entities/orgImage.entity'
 import { OrgMember } from '#server/entities/orgMember.entity'
 import { OrgEvent } from '#server/entities/orgEvent.entity'
 import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
+import { OrgVerifiedIdentity } from '#server/entities/orgVerifiedIdentity.entity'
 import type { SiteConfig } from '#shared/types'
 import { resolveImageRefs } from './config'
 import { applyDefaults } from '#shared/lib/applyDefaults'
@@ -72,5 +73,6 @@ export async function deleteOrgCascade(orgId: number): Promise<void> {
   await AppDataSource.getRepository(OrgMember).delete({ orgId })
   await AppDataSource.getRepository(OrgEvent).delete({ orgId })
   await AppDataSource.getRepository(OrgDailyStat).delete({ orgId })
+  await AppDataSource.getRepository(OrgVerifiedIdentity).delete({ orgId })
   await AppDataSource.getRepository(Organization).delete(orgId)
 }

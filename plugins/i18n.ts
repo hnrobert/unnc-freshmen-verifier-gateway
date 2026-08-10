@@ -119,6 +119,7 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
     home: {
       navFeatures: '功能',
       navHow: '流程',
+      navSecurity: '安全',
       navSource: '源码',
       badge: '为 UNNC 学生组织打造',
       title: '让代写有多远滚多远',
@@ -148,6 +149,17 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       step2Desc: '把专属链接发给新生，他们填入姓名与准考证号即可验证。',
       step3Title: '实时验证',
       step3Desc: '系统即时查询门户，展示录取信息与欢迎页，访问全程可统计。',
+      securityTitle: '隐私优先，安全打底',
+      securitySubtitle: '从身份核验到账户登录，每一步都按最小化与不可逆原则设计。',
+      s1Title: '身份信息仅存哈希',
+      s1Desc: '姓名之外，身份证号与 IP 仅以加盐 SHA-256 哈希存储，绝不落明文。',
+      s2Title: 'Passkey 免密登录',
+      s2Desc:
+        '管理员可用 Face ID / Touch ID / 安全密钥登录，密码以 argon2id 加盐哈希，绝不留存明文。',
+      s3Title: '服务端直连门户',
+      s3Desc: '与 UNNC 录取门户的查询全部在服务端完成，新生的凭证永远不会出现在浏览器里。',
+      s4Title: '最小化数据',
+      s4Desc: '地区由浏览器语言推断、不做 GeoIP 定位，原始访问日志 90 天后自动清理。',
       ctaBandTitle: '准备好为你的组织搭建验证页了吗？',
       ctaBandDesc: '登录即可创建组织，开始定制属于你的验证页面。',
       themeToggle: '切换主题',
@@ -269,6 +281,7 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
     home: {
       navFeatures: 'Features',
       navHow: 'How it works',
+      navSecurity: 'Security',
       navSource: 'Source',
       badge: 'Built for UNNC student orgs',
       title: 'PISS OFF, Ghostwriting',
@@ -304,6 +317,21 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       step3Title: 'Verify in real time',
       step3Desc:
         'The system queries the portal live, shows admission details and the welcome page, and tracks every visit.',
+      securityTitle: 'Privacy-first by design',
+      securitySubtitle:
+        'From identity checks to sign-in, every step favors minimal, irreversible data.',
+      s1Title: 'Identity stored as hashes',
+      s1Desc:
+        'Beyond the name, ID numbers and IPs are kept only as salted SHA-256 hashes — never plaintext.',
+      s2Title: 'Passkey sign-in',
+      s2Desc:
+        'Admins sign in with Face ID, Touch ID or a security key; passwords are salted with argon2id, never stored in clear.',
+      s3Title: 'Server-side portal queries',
+      s3Desc:
+        "Every check against the UNNC admission portal runs on the server — a freshman's credentials never reach the browser.",
+      s4Title: 'Minimal data',
+      s4Desc:
+        'Region is inferred from browser language with no GeoIP tracking, and raw event logs are pruned after 90 days.',
       ctaBandTitle: 'Ready to set up verification for your org?',
       ctaBandDesc: 'Sign in to create an org and start customizing your own verification page.',
       themeToggle: 'Toggle theme',

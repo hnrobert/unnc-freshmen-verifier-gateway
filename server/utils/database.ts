@@ -8,7 +8,7 @@ import { Organization } from '#server/entities/organization.entity'
 import { OrgSetting } from '#server/entities/orgSetting.entity'
 import { OrgImage } from '#server/entities/orgImage.entity'
 import { Passkey } from '#server/entities/passkey.entity'
-import { Verification } from '#server/entities/verification.entity'
+import { OrgVerifiedIdentity } from '#server/entities/orgVerifiedIdentity.entity'
 import { AppSetting } from '#server/entities/appSetting.entity'
 import { OrgMember } from '#server/entities/orgMember.entity'
 import { OrgEvent } from '#server/entities/orgEvent.entity'
@@ -43,7 +43,7 @@ export const AppDataSource = new DataSource({
     Organization,
     OrgSetting,
     OrgImage,
-    Verification,
+    OrgVerifiedIdentity,
     AppSetting,
     Passkey,
     OrgMember,

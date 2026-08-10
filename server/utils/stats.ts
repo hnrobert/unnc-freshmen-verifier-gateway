@@ -4,6 +4,7 @@ import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
 import { OrgEvent } from '#server/entities/orgEvent.entity'
 import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
+import { OrgVerifiedIdentity } from '#server/entities/orgVerifiedIdentity.entity'
 import { Organization } from '#server/entities/organization.entity'
 import { listAccessibleOrgs, type EffectiveRole } from './members'
 
@@ -139,6 +140,70 @@ export async function recordVerify(
 /** Hash a normalized ID number for storage (call before recordVerify). */
 export function hashIdNumber(normalizedId: string): string | null {
   return hash(normalizedId)
+}
+
+/**
+ * Salted SHA-256 of a visitor's device fingerprint (the `vg_device` cookie +
+ * User-Agent). Used to bind the verify JWT to the browser that earned it, so a
+ * token issued in one browser can't be replayed to skip verification in another.
+ * Like {@link hashIdNumber} it is one-way and stable across restarts.
+ */
+export function hashDevice(deviceId: string, userAgent: string): string {
+  return createHash('sha256')
+    .update(getSalt())
+    .update(deviceId)
+    .update('|')
+    .update(userAgent)
+    .digest('hex')
+}
+
+/**
+ * Device fingerprint for the current request. Combines the `vg_device` cookie
+ * with the User-Agent; when no cookie is present yet (first request before the
+ * client plugin has set it, or cookies blocked) it degrades to a UA-only hash —
+ * always returns a string so sign/verify stay consistent across requests.
+ */
+export function deviceHashFromRequest(event: H3Event): string {
+  const deviceId = getCookie(event, 'vg_device') ?? ''
+  return hashDevice(deviceId, getRequestHeader(event, 'user-agent') || '')
+}
+
+/**
+ * Has this name + ID hash already been verified for this org? The "already used"
+ * check — answers without re-querying the UNNC portal. Best-effort: on any error
+ * returns false (fail open: the caller will simply verify again).
+ */
+export async function findVerifiedIdentity(orgId: number, idHash: string | null): Promise<boolean> {
+  if (!idHash) return false
+  try {
+    const row = await AppDataSource.getRepository(OrgVerifiedIdentity).findOne({
+      where: { orgId, idHash },
+    })
+    return !!row
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Record a verified identity for (org, idHash) — idempotent. Best-effort, never
+ * throws (dedup must not break a verify response). Uses INSERT OR IGNORE so the
+ * unique (org_id, id_hash) index makes repeat admits a no-op.
+ */
+export async function upsertVerifiedIdentity(
+  orgId: number,
+  name: string,
+  idHash: string | null,
+): Promise<void> {
+  if (!idHash) return
+  try {
+    await AppDataSource.query(
+      'INSERT OR IGNORE INTO org_verified_identities (org_id, name, id_hash) VALUES (?, ?, ?)',
+      [orgId, name, idHash],
+    )
+  } catch {
+    // best-effort
+  }
 }
 
 // Opportunistic retention prune — at most once per 24h per process.
