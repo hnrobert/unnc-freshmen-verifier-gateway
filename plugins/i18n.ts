@@ -139,7 +139,7 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       f5Title: '邮件系统',
       f5Desc: '验证码、邀请、到期提醒，文案均可自定义，支持 SMTP 与 POST。',
       f6Title: '二维码到期检测',
-      f6Desc: 'OCR 自动识别海报上的到期日期，按组织时区定时提醒。',
+      f6Desc: 'OCR 自动识别海报上的到期日期，接受时段可自定义。',
       howTitle: '三步上线',
       howSubtitle: '从创建组织到向新生开放，几分钟即可完成。',
       step1Title: '创建组织',
@@ -293,7 +293,7 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
         'Verification codes, invitations and expiry reminders — all copy customizable, SMTP and POST supported.',
       f6Title: 'QR expiry detection',
       f6Desc:
-        'OCR auto-detects the expiry date on posters and reminds on schedule, in each org’s timezone.',
+        'OCR auto-detects the expiry date on posters and reminds on schedule, customizable notification frequency and time window.',
       howTitle: 'Up in three steps',
       howSubtitle: 'From creating an org to opening it up to freshmen in minutes.',
       step1Title: 'Create an org',
