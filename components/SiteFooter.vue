@@ -1,8 +1,16 @@
 <script setup lang="ts">
-import { abort } from 'node:process'
+import {
+  SITE_AUTHOR_NAME,
+  SITE_AUTHOR_URL,
+  SITE_LICENSE,
+  SITE_LICENSE_URL,
+  SITE_ORG_NAME,
+  SITE_ORG_URL,
+  SITE_REPO_URL,
+  SITE_TITLE,
+} from '#shared/lib/site'
 
 const year = new Date().getFullYear()
-const REPO = 'https://github.com/hnrobert/unnc-freshmen-verifier-gateway'
 </script>
 
 <template>
@@ -10,21 +18,21 @@ const REPO = 'https://github.com/hnrobert/unnc-freshmen-verifier-gateway'
     <div class="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
       <span
         >© {{ year }}
-        <NuxtLink to="/" class="underline-offset-2 hover:underline"
-          >UNNC Freshmen Verifier Gateway</NuxtLink
-        ></span
+        <NuxtLink to="/" class="underline-offset-2 hover:underline">{{
+          SITE_TITLE
+        }}</NuxtLink></span
       >
       <span aria-hidden="true">·</span>
       <a
-        :href="`${REPO}/blob/main/LICENSE`"
+        :href="SITE_LICENSE_URL"
         target="_blank"
         rel="noopener noreferrer"
         class="underline-offset-2 hover:underline"
-        >Apache-2.0</a
+        >{{ SITE_LICENSE }}</a
       >
       <span aria-hidden="true">·</span>
       <a
-        :href="REPO"
+        :href="SITE_REPO_URL"
         target="_blank"
         rel="noopener noreferrer"
         class="underline-offset-2 hover:underline"
@@ -34,19 +42,19 @@ const REPO = 'https://github.com/hnrobert/unnc-freshmen-verifier-gateway'
     <div class="mt-1">
       Made with heart by
       <a
-        href="https://github.com/hnrobert"
+        :href="SITE_AUTHOR_URL"
         target="_blank"
         rel="noopener noreferrer"
         class="underline-offset-2 hover:underline"
-        >Robert He</a
+        >{{ SITE_AUTHOR_NAME }}</a
       >
       @
       <a
-        href="https://github.com/CompPsyUnion"
+        :href="SITE_ORG_URL"
         target="_blank"
         rel="noopener noreferrer"
         class="underline-offset-2 hover:underline"
-        >CompPsyUnion</a
+        >{{ SITE_ORG_NAME }}</a
       >
     </div>
   </footer>
