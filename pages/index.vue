@@ -86,48 +86,12 @@ useHead({
 })
 
 const features = computed(() => [
-  {
-    icon: ShieldCheck,
-    title: t('home.f1Title'),
-    desc: t('home.f1Desc'),
-    span: 'lg:col-span-3',
-    wide: false,
-  },
-  {
-    icon: Palette,
-    title: t('home.f2Title'),
-    desc: t('home.f2Desc'),
-    span: 'lg:col-span-3',
-    wide: false,
-  },
-  {
-    icon: Users,
-    title: t('home.f3Title'),
-    desc: t('home.f3Desc'),
-    span: 'lg:col-span-2',
-    wide: false,
-  },
-  {
-    icon: BarChart3,
-    title: t('home.f4Title'),
-    desc: t('home.f4Desc'),
-    span: 'lg:col-span-2',
-    wide: false,
-  },
-  {
-    icon: Mail,
-    title: t('home.f5Title'),
-    desc: t('home.f5Desc'),
-    span: 'lg:col-span-2',
-    wide: false,
-  },
-  {
-    icon: ScanLine,
-    title: t('home.f6Title'),
-    desc: t('home.f6Desc'),
-    span: 'lg:col-span-6',
-    wide: true,
-  },
+  { icon: ShieldCheck, title: t('home.f1Title'), desc: t('home.f1Desc') },
+  { icon: Palette, title: t('home.f2Title'), desc: t('home.f2Desc') },
+  { icon: Users, title: t('home.f3Title'), desc: t('home.f3Desc') },
+  { icon: BarChart3, title: t('home.f4Title'), desc: t('home.f4Desc') },
+  { icon: Mail, title: t('home.f5Title'), desc: t('home.f5Desc') },
+  { icon: ScanLine, title: t('home.f6Title'), desc: t('home.f6Desc') },
 ])
 
 const steps = computed(() => [
@@ -386,36 +350,20 @@ const vReveal = {
           </h2>
           <p class="mt-3 text-muted-foreground">{{ t('home.featuresSubtitle') }}</p>
         </div>
-        <div class="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <div class="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <article
             v-for="(f, i) in features"
             :key="i"
             v-reveal="i * 70"
-            :class="[
-              'reveal group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-black/5',
-              f.span,
-            ]"
+            class="reveal group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-black/5"
           >
-            <div
-              :class="
-                f.wide ? 'flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5' : 'contents'
-              "
+            <span
+              class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-foreground transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground"
             >
-              <span
-                class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-foreground transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground"
-              >
-                <component :is="f.icon" :size="20" :stroke-width="2" />
-              </span>
-              <div>
-                <h3
-                  class="font-semibold leading-tight"
-                  :class="f.wide ? 'text-lg sm:pt-1' : 'mt-4 text-base'"
-                >
-                  {{ f.title }}
-                </h3>
-                <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">{{ f.desc }}</p>
-              </div>
-            </div>
+              <component :is="f.icon" :size="20" :stroke-width="2" />
+            </span>
+            <h3 class="mt-4 text-base font-semibold leading-tight">{{ f.title }}</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">{{ f.desc }}</p>
           </article>
         </div>
       </section>
