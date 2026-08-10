@@ -303,53 +303,59 @@ const vReveal = {
           </div>
         </div>
 
-        <!-- Verify-card mock (stylized product preview, theme-driven) -->
+        <!-- Verify-card mock: a 2.5D tilted plane whose components float at
+             different Z heights with desynchronised bobbing, instead of a flat
+             card sliding up and down. -->
         <div v-reveal="200" class="reveal relative">
           <div
             aria-hidden="true"
             class="absolute inset-5 -z-10 rounded-4xl bg-primary/15 blur-2xl"
           ></div>
-          <div
-            class="mock-card mx-auto w-full max-w-sm rounded-2xl border border-border/70 bg-card p-6 shadow-xl shadow-black/5"
-          >
-            <div class="flex items-center gap-3">
-              <img src="/favicon.svg" alt="" class="size-10 rounded-lg shadow-sm" />
-              <div class="space-y-1.5">
-                <div class="h-2.5 w-24 rounded-full bg-foreground/80"></div>
-                <div class="h-2 w-16 rounded-full bg-muted-foreground/40"></div>
-              </div>
-            </div>
-            <div class="my-5 h-px bg-border/70"></div>
-            <div class="space-y-3.5">
-              <div>
-                <div class="mb-1.5 h-2 w-12 rounded-full bg-muted-foreground/50"></div>
-                <div
-                  class="flex h-9 w-full items-center rounded-md border border-border/70 bg-background px-3"
-                >
-                  <div class="h-2.5 w-2/3 rounded-full bg-foreground/15"></div>
-                </div>
-              </div>
-              <div>
-                <div class="mb-1.5 h-2 w-16 rounded-full bg-muted-foreground/50"></div>
-                <div
-                  class="flex h-9 w-full items-center rounded-md border border-border/70 bg-background px-3"
-                >
-                  <div class="h-2.5 w-1/2 rounded-full bg-foreground/15"></div>
-                </div>
-              </div>
-            </div>
-            <div class="mt-5 h-10 w-full rounded-lg bg-primary"></div>
+          <div class="mock-scene">
             <div
-              class="mt-4 flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5"
+              class="mock-card mx-auto w-full max-w-sm rounded-2xl border border-border/70 bg-card p-6 shadow-xl shadow-black/5"
             >
-              <span
-                class="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground"
+              <div class="float-layer layer-head flex items-center gap-3">
+                <img src="/favicon.svg" alt="" class="size-10 rounded-lg shadow-sm" />
+                <div class="space-y-1.5">
+                  <div class="h-2.5 w-24 rounded-full bg-foreground/80"></div>
+                  <div class="h-2 w-16 rounded-full bg-muted-foreground/40"></div>
+                </div>
+              </div>
+              <div class="my-5 h-px bg-border/70"></div>
+              <div class="float-layer layer-inputs space-y-3.5">
+                <div>
+                  <div class="mb-1.5 h-2 w-12 rounded-full bg-muted-foreground/50"></div>
+                  <div
+                    class="flex h-9 w-full items-center rounded-md border border-border/70 bg-background px-3"
+                  >
+                    <div class="h-2.5 w-2/3 rounded-full bg-foreground/15"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="mb-1.5 h-2 w-16 rounded-full bg-muted-foreground/50"></div>
+                  <div
+                    class="flex h-9 w-full items-center rounded-md border border-border/70 bg-background px-3"
+                  >
+                    <div class="h-2.5 w-1/2 rounded-full bg-foreground/15"></div>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="float-layer layer-btn mt-5 h-10 w-full rounded-lg bg-primary shadow-lg shadow-black/10"
+              ></div>
+              <div
+                class="float-layer layer-badge mt-4 flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 shadow-md shadow-black/5"
               >
-                <Check :size="14" :stroke-width="3" />
-              </span>
-              <div class="space-y-1.5">
-                <div class="h-2 w-20 rounded-full bg-foreground/70"></div>
-                <div class="h-1.5 w-28 rounded-full bg-muted-foreground/40"></div>
+                <span
+                  class="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                >
+                  <Check :size="14" :stroke-width="3" />
+                </span>
+                <div class="space-y-1.5">
+                  <div class="h-2 w-20 rounded-full bg-foreground/70"></div>
+                  <div class="h-1.5 w-28 rounded-full bg-muted-foreground/40"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -509,16 +515,56 @@ const vReveal = {
     transform: translate(-5%, 5%);
   }
 }
+/* Hero mock: a 2.5D tilted plane. `.mock-scene` sets the perspective; `.mock-card`
+   is the receding plane (rotateX/Y) that bobs vertically; each `.float-layer`
+   lifts off the plane at its own Z height and bobs on a desynchronised phase, so
+   the components read as hovering at different elevations. GPU transforms only. */
+.mock-scene {
+  perspective: 1300px;
+  perspective-origin: 50% 20%;
+}
 .mock-card {
+  transform: rotateX(40deg) rotateY(0deg);
+  transform-style: preserve-3d;
   animation: floaty 7s ease-in-out infinite;
 }
 @keyframes floaty {
   0%,
   100% {
-    transform: translateY(0);
+    transform: rotateX(30deg) rotateY(0deg) rotateZ(0deg) translateY(0);
   }
   50% {
-    transform: translateY(-10px);
+    transform: rotateX(30deg) rotateY(0deg) rotateZ(0deg) translateY(-12px);
+  }
+}
+/* Each layer keeps its Z lift as the base transform (so reduced-motion still
+   shows the layered depth) and only bobs vertically on its own phase. */
+.float-layer {
+  transform: translateZ(var(--z, 0px));
+}
+.layer-head {
+  --z: 12px;
+  animation: bob 6.2s ease-in-out -0.6s infinite;
+}
+.layer-inputs {
+  --z: 24px;
+  animation: bob 5.6s ease-in-out -1.8s infinite;
+}
+.layer-btn {
+  --z: 36px;
+  animation: bob 6.8s ease-in-out -3s infinite;
+}
+.layer-badge {
+  --z: 48px;
+  animation: bob 7.3s ease-in-out -4.1s infinite;
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateZ(var(--z, 0px)) translateY(0);
+  }
+  50% {
+    transform: translateZ(var(--z, 0px)) translateY(-5px);
   }
 }
 
@@ -529,7 +575,8 @@ const vReveal = {
     transition: none !important;
   }
   .blob,
-  .mock-card {
+  .mock-card,
+  .float-layer {
     animation: none !important;
   }
 }

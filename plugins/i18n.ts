@@ -122,7 +122,7 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       navSource: '源码',
       badge: '为 UNNC 学生组织打造',
       title: '让代写有多远滚多远',
-      subtitle: '为每一个学生组织生成专属的验证页面',
+      subtitle: '为每一个学生组织定制专属的入群验证页面',
       cta: '进入控制台',
       secondary: '查看源码',
       featuresTitle: '一个平台，覆盖验证的全流程',
