@@ -21,6 +21,15 @@ export class User {
   @Column({ type: 'text', default: 'admin' })
   role!: string
 
+  /**
+   * Per-user cap on the number of organizations this account can create.
+   * `null` = fall back to the default admin limit (see DEFAULT_ADMIN_ORG_LIMIT).
+   * Superadmins are always unlimited regardless of this value. Configured by a
+   * superadmin from the Users panel.
+   */
+  @Column({ name: 'org_limit', type: 'integer', nullable: true })
+  orgLimit!: number | null
+
   /** Preferred UI / notification locale ('zh' | 'en'). Null until first visit. */
   @Column({ type: 'text', nullable: true })
   locale!: string | null

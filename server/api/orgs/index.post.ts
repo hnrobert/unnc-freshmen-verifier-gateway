@@ -1,6 +1,8 @@
 import { AppDataSource } from '#server/utils/database'
 import { Organization } from '#server/entities/organization.entity'
 import { OrgSetting } from '#server/entities/orgSetting.entity'
+import { User } from '#server/entities/user.entity'
+import { getDefaultAdminOrgLimit } from '#server/utils/limits'
 import defaultConfig from '#shared/lib/defaultConfig'
 import type { SiteConfig } from '#shared/types'
 import type { Locale } from '#shared/types'
@@ -30,6 +32,21 @@ export default defineEventHandler(async (event) => {
   if (!name) throw createError({ statusCode: 400, statusMessage: 'Name is required' })
 
   const orgRepo = AppDataSource.getRepository(Organization)
+
+  // Org-creation cap. Superadmins are unlimited; regular admins are bounded by
+  // their per-user limit, else the app-wide default (superadmin-tunable).
+  if (user.role !== 'superadmin') {
+    const owner = await AppDataSource.getRepository(User).findOneBy({ id: user.id })
+    const limit = owner?.orgLimit ?? (await getDefaultAdminOrgLimit())
+    const owned = await orgRepo.count({ where: { ownerId: user.id } })
+    if (owned >= limit) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: `Organization limit reached (${owned}/${limit}). Ask a superadmin to raise it.`,
+      })
+    }
+  }
+
   const existing = await orgRepo.findOne({ where: { slug } })
   if (existing) throw createError({ statusCode: 409, statusMessage: 'Slug already taken' })
 

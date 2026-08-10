@@ -20,6 +20,14 @@ export type ReminderSlot = '-3d' | '-2d' | '-1d' | 'day-of'
 /** All valid reminder slots (single source of truth for the UI, validator, scheduler). */
 export const REMINDER_SLOTS: readonly ReminderSlot[] = ['-3d', '-2d', '-1d', 'day-of']
 
+/**
+ * Default maximum number of organizations a regular admin (`role: 'admin'`) may
+ * create. A superadmin can raise (or lower) this per-user via the Users panel
+ * (`User.orgLimit`); `null` on the user falls back to this default. Superadmins
+ * themselves are always unlimited.
+ */
+export const DEFAULT_ADMIN_ORG_LIMIT = 3
+
 /** An icon reference: a lucide-vue-next name, or an image URL/key for custom art. */
 export interface IconSpec {
   /** A lucide-vue-next icon name, e.g. `"User"`, `"GraduationCap"`. */
