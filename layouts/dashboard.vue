@@ -126,10 +126,16 @@ function tabActive(to: string, exact: boolean) {
     >
       <!-- Brand -->
       <div class="flex h-14 items-center gap-2 border-b px-5">
-        <img src="/favicon.svg" alt="" class="size-8 shrink-0 rounded-lg" />
-        <span class="flex-1 text-sm font-semibold leading-tight"
-          >UNNC Freshmen<br />Verifier Gateway</span
+        <NuxtLink
+          to="/"
+          class="flex min-w-0 flex-1 items-center gap-2"
+          aria-label="UNNC Freshmen Verifier Gateway — home"
         >
+          <img src="/favicon.svg" alt="" class="size-8 shrink-0 rounded-lg" />
+          <span class="min-w-0 text-sm font-semibold leading-tight"
+            >UNNC Freshmen<br />Verifier Gateway</span
+          >
+        </NuxtLink>
         <button
           class="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"
           :title="mode === 'dark' ? 'Light mode' : 'Dark mode'"
@@ -310,8 +316,16 @@ function tabActive(to: string, exact: boolean) {
         >
           <Icon spec="Menu" :size="20" />
         </button>
-        <img src="/favicon.svg" alt="" class="size-7 shrink-0 rounded-lg" />
-        <span class="text-sm font-semibold">UNNC Freshmen Verifier Gateway</span>
+        <NuxtLink
+          to="/"
+          class="flex min-w-0 items-center gap-2"
+          aria-label="UNNC Freshmen Verifier Gateway — home"
+        >
+          <img src="/favicon.svg" alt="" class="size-7 shrink-0 rounded-lg" />
+          <span class="min-w-0 text-sm font-semibold leading-tight"
+            >UNNC Freshmen <br />Verifier Gateway</span
+          >
+        </NuxtLink>
         <!-- Theme toggle -->
         <button
           class="ml-auto flex size-8 items-center justify-center rounded-lg border text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"

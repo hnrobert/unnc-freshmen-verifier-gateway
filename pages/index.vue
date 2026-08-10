@@ -15,7 +15,7 @@ import {
   Sun,
   Users,
 } from 'lucide-vue-next'
-import { SITE_REPO_URL } from '#shared/lib/site'
+import { SITE_REPO_URL, SITE_TITLE } from '#shared/lib/site'
 
 // The root `/` has no org, so the org-scoped default layout, BrandMark and
 // LanguageToggle (which all read `useOrgConfig()`) can't be reused. This page is
@@ -76,7 +76,7 @@ const GithubMark = defineComponent({
 })
 
 useHead({
-  title: () => t('home.title'),
+  title: SITE_TITLE,
   htmlAttrs: { lang: () => (locale.value === 'zh' ? 'zh-CN' : 'en') },
   meta: [{ name: 'description', content: () => t('home.subtitle') }],
 })
@@ -183,8 +183,8 @@ const vReveal = {
             alt=""
             class="size-9 shrink-0 rounded-lg shadow-sm transition-transform duration-300 group-hover:-rotate-6"
           />
-          <span class="min-w-0 truncate text-sm font-semibold tracking-tight sm:text-[15px]"
-            >UNNC Freshmen Verifier Gateway</span
+          <span class="min-w-0 text-sm font-semibold leading-tight tracking-tight sm:text-[15px]"
+            >UNNC Freshmen <br class="sm:hidden" />Verifier Gateway</span
           >
         </a>
         <nav class="flex items-center gap-1 sm:gap-2">
@@ -257,7 +257,7 @@ const vReveal = {
       <section
         class="grid items-center gap-10 py-14 md:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16"
       >
-        <div>
+        <div class="text-center sm:text-left">
           <span
             v-reveal
             class="reveal inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur"
@@ -277,7 +277,10 @@ const vReveal = {
           >
             {{ t('home.subtitle') }}
           </p>
-          <div v-reveal="240" class="reveal mt-8 flex flex-wrap items-center gap-3">
+          <div
+            v-reveal="240"
+            class="reveal mt-8 flex flex-wrap items-center justify-center gap-3 sm:justify-start"
+          >
             <NuxtLink
               to="/dashboard"
               class="group inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
@@ -397,7 +400,7 @@ const vReveal = {
 
       <!-- How it works -->
       <section id="how" class="scroll-mt-20 py-16 md:py-24">
-        <div v-reveal class="reveal max-w-2xl">
+        <div v-reveal class="reveal max-w-2xl text-center sm:text-left">
           <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
             {{ t('home.howTitle') }}
           </h2>
@@ -408,9 +411,14 @@ const vReveal = {
             aria-hidden="true"
             class="absolute inset-x-0 top-7 hidden h-px bg-linear-to-r from-transparent via-border to-transparent sm:block"
           ></div>
-          <div v-for="(s, i) in steps" :key="i" v-reveal="i * 100" class="reveal relative">
+          <div
+            v-for="(s, i) in steps"
+            :key="i"
+            v-reveal="i * 100"
+            class="reveal relative text-center sm:text-left"
+          >
             <div
-              class="flex size-14 items-center justify-center rounded-2xl border border-border/70 bg-card text-lg font-semibold tabular-nums text-primary shadow-sm"
+              class="mx-auto flex size-14 items-center justify-center rounded-2xl border border-border/70 bg-card text-lg font-semibold tabular-nums text-primary shadow-sm sm:mx-0"
             >
               {{ s.n }}
             </div>

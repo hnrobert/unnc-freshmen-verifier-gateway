@@ -122,14 +122,14 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       navSource: '源码',
       badge: '为 UNNC 学生组织打造',
       title: '让代写有多远滚多远',
-      subtitle:
-        '为每一个学生组织生成专属的验证页面——服务端直连 UNNC 招生门户，秒级确认录取状态，实现自动生成欢迎页与二维码到期提醒。',
+      subtitle: '为每一个学生组织生成专属的验证页面',
       cta: '进入控制台',
       secondary: '查看源码',
       featuresTitle: '一个平台，覆盖验证的全流程',
       featuresSubtitle: '从门户核验到欢迎页、协作、分析与提醒，开箱即用。',
-      f1Title: '实时门户验证',
-      f1Desc: '服务端直连 UNNC 新生查询门户，秒级返回录取状态。',
+      f1Title: '实时核验',
+      f1Desc:
+        "新生服务端直连 UNNC 新生查询门户，秒级返回录取状态；老生可用 {'@'}nottingham.edu.cn 邮件验证身份。",
       f2Title: '每个组织，专属页面',
       f2Desc: '可定制的双语验证与欢迎页：主题色、图标、欢迎图片与 Markdown 文案，皆可配置。',
       f3Title: '协作与权限',
@@ -272,16 +272,15 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       navSource: 'Source',
       badge: 'Built for UNNC student orgs',
       title: 'PISS OFF, Ghostwriting',
-      subtitle:
-        'A dedicated verification page for every student org — server-side checks against the live UNNC admission portal, admission confirmed in seconds, with customizable welcome pages and expiry reminders.',
+      subtitle: 'A dedicated verification page for every student org',
       cta: 'Go to dashboard',
       secondary: 'View source',
       featuresTitle: 'One platform for the whole verification flow',
       featuresSubtitle:
         'From portal checks to welcome pages, collaboration, analytics and reminders — ready out of the box.',
-      f1Title: 'Live portal verification',
+      f1Title: 'Real-time verification',
       f1Desc:
-        'Server-side checks against the live UNNC admission portal — admission status returns in seconds.',
+        "Server-side checks against the live UNNC admission portal confirm admission status in seconds for freshmen; returning students verify via their {'@'}nottingham.edu.cn email.",
       f2Title: 'A dedicated page per org',
       f2Desc:
         'Customizable bilingual verify and welcome pages: theme color, icons, welcome image and Markdown copy, all configurable.',

@@ -34,11 +34,9 @@ const { data, pending } = await useFetch('/api/orgs')
         :key="org.id"
         class="flex items-center justify-between gap-3 rounded-lg border p-4"
       >
-        <NuxtLink
-          :to="`/dashboard/${org.slug}`"
-          class="min-w-0 truncate font-medium hover:underline"
-          >{{ org.name }}</NuxtLink
-        >
+        <NuxtLink :to="`/dashboard/${org.slug}`" class="min-w-0 truncate font-medium underline">{{
+          org.name
+        }}</NuxtLink>
         <div class="flex shrink-0 items-center gap-2">
           <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}/share`)"
             >Share</Button
