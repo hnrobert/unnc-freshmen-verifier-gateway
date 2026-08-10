@@ -7,7 +7,6 @@ import {
   ArrowRight,
   BarChart3,
   Check,
-  GraduationCap,
   Mail,
   Moon,
   Palette,
@@ -177,12 +176,14 @@ const vReveal = {
     <header class="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-md">
       <div class="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5">
         <a href="/" class="group flex items-center gap-2.5">
-          <span
-            class="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm transition-transform duration-300 group-hover:-rotate-6"
+          <img
+            src="/favicon.svg"
+            alt=""
+            class="size-9 rounded-lg shadow-sm transition-transform duration-300 group-hover:-rotate-6"
+          />
+          <span class="text-[15px] font-semibold tracking-tight"
+            >UNNC Freshmen Verifier Gateway</span
           >
-            <GraduationCap :size="20" :stroke-width="2.25" />
-          </span>
-          <span class="text-[15px] font-semibold tracking-tight">UNNC Verifier</span>
         </a>
         <nav class="flex items-center gap-1 sm:gap-2">
           <a
@@ -307,11 +308,7 @@ const vReveal = {
             class="mock-card mx-auto w-full max-w-sm rounded-2xl border border-border/70 bg-card p-6 shadow-xl shadow-black/5"
           >
             <div class="flex items-center gap-3">
-              <span
-                class="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-              >
-                <GraduationCap :size="22" />
-              </span>
+              <img src="/favicon.svg" alt="" class="size-10 rounded-lg shadow-sm" />
               <div class="space-y-1.5">
                 <div class="h-2.5 w-24 rounded-full bg-foreground/80"></div>
                 <div class="h-2 w-16 rounded-full bg-muted-foreground/40"></div>
