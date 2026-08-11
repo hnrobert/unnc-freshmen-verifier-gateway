@@ -11,10 +11,26 @@ export default defineEventHandler(async (event) => {
 
   const userRepo = AppDataSource.getRepository(User)
   const user = await userRepo.findOne({ where: { email } })
-  if (!user || !verifyPassword(password, user.passwordHash))
+  if (!user || !verifyPassword(password, user.passwordHash)) {
+    void recordAudit(event, {
+      action: 'login',
+      outcome: 'failure',
+      actorType: 'anonymous',
+      email,
+      detail: { reason: 'invalid_credentials' },
+    })
     throw createError({ statusCode: 401, statusMessage: 'Invalid email or password' })
+  }
 
   await createSession(event, user.id)
+
+  void recordAudit(event, {
+    action: 'login',
+    outcome: 'success',
+    actorType: 'user',
+    userId: user.id,
+    email: user.email,
+  })
 
   const trustedUntil = new Date(Date.now() + getTrustWindowMs())
   await userRepo.update(user.id, { trustedUntil })

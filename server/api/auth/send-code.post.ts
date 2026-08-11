@@ -74,11 +74,24 @@ export default defineEventHandler(async (event) => {
       html: true,
     })
   } catch (e) {
+    void recordAudit(event, {
+      action: 'send_code',
+      outcome: 'failure',
+      actorType: 'anonymous',
+      email,
+      detail: { reason: e instanceof Error ? e.message : 'send_failed' },
+    })
     throw createError({
       statusCode: 502,
       statusMessage: e instanceof Error ? e.message : 'Failed to send code',
     })
   }
 
+  void recordAudit(event, {
+    action: 'send_code',
+    outcome: 'success',
+    actorType: 'anonymous',
+    email,
+  })
   return { ok: true, warning: limit.warning }
 })

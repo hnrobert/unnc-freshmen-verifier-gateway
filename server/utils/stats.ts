@@ -6,6 +6,8 @@ import { OrgEvent } from '#server/entities/orgEvent.entity'
 import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
 import { OrgVerifiedIdentity } from '#server/entities/orgVerifiedIdentity.entity'
 import { Organization } from '#server/entities/organization.entity'
+import { AuditEvent } from '#server/entities/auditEvent.entity'
+import { AppSetting } from '#server/entities/appSetting.entity'
 import { listAccessibleOrgs, type EffectiveRole } from './members'
 
 const RETENTION_DAYS = 90
@@ -132,6 +134,16 @@ export async function recordVerify(
     })
     await bumpRollup(orgId, day, verifyMetrics(rec.outcome, rec.mode))
     void pruneOldEvents()
+    // Mirror every verify attempt into the site-wide audit trail (one funnel for
+    // all verify branches). Hoisted — recordAudit is defined further below.
+    void recordAudit(event, {
+      action: 'verify',
+      outcome: rec.outcome,
+      orgId,
+      actorType: 'anonymous',
+      name: rec.name,
+      detail: { mode: rec.mode, idHash: rec.idHash },
+    })
   } catch {
     // best-effort
   }
@@ -218,6 +230,186 @@ export async function pruneOldEvents(): Promise<void> {
     .delete()
     .where('createdAt < :cutoff', { cutoff })
     .execute()
+}
+
+// --- Audit trail (site-wide, superadmin-visible) ---
+
+export interface AuditRecord {
+  action: string
+  outcome?: string | null
+  orgId?: number | null
+  /** default 'anonymous' */
+  actorType?: string | null
+  userId?: number | null
+  email?: string | null
+  name?: string | null
+  detail?: Record<string, unknown> | null
+}
+
+/**
+ * Write one audit row. Fire-and-forget at the call site (wrap in `void …`); never
+ * throws — audit recording must not break the request it observes. Verification
+ * attempts are mirrored here automatically from {@link recordVerify}.
+ */
+export async function recordAudit(event: H3Event, rec: AuditRecord): Promise<void> {
+  try {
+    const ipHash = parseMeta(event).ipHash
+    await AppDataSource.getRepository(AuditEvent).save({
+      action: rec.action,
+      outcome: rec.outcome ?? null,
+      orgId: rec.orgId ?? null,
+      actorType: rec.actorType ?? 'anonymous',
+      userId: rec.userId ?? null,
+      email: rec.email ?? null,
+      name: rec.name ?? null,
+      ipHash,
+      detail: rec.detail ? JSON.stringify(rec.detail) : null,
+    })
+    void pruneOldAuditEvents()
+  } catch {
+    // best-effort — audit must never break the observed request
+  }
+}
+
+const AUDIT_RETENTION_KEY = 'audit.retentionDays'
+const DEFAULT_AUDIT_RETENTION_DAYS = 90
+const AUDIT_RETENTION_CACHE_TTL_MS = 30_000
+let auditRetentionCache: { t: number; value: number } | null = null
+
+/** Configured audit retention in days (superadmin-tunable; default 90). */
+export async function getAuditRetentionDays(): Promise<number> {
+  if (auditRetentionCache && Date.now() - auditRetentionCache.t < AUDIT_RETENTION_CACHE_TTL_MS)
+    return auditRetentionCache.value
+  const row = await AppDataSource.getRepository(AppSetting).findOne({
+    where: { key: AUDIT_RETENTION_KEY },
+  })
+  const value = parseAuditRetention(row?.value)
+  auditRetentionCache = { t: Date.now(), value }
+  return value
+}
+
+/** Persist the audit retention (days) and invalidate the cache. */
+export async function setAuditRetentionDays(days: number): Promise<void> {
+  await AppDataSource.getRepository(AppSetting).save({
+    key: AUDIT_RETENTION_KEY,
+    value: JSON.stringify(days),
+  })
+  auditRetentionCache = null
+}
+
+function parseAuditRetention(raw: string | null | undefined): number {
+  if (raw == null || raw === '') return DEFAULT_AUDIT_RETENTION_DAYS
+  try {
+    const n = JSON.parse(raw)
+    return Number.isInteger(n) && n >= 1 ? n : DEFAULT_AUDIT_RETENTION_DAYS
+  } catch {
+    return DEFAULT_AUDIT_RETENTION_DAYS
+  }
+}
+
+// Opportunistic audit retention prune — at most once per 24h per process.
+let lastAuditPruneAt = 0
+export async function pruneOldAuditEvents(): Promise<void> {
+  const now = Date.now()
+  if (now - lastAuditPruneAt < 24 * 60 * 60 * 1000) return
+  lastAuditPruneAt = now
+  const days = await getAuditRetentionDays()
+  const cutoff = new Date(now - days * 24 * 60 * 60 * 1000).toISOString()
+  await AppDataSource.getRepository(AuditEvent)
+    .createQueryBuilder()
+    .delete()
+    .where('createdAt < :cutoff', { cutoff })
+    .execute()
+}
+
+export interface AuditQuery {
+  action?: string | null
+  outcome?: string | null
+  orgId?: number | null
+  userId?: number | null
+  search?: string | null
+  from?: string | null
+  to?: string | null
+  limit?: number
+  offset?: number
+}
+
+export interface AuditRow {
+  id: number
+  createdAt: string
+  orgId: number | null
+  orgName: string | null
+  action: string
+  outcome: string | null
+  actorType: string | null
+  userId: number | null
+  email: string | null
+  name: string | null
+  detail: Record<string, unknown> | null
+}
+
+/**
+ * Read the site-wide audit trail with filters + pagination (newest first).
+ * Powers GET /api/admin/audit. Org names are resolved in a second query so a
+ * superadmin sees a human label even for orgs they don't own.
+ */
+export async function readAudit(q: AuditQuery): Promise<{ events: AuditRow[]; total: number }> {
+  const limit = Math.min(Math.max(q.limit ?? 100, 1), 500)
+  const offset = Math.max(q.offset ?? 0, 0)
+  const qb = AppDataSource.getRepository(AuditEvent).createQueryBuilder('a')
+  if (q.action) qb.andWhere('a.action = :action', { action: q.action })
+  if (q.outcome) qb.andWhere('a.outcome = :outcome', { outcome: q.outcome })
+  if (q.orgId != null) qb.andWhere('a.orgId = :orgId', { orgId: q.orgId })
+  if (q.userId != null) qb.andWhere('a.userId = :userId', { userId: q.userId })
+  if (q.from) qb.andWhere('a.createdAt >= :from', { from: q.from })
+  if (q.to) qb.andWhere('a.createdAt <= :to', { to: q.to })
+  if (q.search) qb.andWhere('(a.email LIKE :s OR a.name LIKE :s)', { s: `%${q.search}%` })
+
+  const [rows, total] = await Promise.all([
+    qb
+      .orderBy('a.createdAt', 'DESC')
+      .addOrderBy('a.id', 'DESC')
+      .limit(limit)
+      .offset(offset)
+      .getMany(),
+    qb.getCount(),
+  ])
+
+  const orgIds = Array.from(new Set(rows.map((r) => r.orgId).filter((v): v is number => v != null)))
+  const orgMap = new Map<number, string>()
+  if (orgIds.length) {
+    const orgs = await AppDataSource.getRepository(Organization).find({
+      where: orgIds.map((id) => ({ id })),
+      select: { id: true, name: true },
+    })
+    for (const o of orgs) orgMap.set(o.id, o.name)
+  }
+
+  return {
+    total,
+    events: rows.map((r) => ({
+      id: r.id,
+      createdAt: new Date(r.createdAt).toISOString(),
+      orgId: r.orgId,
+      orgName: (r.orgId != null && orgMap.get(r.orgId)) || null,
+      action: r.action,
+      outcome: r.outcome,
+      actorType: r.actorType,
+      userId: r.userId,
+      email: r.email,
+      name: r.name,
+      detail: r.detail ? safeParseDetail(r.detail) : null,
+    })),
+  }
+}
+
+function safeParseDetail(raw: string): Record<string, unknown> | null {
+  try {
+    const v = JSON.parse(raw)
+    return v && typeof v === 'object' ? (v as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
 }
 
 // --- Reader (powers GET /api/orgs/<slug>/stats) ---

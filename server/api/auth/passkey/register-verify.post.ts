@@ -56,6 +56,15 @@ export default defineEventHandler(async (event) => {
       backedUp: credentialBackedUp,
     })
 
+    void recordAudit(event, {
+      action: 'passkey_add',
+      outcome: 'success',
+      actorType: 'user',
+      userId: me.id,
+      email: me.email,
+      detail: { deviceType: saved.deviceType },
+    })
+
     return {
       verified: true,
       passkey: {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'dashboard', middleware: 'auth' })
+import { SLUG_RE } from '#shared/types'
 
-const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
+definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const slug = ref('')
 const name = ref('')

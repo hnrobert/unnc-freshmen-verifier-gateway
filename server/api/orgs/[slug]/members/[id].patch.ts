@@ -5,6 +5,7 @@ const ROLES = ['viewer', 'editor', 'manager'] as const
 
 /** Change a member's role. Manager+. Only the owner may promote to manager. */
 export default defineEventHandler(async (event) => {
+  const me = requireAuth(event)
   const slug = getRouterParam(event, 'slug') as string
   const { org, rank } = await requireOrgRole(event, slug, RANK.manager)
   const id = Number(getRouterParam(event, 'id'))
@@ -24,7 +25,22 @@ export default defineEventHandler(async (event) => {
   const member = await repo.findOne({ where: { id, orgId: org.id } })
   if (!member) throw createError({ statusCode: 404, statusMessage: 'Member not found' })
 
+  const oldRole = member.role
   member.role = role
   await repo.save(member)
+  void recordAudit(event, {
+    action: 'member.role',
+    outcome: 'success',
+    actorType: 'user',
+    userId: me.id,
+    email: me.email,
+    orgId: org.id,
+    detail: {
+      memberId: member.id,
+      invitedEmail: member.invitedEmail,
+      from: oldRole,
+      to: member.role,
+    },
+  })
   return { id: member.id, role: member.role }
 })

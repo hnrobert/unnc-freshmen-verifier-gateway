@@ -15,6 +15,8 @@ import { OrgEvent } from '#server/entities/orgEvent.entity'
 import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
 import { MailConfig } from '#server/entities/mailConfig.entity'
 import { OrgReminderSent } from '#server/entities/orgReminderSent.entity'
+import { OrgRedirect } from '#server/entities/orgRedirect.entity'
+import { AuditEvent } from '#server/entities/auditEvent.entity'
 
 const dbPath = process.env.DB_PATH || './data/app.db'
 
@@ -51,6 +53,8 @@ export const AppDataSource = new DataSource({
     OrgDailyStat,
     MailConfig,
     OrgReminderSent,
+    OrgRedirect,
+    AuditEvent,
   ],
   synchronize: true,
   logging: ['schema', 'error', 'warn'],

@@ -51,5 +51,15 @@ export default defineEventHandler(async (event) => {
   // The new owner no longer needs a member row.
   await memberRepo.delete({ id: target.id })
 
+  void recordAudit(event, {
+    action: 'org.transfer',
+    outcome: 'success',
+    actorType: 'user',
+    userId: me.id,
+    email: me.email,
+    orgId: org.id,
+    detail: { fromOwnerId: org.ownerId, toOwnerId: newOwnerId },
+  })
+
   return { ok: true, ownerId: newOwnerId }
 })

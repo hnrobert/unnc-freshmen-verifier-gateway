@@ -21,5 +21,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
 
   await repo.delete({ id })
+  void recordAudit(event, {
+    action: 'member.remove',
+    outcome: 'success',
+    actorType: 'user',
+    userId: me.id,
+    email: me.email,
+    orgId: org.id,
+    detail: { memberId: id, invitedEmail: member.invitedEmail, role: member.role, self: isSelf },
+  })
   return { ok: true }
 })

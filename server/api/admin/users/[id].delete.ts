@@ -51,5 +51,19 @@ export default defineEventHandler(async (event) => {
     return ownedOrgs
   })
 
+  void recordAudit(event, {
+    action: 'admin.user_delete',
+    outcome: 'success',
+    actorType: 'user',
+    userId: me.id,
+    email: me.email,
+    detail: {
+      targetUserId: target.id,
+      targetEmail: target.email,
+      targetRole: target.role,
+      reassignedOrgs,
+    },
+  })
+
   return { ok: true, reassignedOrgs }
 })

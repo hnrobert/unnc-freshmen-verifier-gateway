@@ -16,6 +16,9 @@ export default defineEventHandler(async (event) => {
   const fullUser = await repo.findOneBy({ id: user.id })
   if (!fullUser) throw createError({ statusCode: 404, statusMessage: 'User not found' })
 
+  // Snapshot before mutation so the audit trail can record the prior email.
+  const oldEmail = fullUser.email
+
   // Email change
   const newEmail = String(body?.email ?? '')
     .trim()
@@ -46,6 +49,26 @@ export default defineEventHandler(async (event) => {
   if (body.notifyExpiry !== undefined) fullUser.notifyExpiry = !!body.notifyExpiry
 
   await repo.save(fullUser)
+
+  if (fullUser.email !== oldEmail) {
+    void recordAudit(event, {
+      action: 'email_change',
+      outcome: 'success',
+      actorType: 'user',
+      userId: fullUser.id,
+      email: fullUser.email,
+      detail: { oldEmail },
+    })
+  }
+  if (String(body?.newPassword ?? '')) {
+    void recordAudit(event, {
+      action: 'password_change',
+      outcome: 'success',
+      actorType: 'user',
+      userId: fullUser.id,
+      email: fullUser.email,
+    })
+  }
 
   // Update session user state — just return the new email; the client
   // (useAuth composable) will update useState on the next /api/auth/me call.

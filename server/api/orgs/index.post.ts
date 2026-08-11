@@ -2,6 +2,7 @@ import { AppDataSource } from '#server/utils/database'
 import { Organization } from '#server/entities/organization.entity'
 import { OrgSetting } from '#server/entities/orgSetting.entity'
 import { User } from '#server/entities/user.entity'
+import { OrgRedirect } from '#server/entities/orgRedirect.entity'
 import { getDefaultAdminOrgLimit } from '#server/utils/limits'
 import defaultConfig from '#shared/lib/defaultConfig'
 import type { SiteConfig } from '#shared/types'
@@ -52,6 +53,10 @@ export default defineEventHandler(async (event) => {
 
   const org = await orgRepo.save({ ownerId: user.id, slug, name })
 
+  // Claiming this slug ends any redirect left by a previously-deleted org that
+  // once held it — a new org using the slug must be reachable at its own URL.
+  await AppDataSource.getRepository(OrgRedirect).delete({ oldSlug: slug })
+
   // Clone structure from defaultConfig but blank all message strings —
   // the org inherits defaults via applyDefaults + LocaleField placeholders,
   // and only stores custom values the admin actually changes.
@@ -60,6 +65,17 @@ export default defineEventHandler(async (event) => {
     blankMessages(cfg.messages[loc] as Record<string, unknown>)
   }
   await AppDataSource.getRepository(OrgSetting).save({ orgId: org.id, config: JSON.stringify(cfg) })
+
+  void recordAudit(event, {
+    action: 'org.create',
+    outcome: 'success',
+    actorType: 'user',
+    userId: user.id,
+    email: user.email,
+    orgId: org.id,
+    name: org.name,
+    detail: { slug: org.slug },
+  })
 
   return { org: { id: org.id, slug: org.slug, name: org.name } }
 })

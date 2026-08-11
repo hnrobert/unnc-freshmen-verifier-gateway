@@ -63,6 +63,15 @@ export default defineEventHandler(async (event) => {
     await AppDataSource.getRepository(User).update(user.id, { trustedUntil })
     setTrustCookie(event, signTrustJwt(user.id, user.email, trustedUntil))
 
+    void recordAudit(event, {
+      action: 'login',
+      outcome: 'success',
+      actorType: 'user',
+      userId: user.id,
+      email: user.email,
+      detail: { method: 'passkey' },
+    })
+
     return { user: { id: user.id, email: user.email, role: user.role } }
   } catch (error) {
     if (error && typeof error === 'object' && 'statusCode' in error) throw error

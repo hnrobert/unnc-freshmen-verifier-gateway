@@ -92,6 +92,13 @@ const orgTabs = computed(() => {
       show: canEdit,
     },
     {
+      label: 'Name & URL',
+      icon: 'Link',
+      to: `${base}/settings`,
+      exact: false,
+      show: org.role === 'owner',
+    },
+    {
       label: 'Members',
       icon: 'Users',
       to: `${base}/members`,
@@ -278,6 +285,18 @@ function tabActive(to: string, exact: boolean) {
           >
             <Icon spec="Mail" :size="16" />
             Mail
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin/audit"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin/audit'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="FileText" :size="16" />
+            Audit Log
           </NuxtLink>
         </template>
       </nav>

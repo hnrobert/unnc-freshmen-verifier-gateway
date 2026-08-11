@@ -2,13 +2,15 @@ import { AppDataSource } from '#server/utils/database'
 import { User } from '#server/entities/user.entity'
 
 export default defineEventHandler(async (event) => {
-  requireSuperAdmin(event)
+  const me = requireSuperAdmin(event)
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody<{ role?: unknown; orgLimit?: unknown }>(event)
 
   const repo = AppDataSource.getRepository(User)
   const user = await repo.findOneBy({ id })
   if (!user) throw createError({ statusCode: 404, statusMessage: 'User not found' })
+  const oldRole = user.role
+  const oldOrgLimit = user.orgLimit
 
   if (body.role !== undefined) {
     const role = String(body.role)
@@ -32,5 +34,19 @@ export default defineEventHandler(async (event) => {
   }
 
   await repo.save(user)
+  void recordAudit(event, {
+    action: 'admin.user_update',
+    outcome: 'success',
+    actorType: 'user',
+    userId: me.id,
+    email: me.email,
+    detail: {
+      targetUserId: user.id,
+      targetEmail: user.email,
+      role: oldRole !== user.role ? { from: oldRole, to: user.role } : undefined,
+      orgLimit:
+        oldOrgLimit !== user.orgLimit ? { from: oldOrgLimit, to: user.orgLimit } : undefined,
+    },
+  })
   return { id: user.id, email: user.email, role: user.role, orgLimit: user.orgLimit }
 })
