@@ -92,14 +92,7 @@ const orgTabs = computed(() => {
       show: canEdit,
     },
     {
-      label: 'Name & URL',
-      icon: 'Link',
-      to: `${base}/settings`,
-      exact: false,
-      show: org.role === 'owner',
-    },
-    {
-      label: 'Members',
+      label: 'Collaborators',
       icon: 'Users',
       to: `${base}/members`,
       exact: false,
