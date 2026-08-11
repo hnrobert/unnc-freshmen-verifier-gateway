@@ -347,7 +347,7 @@ async function onDelete() {
       <CardHeader>
         <CardTitle class="text-base text-destructive">Danger zone</CardTitle>
         <CardDescription
-          >Deleting an organization permanently removes its config, members, and
+          >Deleting an organization permanently removes its config, collaborators, and
           statistics.</CardDescription
         >
       </CardHeader>

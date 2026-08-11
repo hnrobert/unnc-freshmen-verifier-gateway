@@ -12,7 +12,7 @@ interface OrgItem {
 const { data, pending } = await useFetch<{ orgs: OrgItem[] }>('/api/orgs')
 
 // Split the viewer's orgs into the two relationships: orgs they own vs. orgs
-// they were invited to as a member. `/api/orgs` returns the real role
+// they were invited to as a collaborator. `/api/orgs` returns the real role
 // ('owner' even for a superadmin's own orgs; 'manager'|'editor'|'viewer' for
 // collaborations), so the grouping is authoritative.
 const owned = computed(() =>
@@ -78,7 +78,7 @@ const collaborated = computed(() =>
         </ul>
       </section>
 
-      <!-- Orgs the viewer was invited to as a member -->
+      <!-- Orgs the viewer was invited to as a collaborator -->
       <section v-if="collaborated.length">
         <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Collaborator

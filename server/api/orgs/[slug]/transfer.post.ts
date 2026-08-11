@@ -16,14 +16,14 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ memberId?: unknown }>(event)
   const memberId = Number(body?.memberId)
   if (!Number.isFinite(memberId))
-    throw createError({ statusCode: 400, statusMessage: 'Invalid memberId' })
+    throw createError({ statusCode: 400, statusMessage: 'Invalid collaborator id' })
 
   const memberRepo = AppDataSource.getRepository(OrgMember)
   const target = await memberRepo.findOne({
     where: { id: memberId, orgId: org.id, status: 'active' },
   })
   if (!target || target.userId === null)
-    throw createError({ statusCode: 404, statusMessage: 'Active member not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Active collaborator not found' })
 
   const newOwnerId = target.userId
   await AppDataSource.getRepository(Organization).update(org.id, { ownerId: newOwnerId })

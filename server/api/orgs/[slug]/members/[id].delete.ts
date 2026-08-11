@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
 
   const repo = AppDataSource.getRepository(OrgMember)
   const member = await repo.findOne({ where: { id, orgId: org.id } })
-  if (!member) throw createError({ statusCode: 404, statusMessage: 'Member not found' })
+  if (!member) throw createError({ statusCode: 404, statusMessage: 'Collaborator not found' })
 
   const isSelf = member.userId === me.id
   if (!isSelf && rank < RANK.manager)
@@ -22,13 +22,18 @@ export default defineEventHandler(async (event) => {
 
   await repo.delete({ id })
   void recordAudit(event, {
-    action: 'member.remove',
+    action: 'collaborator.remove',
     outcome: 'success',
     actorType: 'user',
     userId: me.id,
     email: me.email,
     orgId: org.id,
-    detail: { memberId: id, invitedEmail: member.invitedEmail, role: member.role, self: isSelf },
+    detail: {
+      collaboratorId: id,
+      invitedEmail: member.invitedEmail,
+      role: member.role,
+      self: isSelf,
+    },
   })
   return { ok: true }
 })

@@ -91,14 +91,14 @@ export default defineEventHandler(async (event) => {
   })()
 
   void recordAudit(event, {
-    action: 'member.add',
+    action: 'collaborator.add',
     outcome: 'success',
     actorType: 'user',
     userId: me.id,
     email: me.email,
     orgId: org.id,
     detail: {
-      memberId: member.id,
+      collaboratorId: member.id,
       invitedEmail: member.invitedEmail,
       role: member.role,
       status: member.status,

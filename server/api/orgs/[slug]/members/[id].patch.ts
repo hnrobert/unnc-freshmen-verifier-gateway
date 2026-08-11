@@ -23,20 +23,20 @@ export default defineEventHandler(async (event) => {
 
   const repo = AppDataSource.getRepository(OrgMember)
   const member = await repo.findOne({ where: { id, orgId: org.id } })
-  if (!member) throw createError({ statusCode: 404, statusMessage: 'Member not found' })
+  if (!member) throw createError({ statusCode: 404, statusMessage: 'Collaborator not found' })
 
   const oldRole = member.role
   member.role = role
   await repo.save(member)
   void recordAudit(event, {
-    action: 'member.role',
+    action: 'collaborator.role',
     outcome: 'success',
     actorType: 'user',
     userId: me.id,
     email: me.email,
     orgId: org.id,
     detail: {
-      memberId: member.id,
+      collaboratorId: member.id,
       invitedEmail: member.invitedEmail,
       from: oldRole,
       to: member.role,

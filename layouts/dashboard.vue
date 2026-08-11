@@ -41,7 +41,7 @@ function toggleTheme() {
   mode.value = mode.value === 'dark' ? 'light' : 'dark'
 }
 
-// Org tab bar (Home / Edit / Advanced / Members / Share) for an org's dashboard
+// Org tab bar (Home / Edit / Advanced / Collaborators / Share) for an org's dashboard
 // area. Works under both /dashboard/<slug> and the admin-scoped
 // /dashboard/admin/organizations/<slug>. Rendered in the sticky full-width
 // header so the breadcrumb + tabs span the main column and stay pinned.
