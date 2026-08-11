@@ -100,6 +100,13 @@ const orgTabs = computed(() => {
     },
     { label: 'Share', icon: 'Share2', to: `${base}/share`, exact: false, show: true },
     { label: 'Preview', icon: 'Eye', to: `${base}/preview`, exact: false, show: true },
+    {
+      label: 'Notifications',
+      icon: 'Bell',
+      to: `${base}/notifications`,
+      exact: false,
+      show: true,
+    },
   ]
 })
 // Visible org tabs only (for the mobile sidebar list — the top tab bar uses

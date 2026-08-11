@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ReminderSlot } from '#shared/types'
+
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const { user, listPasskeys, addPasskey, removePasskey } = useAuth()
@@ -97,18 +99,29 @@ function passkeyLabel(p: PasskeyInfo): string {
   return 'Passkey'
 }
 
-// --- Notification preference (QR-expiry reminder opt-in for joined orgs) ---
-const { data: notifPrefs, refresh: refreshNotif } = await useFetch<{ notifyExpiry: boolean }>(
-  '/api/auth/me',
-)
+// --- Notification preference (account-level default reminder schedule + tz) ---
+interface NotifPrefs {
+  notifyExpiry: boolean
+  tz: string | null
+  reminderSlots: ReminderSlot[] | null
+  reminderTime: string | null
+}
+const { data: notifPrefs, refresh: refreshNotif } = await useFetch<NotifPrefs>('/api/auth/me')
+const { data: timezones } = await useFetch<string[]>('/api/timezones')
 const notifSaving = ref(false)
-async function onToggleNotif(e: Event): Promise<void> {
-  const val = (e.target as HTMLInputElement).checked
+
+const notifModel = computed(() => ({
+  enabled: !!notifPrefs.value?.notifyExpiry,
+  slots: notifPrefs.value?.reminderSlots ?? [],
+  time: notifPrefs.value?.reminderTime ?? '12:00',
+}))
+
+async function patchNotif(body: Record<string, unknown>, successMsg: string): Promise<void> {
   notifSaving.value = true
   try {
-    await $fetch('/api/auth/me', { method: 'PATCH', body: { notifyExpiry: val } })
-    notifPrefs.value = { notifyExpiry: val }
-    toast.success(val ? 'Reminder emails enabled' : 'Reminder emails disabled')
+    const res = await $fetch<NotifPrefs>('/api/auth/me', { method: 'PATCH', body })
+    notifPrefs.value = res
+    toast.success(successMsg)
   } catch (err) {
     toast.error(messageFromError(err, 'Could not update'))
     await refreshNotif()
@@ -117,7 +130,32 @@ async function onToggleNotif(e: Event): Promise<void> {
   }
 }
 
-onMounted(loadPasskeys)
+async function onNotifChange(val: {
+  enabled: boolean
+  slots: ReminderSlot[]
+  time: string
+}): Promise<void> {
+  await patchNotif(
+    { notifyExpiry: val.enabled, reminderSlots: val.slots, reminderTime: val.time },
+    'Reminder preferences saved',
+  )
+}
+
+async function onTzChange(e: Event): Promise<void> {
+  const tz = (e.target as HTMLSelectElement).value
+  await patchNotif({ tz }, 'Timezone saved')
+}
+
+async function autoDetectTz(): Promise<void> {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  if (tz) await patchNotif({ tz }, `Timezone set to ${tz}`)
+}
+
+onMounted(() => {
+  loadPasskeys()
+  // Persist a real tz on first visit so the "user's timezone" default is honored.
+  if (!notifPrefs.value?.tz) void autoDetectTz()
+})
 </script>
 
 <template>
@@ -143,21 +181,40 @@ onMounted(loadPasskeys)
       <CardHeader>
         <CardTitle class="text-base">Notifications</CardTitle>
         <CardDescription
-          >Get QR-expiry reminder emails for organizations you've joined.</CardDescription
+          >Your default expiry-reminder schedule, in your own timezone. You can override it per
+          organization from that org's Notifications tab.</CardDescription
         >
       </CardHeader>
-      <CardContent>
-        <label class="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            class="size-4 shrink-0"
-            style="accent-color: var(--primary)"
-            :checked="!!notifPrefs?.notifyExpiry"
-            :disabled="notifSaving"
-            @change="onToggleNotif"
-          />
-          <span>Send me expiry reminder emails</span>
-        </label>
+      <CardContent class="space-y-4">
+        <ReminderControls
+          :model-value="notifModel"
+          :disabled="notifSaving"
+          @update:model-value="onNotifChange"
+        />
+
+        <div class="space-y-1.5 border-t pt-4">
+          <Label for="settings-tz">Timezone</Label>
+          <div class="flex items-center gap-2">
+            <select
+              id="settings-tz"
+              class="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
+              :value="notifPrefs?.tz ?? ''"
+              :disabled="notifSaving"
+              @change="onTzChange"
+            >
+              <option value="" disabled>Select a timezone…</option>
+              <option v-for="tz in timezones ?? []" :key="tz" :value="tz">
+                {{ tz.replaceAll('_', ' ') }}
+              </option>
+            </select>
+            <Button variant="outline" size="sm" :disabled="notifSaving" @click="autoDetectTz">
+              Auto-detect
+            </Button>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            Reminders fire at this timezone's wall-clock time.
+          </p>
+        </div>
       </CardContent>
     </Card>
 

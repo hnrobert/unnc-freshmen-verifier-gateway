@@ -7,12 +7,17 @@ import type { ReminderSlot } from '#shared/types'
  * JSON) because the dashboard config PUT replaces the whole JSON wholesale and
  * would wipe any sent-flag stored there.
  *
- * Keyed on (orgId, expiresAt, kind): a fresh welcome image with a new expiry
- * date gets fresh send slots automatically, and the unique constraint makes
- * sending idempotent even under races / restarts.
+ * Keyed on (orgId, userId, expiresAt, kind): schedules are per-user (each
+ * person has their own timezone/schedule), so the same slot can fire for many
+ * users of one org. A fresh welcome image with a new expiry date gets fresh
+ * send slots automatically, and the unique constraint makes sending idempotent
+ * even under races / restarts. (The legacy 3-column index from the org-centric
+ * era is dropped once by `03.reminders-migration.ts`.)
  */
 @Entity({ name: 'org_reminder_sents' })
-@Index('uq_org_reminder_org_date_kind', ['orgId', 'expiresAt', 'kind'], { unique: true })
+@Index('uq_org_reminder_org_user_date_kind', ['orgId', 'userId', 'expiresAt', 'kind'], {
+  unique: true,
+})
 export class OrgReminderSent {
   @PrimaryGeneratedColumn('increment', {
     type: 'integer',
@@ -22,6 +27,12 @@ export class OrgReminderSent {
 
   @Column({ name: 'org_id', type: 'integer', nullable: false })
   orgId!: number
+
+  /** The recipient this send belongs to (schedules are per-user). Nullable at
+   * the DB level only so `synchronize` can add the column to a populated table;
+   * app code always sets it, and legacy null rows are truncated at cutover. */
+  @Column({ name: 'user_id', type: 'integer', nullable: true })
+  userId!: number
 
   /** 'YYYY-MM-DD' — the expiry this reminder belongs to (matches config.welcome.expiresAt). */
   @Column({ name: 'expires_at', type: 'text', nullable: false })

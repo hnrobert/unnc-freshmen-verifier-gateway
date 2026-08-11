@@ -11,6 +11,7 @@ import { Passkey } from '#server/entities/passkey.entity'
 import { OrgVerifiedIdentity } from '#server/entities/orgVerifiedIdentity.entity'
 import { AppSetting } from '#server/entities/appSetting.entity'
 import { OrgMember } from '#server/entities/orgMember.entity'
+import { UserOrgNotificationPref } from '#server/entities/userOrgNotificationPref.entity'
 import { OrgEvent } from '#server/entities/orgEvent.entity'
 import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
 import { MailConfig } from '#server/entities/mailConfig.entity'
@@ -49,6 +50,7 @@ export const AppDataSource = new DataSource({
     AppSetting,
     Passkey,
     OrgMember,
+    UserOrgNotificationPref,
     OrgEvent,
     OrgDailyStat,
     MailConfig,

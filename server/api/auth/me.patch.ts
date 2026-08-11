@@ -1,5 +1,7 @@
 import { AppDataSource } from '#server/utils/database'
 import { User } from '#server/entities/user.entity'
+import { isValidTz } from '#shared/lib/reminderTz'
+import { isValidReminderTime, sanitizeSlots } from '#shared/lib/reminderPref'
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
@@ -10,6 +12,9 @@ export default defineEventHandler(async (event) => {
     currentPassword?: unknown
     newPassword?: unknown
     notifyExpiry?: unknown
+    tz?: unknown
+    reminderSlots?: unknown
+    reminderTime?: unknown
   }>(event)
 
   const repo = AppDataSource.getRepository(User)
@@ -45,8 +50,32 @@ export default defineEventHandler(async (event) => {
     fullUser.passwordHash = hashPassword(newPassword)
   }
 
-  // Notification preference (QR-expiry reminder opt-in).
+  // Notification preference (QR-expiry reminder opt-in + account-level default
+  // schedule). `null`/`undefined` clears a field back to "inherit".
   if (body.notifyExpiry !== undefined) fullUser.notifyExpiry = !!body.notifyExpiry
+
+  if (body.tz !== undefined) {
+    if (body.tz === null || body.tz === '') fullUser.tz = null
+    else {
+      const tz = String(body.tz)
+      if (!isValidTz(tz)) throw createError({ statusCode: 400, statusMessage: 'Invalid timezone' })
+      fullUser.tz = tz
+    }
+  }
+
+  if (body.reminderSlots !== undefined) {
+    fullUser.reminderSlots = body.reminderSlots === null ? null : sanitizeSlots(body.reminderSlots)
+  }
+
+  if (body.reminderTime !== undefined) {
+    if (body.reminderTime === null || body.reminderTime === '') fullUser.reminderTime = null
+    else {
+      const t = String(body.reminderTime)
+      if (!isValidReminderTime(t))
+        throw createError({ statusCode: 400, statusMessage: 'Time must be HH:MM (24-hour)' })
+      fullUser.reminderTime = t
+    }
+  }
 
   await repo.save(fullUser)
 
@@ -76,5 +105,8 @@ export default defineEventHandler(async (event) => {
   return {
     user: { id: fullUser.id, email: fullUser.email, role: fullUser.role },
     notifyExpiry: fullUser.notifyExpiry,
+    tz: fullUser.tz,
+    reminderSlots: fullUser.reminderSlots,
+    reminderTime: fullUser.reminderTime,
   }
 })
