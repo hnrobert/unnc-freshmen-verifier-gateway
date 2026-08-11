@@ -6,32 +6,15 @@ import { OrgImage } from '#server/entities/orgImage.entity'
 import { OrgMember } from '#server/entities/orgMember.entity'
 import { OrgEvent } from '#server/entities/orgEvent.entity'
 import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
+import { OrgVerifiedIdentity } from '#server/entities/orgVerifiedIdentity.entity'
+import { OrgRedirect } from '#server/entities/orgRedirect.entity'
 import type { SiteConfig } from '#shared/types'
 import { resolveImageRefs } from './config'
 import { applyDefaults } from '#shared/lib/applyDefaults'
 
-export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
-export const RESERVED_SLUGS = new Set([
-  'api',
-  'dashboard',
-  'login',
-  'register',
-  'admin',
-  'new',
-  'www',
-  'static',
-  'assets',
-  '_nuxt',
-  'favicon.svg',
-  'welcome',
-])
-
-export function validateSlug(slug: string): string | null {
-  if (!SLUG_RE.test(slug))
-    return 'Slug must be 3-32 chars: lowercase letters, digits, hyphens (no leading/trailing/consecutive hyphens).'
-  if (RESERVED_SLUGS.has(slug)) return `"${slug}" is reserved.`
-  return null
-}
+// Slug rules live in #shared/types so the server, redirect middleware, and the
+// client (new-org / rename forms) all validate against one source of truth.
+export { SLUG_RE, RESERVED_SLUGS, validateSlug } from '#shared/types'
 
 const CACHE_TTL_MS = 60_000
 const cache = new Map<string, { t: number; cfg: SiteConfig }>()
@@ -72,5 +55,7 @@ export async function deleteOrgCascade(orgId: number): Promise<void> {
   await AppDataSource.getRepository(OrgMember).delete({ orgId })
   await AppDataSource.getRepository(OrgEvent).delete({ orgId })
   await AppDataSource.getRepository(OrgDailyStat).delete({ orgId })
+  await AppDataSource.getRepository(OrgVerifiedIdentity).delete({ orgId })
+  await AppDataSource.getRepository(OrgRedirect).delete({ orgId })
   await AppDataSource.getRepository(Organization).delete(orgId)
 }

@@ -41,7 +41,7 @@ function toggleTheme() {
   mode.value = mode.value === 'dark' ? 'light' : 'dark'
 }
 
-// Org tab bar (Home / Edit / Advanced / Members / Share) for an org's dashboard
+// Org tab bar (Home / Edit / Advanced / Collaborators / Share) for an org's dashboard
 // area. Works under both /dashboard/<slug> and the admin-scoped
 // /dashboard/admin/organizations/<slug>. Rendered in the sticky full-width
 // header so the breadcrumb + tabs span the main column and stay pinned.
@@ -92,11 +92,18 @@ const orgTabs = computed(() => {
       show: canEdit,
     },
     {
-      label: 'Members',
+      label: 'Collaborators',
       icon: 'Users',
       to: `${base}/members`,
       exact: false,
       show: canManage,
+    },
+    {
+      label: 'Notifications',
+      icon: 'Bell',
+      to: `${base}/notifications`,
+      exact: false,
+      show: true,
     },
     { label: 'Share', icon: 'Share2', to: `${base}/share`, exact: false, show: true },
     { label: 'Preview', icon: 'Eye', to: `${base}/preview`, exact: false, show: true },
@@ -126,10 +133,16 @@ function tabActive(to: string, exact: boolean) {
     >
       <!-- Brand -->
       <div class="flex h-14 items-center gap-2 border-b px-5">
-        <img src="/favicon.svg" alt="" class="size-8 shrink-0 rounded-lg" />
-        <span class="flex-1 text-sm font-semibold leading-tight"
-          >UNNC Freshmen<br />Verifier Gateway</span
+        <NuxtLink
+          to="/"
+          class="flex min-w-0 flex-1 items-center gap-2"
+          aria-label="UNNC Freshmen Verifier Gateway — home"
         >
+          <img src="/favicon.svg" alt="" class="size-8 shrink-0 rounded-lg" />
+          <span class="min-w-0 text-sm font-semibold leading-tight"
+            >UNNC Freshmen<br />Verifier Gateway</span
+          >
+        </NuxtLink>
         <button
           class="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"
           :title="mode === 'dark' ? 'Light mode' : 'Dark mode'"
@@ -273,6 +286,18 @@ function tabActive(to: string, exact: boolean) {
             <Icon spec="Mail" :size="16" />
             Mail
           </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin/audit"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin/audit'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="FileText" :size="16" />
+            Audit Log
+          </NuxtLink>
         </template>
       </nav>
 
@@ -310,8 +335,16 @@ function tabActive(to: string, exact: boolean) {
         >
           <Icon spec="Menu" :size="20" />
         </button>
-        <img src="/favicon.svg" alt="" class="size-7 shrink-0 rounded-lg" />
-        <span class="text-sm font-semibold">UNNC Freshmen Verifier Gateway</span>
+        <NuxtLink
+          to="/"
+          class="flex min-w-0 items-center gap-2"
+          aria-label="UNNC Freshmen Verifier Gateway — home"
+        >
+          <img src="/favicon.svg" alt="" class="size-7 shrink-0 rounded-lg" />
+          <span class="min-w-0 text-sm font-semibold leading-tight"
+            >UNNC Freshmen <br />Verifier Gateway</span
+          >
+        </NuxtLink>
         <!-- Theme toggle -->
         <button
           class="ml-auto flex size-8 items-center justify-center rounded-lg border text-muted-foreground transition-all hover:scale-105 hover:bg-accent hover:text-foreground"

@@ -75,10 +75,10 @@ async function onRoleChange(memberId: number, role: string) {
 }
 
 async function onRemove(memberId: number) {
-  if (!confirm('Remove this member?')) return
+  if (!confirm('Remove this collaborator?')) return
   try {
     await $fetch(`/api/orgs/${slug.value}/members/${memberId}`, { method: 'DELETE' })
-    toast.success('Member removed')
+    toast.success('Collaborator removed')
     await refresh()
   } catch (e) {
     toast.error(messageFromError(e, 'Remove failed'))
@@ -86,7 +86,7 @@ async function onRemove(memberId: number) {
 }
 
 async function onTransfer(memberId: number) {
-  if (!confirm('Transfer ownership to this member? You will become a manager.')) return
+  if (!confirm('Transfer ownership to this collaborator? You will become a manager.')) return
   try {
     await $fetch(`/api/orgs/${slug.value}/transfer`, { method: 'POST', body: { memberId } })
     toast.success('Ownership transferred')
@@ -140,15 +140,15 @@ async function copyUrl(url: string) {
       </CardContent>
     </Card>
 
-    <!-- Members -->
+    <!-- Collaborators -->
     <Card v-if="membersData">
       <CardHeader>
-        <CardTitle class="text-base">Members</CardTitle>
+        <CardTitle class="text-base">Collaborators</CardTitle>
         <CardDescription>{{ membersData.members.length }} invited</CardDescription>
       </CardHeader>
       <CardContent class="flex flex-col gap-2">
         <p v-if="!membersData.members.length" class="text-sm text-muted-foreground">
-          No members yet.
+          No collaborators yet.
         </p>
         <ul v-else class="flex flex-col gap-2">
           <li
@@ -251,7 +251,7 @@ async function copyUrl(url: string) {
     </Card>
 
     <p v-else-if="access && !canManage" class="text-sm text-muted-foreground">
-      You need manager access to manage members.
+      You need manager access to manage collaborators.
     </p>
     <div v-if="pending" class="text-muted-foreground">Loading…</div>
   </div>

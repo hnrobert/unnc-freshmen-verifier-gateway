@@ -14,8 +14,9 @@ import { Organization } from '#server/entities/organization.entity'
  *    (`organizations.owner_id` is non-nullable, so we can't just orphan them).
  *  - Personal artifacts are removed: sessions, passkeys, per-user mail config,
  *    and their active org memberships.
- *  - Verification records are KEPT as an audit trail (they belong to the org's
- *    history, not the user's account).
+ *  - Org analytics + verified-identity records (`org_events`,
+ *    `org_verified_identities`) are KEPT — they belong to the org's history,
+ *    not the user's account, and are org-scoped (no `userId`).
  *
  * Guards: cannot delete yourself; cannot delete the last superadmin.
  */
@@ -48,6 +49,20 @@ export default defineEventHandler(async (event) => {
     await m.getRepository(OrgMember).delete({ userId: id })
     await m.getRepository(User).delete({ id })
     return ownedOrgs
+  })
+
+  void recordAudit(event, {
+    action: 'admin.user_delete',
+    outcome: 'success',
+    actorType: 'user',
+    userId: me.id,
+    email: me.email,
+    detail: {
+      targetUserId: target.id,
+      targetEmail: target.email,
+      targetRole: target.role,
+      reassignedOrgs,
+    },
   })
 
   return { ok: true, reassignedOrgs }

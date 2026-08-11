@@ -57,6 +57,15 @@ export default defineEventHandler(async (event) => {
   const user = await repo.save({ email, passwordHash: hashPassword(password), trustedUntil, role })
   await createSession(event, user.id)
 
+  void recordAudit(event, {
+    action: 'register',
+    outcome: 'success',
+    actorType: 'user',
+    userId: user.id,
+    email: user.email,
+    detail: { role: user.role },
+  })
+
   const token = signTrustJwt(user.id, user.email, trustedUntil)
   setTrustCookie(event, token)
 

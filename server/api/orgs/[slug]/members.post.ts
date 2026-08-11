@@ -90,6 +90,21 @@ export default defineEventHandler(async (event) => {
     }
   })()
 
+  void recordAudit(event, {
+    action: 'collaborator.add',
+    outcome: 'success',
+    actorType: 'user',
+    userId: me.id,
+    email: me.email,
+    orgId: org.id,
+    detail: {
+      collaboratorId: member.id,
+      invitedEmail: member.invitedEmail,
+      role: member.role,
+      status: member.status,
+    },
+  })
+
   const warning = [accountLimit.warning, inviteLimit.warning].filter(Boolean).join(' ') || undefined
   return { id: member.id, inviteUrl, warning }
 })

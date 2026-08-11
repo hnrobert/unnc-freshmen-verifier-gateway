@@ -8,7 +8,7 @@ const slug = computed(() => route.params.slug as string)
 
 // Page-level awaits (context-safe via Suspense); the results are handed to the
 // sync useOrgDraft composable.
-const { data: access } = await useFetch<{ role: string | null }>(
+const { data: access } = await useFetch<{ role: string | null; rank: number }>(
   () => `/api/orgs/${slug.value}/access`,
   { watch: [slug] },
 )
@@ -32,7 +32,10 @@ const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscar
       variant="error"
       message="You have view-only access to this organization. Changes can't be saved."
     />
-    <ConfigEditor mode="basic" />
+    <div class="space-y-8">
+      <ConfigEditor mode="basic" />
+      <OrgNameSlugCard :key="slug" :slug="slug" />
+    </div>
 
     <SaveBar
       v-if="canEdit"

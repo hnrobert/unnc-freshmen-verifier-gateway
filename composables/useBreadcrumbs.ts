@@ -43,7 +43,7 @@ function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
 
   // Admin org view: /dashboard/admin/organizations/<slug>(/<tab>).
   const adminOrg = path.match(
-    /^\/dashboard\/admin\/organizations\/([^/]+)(?:\/(edit|advanced|members|share|preview))?$/,
+    /^\/dashboard\/admin\/organizations\/([^/]+)(?:\/(edit|advanced|members|share|preview|notifications))?$/,
   )
   if (adminOrg && adminOrg[1]) {
     return [
@@ -52,9 +52,11 @@ function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
     ]
   }
 
-  // /dashboard/<slug>/{edit,advanced,members,share,preview} — breadcrumb stops at the
+  // /dashboard/<slug>/{edit,advanced,members,share,preview,notifications} — breadcrumb stops at the
   // org slug; the sub-tab name isn't shown (the tabs are right there).
-  const m = path.match(/^\/dashboard\/([^/]+)\/(edit|advanced|members|share|preview)$/)
+  const m = path.match(
+    /^\/dashboard\/([^/]+)\/(edit|advanced|members|share|preview|notifications)$/,
+  )
   if (m && m[1]) {
     return [orgs, { label: m[1] }]
   }

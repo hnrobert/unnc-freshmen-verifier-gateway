@@ -4,5 +4,11 @@ import { User } from '#server/entities/user.entity'
 export default defineEventHandler(async (event) => {
   const user = requireAuth(event)
   const full = await AppDataSource.getRepository(User).findOneBy({ id: user.id })
-  return { user, notifyExpiry: !!full?.notifyExpiry }
+  return {
+    user,
+    notifyExpiry: !!full?.notifyExpiry,
+    tz: full?.tz ?? null,
+    reminderSlots: full?.reminderSlots ?? null,
+    reminderTime: full?.reminderTime ?? null,
+  }
 })

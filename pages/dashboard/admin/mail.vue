@@ -291,7 +291,7 @@ async function onSendTest() {
               <Input
                 id="mail-display"
                 v-model="mail.senderEmailDisplay"
-                placeholder="UNNC Verifier"
+                placeholder="UNNC Freshmen Verifier Gateway"
                 :disabled="mailSaving"
               />
             </div>

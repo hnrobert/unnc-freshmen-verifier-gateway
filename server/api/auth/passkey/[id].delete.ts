@@ -14,5 +14,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Passkey not found' })
 
   await repo.delete({ id })
+  void recordAudit(event, {
+    action: 'passkey_remove',
+    outcome: 'success',
+    actorType: 'user',
+    userId: me.id,
+    email: me.email,
+    detail: { deviceType: passkey.deviceType },
+  })
   return { ok: true }
 })

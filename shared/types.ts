@@ -20,6 +20,45 @@ export type ReminderSlot = '-3d' | '-2d' | '-1d' | 'day-of'
 /** All valid reminder slots (single source of truth for the UI, validator, scheduler). */
 export const REMINDER_SLOTS: readonly ReminderSlot[] = ['-3d', '-2d', '-1d', 'day-of']
 
+/**
+ * Default maximum number of organizations a regular admin (`role: 'admin'`) may
+ * create. A superadmin can raise (or lower) this per-user via the Users panel
+ * (`User.orgLimit`); `null` on the user falls back to this default. Superadmins
+ * themselves are always unlimited.
+ */
+export const DEFAULT_ADMIN_ORG_LIMIT = 3
+
+/**
+ * Org slug rules. Shared between the server (org create/rename), the old-slug
+ * redirect middleware, and the client (new-org / rename forms) so every layer
+ * validates against one source of truth.
+ */
+export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
+
+/** Top-level path segments that can never be an org slug (routes/files/reserved words). */
+export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
+  'api',
+  'dashboard',
+  'login',
+  'register',
+  'admin',
+  'new',
+  'www',
+  'static',
+  'assets',
+  '_nuxt',
+  'favicon.svg',
+  'welcome',
+])
+
+/** Validate an org slug. Returns an error message, or null when valid. */
+export function validateSlug(slug: string): string | null {
+  if (!SLUG_RE.test(slug))
+    return 'Slug must be 3-32 chars: lowercase letters, digits, hyphens (no leading/trailing/consecutive hyphens).'
+  if (RESERVED_SLUGS.has(slug)) return `"${slug}" is reserved.`
+  return null
+}
+
 /** An icon reference: a lucide-vue-next name, or an image URL/key for custom art. */
 export interface IconSpec {
   /** A lucide-vue-next icon name, e.g. `"User"`, `"GraduationCap"`. */

@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { DEFAULT_ADMIN_ORG_LIMIT } from '#shared/types'
+
 definePageMeta({ layout: 'dashboard', middleware: ['auth', 'superadmin'] })
 
 interface UserRow {
   id: number
   email: string
   role: string
+  orgLimit: number | null
+  orgCount: number
   createdAt: string
 }
 
@@ -12,22 +16,109 @@ const { user: currentUser } = useAuth()
 const { data: users, refresh: refreshUsers } = await useFetch<UserRow[]>('/api/admin/users')
 const saving = ref<Record<number, boolean>>({})
 const deleting = ref<Record<number, boolean>>({})
+// Per-user text draft for the org-limit input. '' (empty) = use the default.
+const limitDraft = ref<Record<number, string>>({})
+
+// App-wide default org limit (superadmin-tunable). Falls back to the constant
+// before the first load resolves.
+const { data: limitsData, refresh: refreshLimits } = await useFetch<{
+  defaultAdminOrgLimit: number
+}>('/api/admin/limits')
+const defaultLimit = computed(
+  () => limitsData.value?.defaultAdminOrgLimit ?? DEFAULT_ADMIN_ORG_LIMIT,
+)
+const defaultDraft = ref(limitsData.value ? String(defaultLimit.value) : '')
+const savingDefault = ref(false)
+
+// Backfill drafts for newly-loaded users without clobbering in-flight edits.
+watchEffect(() => {
+  for (const u of users.value ?? []) {
+    if (!(u.id in limitDraft.value)) {
+      limitDraft.value[u.id] = u.orgLimit == null ? '' : String(u.orgLimit)
+    }
+  }
+})
 
 function isSelf(user: UserRow) {
   return user.id === currentUser.value?.id
 }
 
+function limitDirty(user: UserRow): boolean {
+  const cur = user.orgLimit == null ? '' : String(user.orgLimit)
+  return (limitDraft.value[user.id] ?? '') !== cur
+}
+
 async function onRoleChange(user: UserRow, role: string) {
   saving.value[user.id] = true
   try {
-    await $fetch(`/api/admin/users/${user.id}`, { method: 'PATCH', body: { role } })
-    user.role = role
+    const res = await $fetch<{ role: string }>(`/api/admin/users/${user.id}`, {
+      method: 'PATCH',
+      body: { role },
+    })
+    user.role = res.role
     toast.success('Role updated')
   } catch (e) {
     toast.error(messageFromError(e, 'Update failed'))
     await refreshUsers()
   } finally {
     saving.value[user.id] = false
+  }
+}
+
+async function onSaveLimit(user: UserRow) {
+  const raw = (limitDraft.value[user.id] ?? '').trim()
+  let body: { orgLimit: number | null }
+  if (raw === '') {
+    body = { orgLimit: null }
+  } else {
+    const n = Number(raw)
+    if (!Number.isInteger(n) || n < 0) {
+      toast.error('Limit must be a non-negative integer')
+      return
+    }
+    body = { orgLimit: n }
+  }
+  saving.value[user.id] = true
+  try {
+    const res = await $fetch<{ orgLimit: number | null }>(`/api/admin/users/${user.id}`, {
+      method: 'PATCH',
+      body,
+    })
+    user.orgLimit = res.orgLimit
+    limitDraft.value[user.id] = res.orgLimit == null ? '' : String(res.orgLimit)
+    toast.success('Org limit updated')
+  } catch (e) {
+    toast.error(messageFromError(e, 'Update failed'))
+    await refreshUsers()
+  } finally {
+    saving.value[user.id] = false
+  }
+}
+
+function defaultDirty() {
+  return defaultDraft.value !== String(defaultLimit.value)
+}
+
+async function onSaveDefault() {
+  const n = Number(defaultDraft.value)
+  if (!Number.isInteger(n) || n < 0) {
+    toast.error('Limit must be a non-negative integer')
+    return
+  }
+  savingDefault.value = true
+  try {
+    const res = await $fetch<{ defaultAdminOrgLimit: number }>('/api/admin/limits', {
+      method: 'PUT',
+      body: { defaultAdminOrgLimit: n },
+    })
+    limitsData.value = { defaultAdminOrgLimit: res.defaultAdminOrgLimit }
+    defaultDraft.value = String(res.defaultAdminOrgLimit)
+    toast.success('Default org limit updated')
+  } catch (e) {
+    toast.error(messageFromError(e, 'Update failed'))
+    await refreshLimits()
+  } finally {
+    savingDefault.value = false
   }
 }
 
@@ -61,6 +152,33 @@ async function onDelete(user: UserRow) {
 <template>
   <div>
     <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Users</h1>
+    <Card class="mt-6">
+      <CardContent>
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div class="text-sm font-medium">Default org limit</div>
+            <p class="mt-0.5 text-xs text-muted-foreground">
+              Applied to admins without a per-user override. Superadmins are always unlimited.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="number"
+              min="0"
+              inputmode="numeric"
+              class="h-9 w-24 rounded-md border bg-transparent px-2 text-sm"
+              :value="defaultDraft"
+              :disabled="savingDefault"
+              @input="defaultDraft = ($event.target as HTMLInputElement).value"
+              @keydown.enter.prevent="onSaveDefault"
+            />
+            <Button size="sm" :disabled="savingDefault || !defaultDirty()" @click="onSaveDefault">
+              {{ savingDefault ? '…' : 'Save' }}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
     <div class="mt-6">
       <Card class="hidden sm:block">
         <CardContent>
@@ -70,6 +188,7 @@ async function onDelete(user: UserRow) {
                 <th class="py-3 font-medium">ID</th>
                 <th class="py-3 font-medium">Email</th>
                 <th class="py-3 font-medium">Role</th>
+                <th class="py-3 font-medium">Org limit</th>
                 <th class="py-3 font-medium">Created</th>
                 <th class="py-3 font-medium"></th>
               </tr>
@@ -93,6 +212,35 @@ async function onDelete(user: UserRow) {
                     <option value="admin">admin</option>
                     <option value="superadmin">superadmin</option>
                   </select>
+                </td>
+                <td class="py-3">
+                  <span v-if="u.role === 'superadmin'" class="text-muted-foreground"
+                    >Unlimited</span
+                  >
+                  <div v-else class="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      inputmode="numeric"
+                      class="h-9 w-20 rounded-md border bg-transparent px-2 text-sm"
+                      :placeholder="`Default (${defaultLimit})`"
+                      :value="limitDraft[u.id] ?? ''"
+                      :disabled="saving[u.id]"
+                      @input="limitDraft[u.id] = ($event.target as HTMLInputElement).value"
+                      @keydown.enter.prevent="onSaveLimit(u)"
+                    />
+                    <span class="whitespace-nowrap text-xs text-muted-foreground"
+                      >{{ u.orgCount }} used</span
+                    >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      :disabled="saving[u.id] || !limitDirty(u)"
+                      @click="onSaveLimit(u)"
+                    >
+                      {{ saving[u.id] ? '…' : 'Save' }}
+                    </Button>
+                  </div>
                 </td>
                 <td class="py-3 text-muted-foreground">
                   {{ new Date(u.createdAt).toLocaleDateString() }}
@@ -147,6 +295,37 @@ async function onDelete(user: UserRow) {
                   {{ deleting[u.id] ? '…' : 'Delete' }}
                 </Button>
               </div>
+            </div>
+            <div
+              v-if="u.role !== 'superadmin'"
+              class="mt-3 flex flex-wrap items-center gap-2 border-t pt-3"
+            >
+              <span class="text-xs text-muted-foreground">Org limit</span>
+              <input
+                type="number"
+                min="0"
+                inputmode="numeric"
+                class="h-9 w-20 rounded-md border bg-transparent px-2 text-sm"
+                :placeholder="`Default (${DEFAULT_ADMIN_ORG_LIMIT})`"
+                :value="limitDraft[u.id] ?? ''"
+                :disabled="saving[u.id]"
+                @input="limitDraft[u.id] = ($event.target as HTMLInputElement).value"
+                @keydown.enter.prevent="onSaveLimit(u)"
+              />
+              <span class="whitespace-nowrap text-xs text-muted-foreground"
+                >{{ u.orgCount }} used</span
+              >
+              <Button
+                variant="ghost"
+                size="sm"
+                :disabled="saving[u.id] || !limitDirty(u)"
+                @click="onSaveLimit(u)"
+              >
+                {{ saving[u.id] ? '…' : 'Save' }}
+              </Button>
+            </div>
+            <div v-else class="mt-3 border-t pt-3 text-xs text-muted-foreground">
+              Unlimited organizations
             </div>
           </CardContent>
         </Card>

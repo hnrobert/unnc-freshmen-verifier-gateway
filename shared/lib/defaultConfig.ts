@@ -69,7 +69,7 @@ const config: SiteConfig = {
   messages: {
     zh: {
       brand: {
-        title: '宁波诺丁汉大学 · 新生核验入口',
+        title: '宁波诺丁汉大学新生身份核验入口',
         subtitle: '输入姓名与身份证号，核验录取状态后即可参与后续互动',
       },
       verify: {
@@ -81,7 +81,7 @@ const config: SiteConfig = {
         idPlaceholder: '18 位身份证号',
         submit: '立即查询',
         submitting: '正在查询…',
-        hint: '查询会自动完成官方滑块验证码，可能需要数秒。',
+        hint: '不是新生？可以选择右上方的邮箱验证，我们可以把欢迎页内容发送到你的 UNNC 邮箱。',
         tabVerify: '新生验证',
         tabEmail: '邮箱验证',
         emailLabel: 'UNNC 邮箱',
@@ -119,7 +119,6 @@ const config: SiteConfig = {
           '',
           '## 下一步',
           '',
-          '- 通过邮件联系我们：ComputerPsychoUnion@nottingham.edu.cn',
           '- 访问学校官网：https://www.nottingham.edu.cn',
           '- 关注报到时间与材料清单',
           '',
@@ -148,7 +147,7 @@ const config: SiteConfig = {
 
     en: {
       brand: {
-        title: 'UNNC · Admission Verifier',
+        title: 'UNNC Freshmen Verifier Gateway',
         subtitle: 'Enter your name and ID number to check admission status',
       },
       verify: {
@@ -161,7 +160,7 @@ const config: SiteConfig = {
         idPlaceholder: '18-digit ID number',
         submit: 'Check Now',
         submitting: 'Checking…',
-        hint: 'The query would automatically solve the slider captcha and may take a few seconds. Sit and relax.',
+        hint: 'Not a freshman? You can verify via email instead, and we may send the welcome page to your UNNC mailbox.',
         tabVerify: 'Freshman',
         tabEmail: 'Email',
         emailLabel: 'UNNC Email',
@@ -198,7 +197,6 @@ const config: SiteConfig = {
           '',
           '## Next steps',
           '',
-          '- Contact us via email: ComputerPsychoUnion@nottingham.edu.cn',
           '- Visit our website: https://www.nottingham.edu.cn',
           '- Check your registration date and document checklist',
           '',
