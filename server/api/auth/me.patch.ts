@@ -15,6 +15,8 @@ export default defineEventHandler(async (event) => {
     tz?: unknown
     reminderSlots?: unknown
     reminderTime?: unknown
+    code?: unknown
+    session?: unknown
   }>(event)
 
   const repo = AppDataSource.getRepository(User)
@@ -24,16 +26,26 @@ export default defineEventHandler(async (event) => {
   // Snapshot before mutation so the audit trail can record the prior email.
   const oldEmail = fullUser.email
 
-  // Email change
+  // Email change — validated up front but NOT applied yet. The verification
+  // code is consumed as late as possible (just before save) so that a failure
+  // in password/notification validation below does not waste a one-shot code.
   const newEmail = String(body?.email ?? '')
     .trim()
     .toLowerCase()
+  let pendingEmail: { email: string; session: string; code: string } | null = null
   if (newEmail && newEmail !== fullUser.email) {
     if (!EMAIL_RE.test(newEmail))
       throw createError({ statusCode: 400, statusMessage: 'Invalid email' })
     const existing = await repo.findOneBy({ email: newEmail })
     if (existing) throw createError({ statusCode: 409, statusMessage: 'Email already in use' })
-    fullUser.email = newEmail
+    const session = String(body?.session ?? '').trim()
+    const code = String(body?.code ?? '').trim()
+    if (!session || !code)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'A verification code is required to change your email',
+      })
+    pendingEmail = { email: newEmail, session, code }
   }
 
   // Password change (requires current password)
@@ -77,6 +89,15 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Consume the email-verification code (one-shot) right before persisting, so
+  // an invalid/expired code leaves the email unchanged and no other mutation
+  // above can waste the code. Only a save failure could now lose it.
+  if (pendingEmail) {
+    if (!consumeCode(pendingEmail.email, pendingEmail.session, pendingEmail.code))
+      throw createError({ statusCode: 400, statusMessage: 'Invalid or expired verification code' })
+    fullUser.email = pendingEmail.email
+  }
+
   await repo.save(fullUser)
 
   if (fullUser.email !== oldEmail) {
@@ -86,7 +107,7 @@ export default defineEventHandler(async (event) => {
       actorType: 'user',
       userId: fullUser.id,
       email: fullUser.email,
-      detail: { oldEmail },
+      detail: { oldEmail, verified: 'email_code' },
     })
   }
   if (String(body?.newPassword ?? '')) {
