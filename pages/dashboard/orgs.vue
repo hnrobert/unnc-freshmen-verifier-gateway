@@ -3,7 +3,24 @@ import { buttonVariants } from '~/components/ui/button'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
-const { data, pending } = await useFetch('/api/orgs')
+interface OrgItem {
+  id: number
+  slug: string
+  name: string
+  role: string
+}
+const { data, pending } = await useFetch<{ orgs: OrgItem[] }>('/api/orgs')
+
+// Split the viewer's orgs into the two relationships: orgs they own vs. orgs
+// they were invited to as a member. `/api/orgs` returns the real role
+// ('owner' even for a superadmin's own orgs; 'manager'|'editor'|'viewer' for
+// collaborations), so the grouping is authoritative.
+const owned = computed(() =>
+  (data.value?.orgs ?? []).filter((o) => o.role === 'owner' || o.role === 'superadmin'),
+)
+const collaborated = computed(() =>
+  (data.value?.orgs ?? []).filter((o) => !['owner', 'superadmin'].includes(o.role)),
+)
 </script>
 
 <template>
@@ -28,27 +45,74 @@ const { data, pending } = await useFetch('/api/orgs')
       <Button class="mt-4" @click="navigateTo('/dashboard/new')">Create your first org</Button>
     </div>
 
-    <ul v-else class="mt-6 space-y-2">
-      <li
-        v-for="org in data.orgs"
-        :key="org.id"
-        class="flex items-center justify-between gap-3 rounded-lg border p-4"
-      >
-        <NuxtLink :to="`/dashboard/${org.slug}`" class="min-w-0 truncate font-medium underline">{{
-          org.name
-        }}</NuxtLink>
-        <div class="flex shrink-0 items-center gap-2">
-          <Button variant="outline" size="sm" @click="navigateTo(`/dashboard/${org.slug}/share`)"
-            >Share</Button
+    <div v-else class="mt-6 space-y-10">
+      <!-- Orgs the viewer owns -->
+      <section v-if="owned.length">
+        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Owner <span class="font-normal text-muted-foreground/60">· {{ owned.length }}</span>
+        </h2>
+        <ul class="space-y-2">
+          <li
+            v-for="org in owned"
+            :key="org.id"
+            class="flex items-center justify-between gap-3 rounded-lg border p-4"
           >
-          <a
-            :href="`/${org.slug}`"
-            target="_blank"
-            :class="buttonVariants({ variant: 'ghost', size: 'sm' })"
-            >View ↗</a
+            <NuxtLink :to="`/dashboard/${org.slug}`" class="truncate font-medium underline">{{
+              org.name
+            }}</NuxtLink>
+            <div class="flex shrink-0 items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                @click="navigateTo(`/dashboard/${org.slug}/share`)"
+                >Share</Button
+              >
+              <a
+                :href="`/${org.slug}`"
+                target="_blank"
+                :class="buttonVariants({ variant: 'ghost', size: 'sm' })"
+                >View ↗</a
+              >
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Orgs the viewer was invited to as a member -->
+      <section v-if="collaborated.length">
+        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Collaborator
+          <span class="font-normal text-muted-foreground/60">· {{ collaborated.length }}</span>
+        </h2>
+        <ul class="space-y-2">
+          <li
+            v-for="org in collaborated"
+            :key="org.id"
+            class="flex items-center justify-between gap-3 rounded-lg border p-4"
           >
-        </div>
-      </li>
-    </ul>
+            <div class="flex min-w-0 items-center gap-2">
+              <NuxtLink :to="`/dashboard/${org.slug}`" class="truncate font-medium underline">{{
+                org.name
+              }}</NuxtLink>
+              <span class="text-xs capitalize text-muted-foreground/70">{{ org.role }}</span>
+            </div>
+            <div class="flex shrink-0 items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                @click="navigateTo(`/dashboard/${org.slug}/share`)"
+                >Share</Button
+              >
+              <a
+                :href="`/${org.slug}`"
+                target="_blank"
+                :class="buttonVariants({ variant: 'ghost', size: 'sm' })"
+                >View ↗</a
+              >
+            </div>
+          </li>
+        </ul>
+      </section>
+    </div>
   </div>
 </template>

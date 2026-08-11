@@ -193,7 +193,12 @@ async function onDelete() {
   <div class="max-w-5xl space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">{{ orgName }}</h1>
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">{{ orgName }}</h1>
+          <span v-if="currentOrg" class="text-sm text-muted-foreground">{{
+            isOwner ? 'Owner' : 'Collaborator'
+          }}</span>
+        </div>
         <p class="mt-1 text-sm text-muted-foreground">/{{ slug }} · overview</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
