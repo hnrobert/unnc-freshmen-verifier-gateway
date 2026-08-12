@@ -41,6 +41,25 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   vite: {
     plugins: [tailwindcss()],
+    // Pre-bundle the common client deps Vite would otherwise discover at
+    // runtime — each discovery forces a full page reload. email-poster is the
+    // opposite case: its ./vue entry is raw .vue source, which esbuild can't
+    // pre-bundle, so it's excluded and left to the Vue plugin to transform.
+    optimizeDeps: {
+      include: [
+        '@lucide/vue',
+        '@simplewebauthn/browser',
+        '@vueuse/core',
+        'chart.js',
+        'class-variance-authority',
+        'clsx',
+        'lucide-vue-next',
+        'tailwind-merge',
+        'vue-chartjs',
+        'vue-i18n',
+      ],
+      exclude: ['email-poster'],
+    },
   },
 
   // Auto-import components by filename (no path prefix) so shadcn-vue <Button>,

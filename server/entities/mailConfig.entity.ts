@@ -80,6 +80,15 @@ export class MailConfig {
   @Column({ name: 'post_auth_token', type: 'text', default: '' })
   postAuthToken!: string
 
+  /**
+   * email-poster FieldMap as JSON (logical field → downstream key), edited by the
+   * visual interface editor. When empty, the effective map is derived from
+   * `post_schema` for backward compatibility ('powerautomate' → custom_example
+   * preset, otherwise smtogo). Once non-empty, this column is authoritative.
+   */
+  @Column({ name: 'post_field_map', type: 'text', default: '' })
+  postFieldMap!: string
+
   @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date
 
