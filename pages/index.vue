@@ -18,7 +18,7 @@ import {
   ShieldCheck,
   Sun,
   Users,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import { SITE_REPO_URL, SITE_TITLE } from '#shared/lib/site'
 
 // The root `/` has no org, so the org-scoped default layout, BrandMark and
@@ -56,7 +56,7 @@ watch(locale, (v) => {
 
 const mode = useColorMode({ storageKey: 'vg.theme' })
 
-// lucide-vue-next v1 deprecated its brand icons, so render the GitHub mark as a
+// @lucide/vue (lucide) ships no brand icons, so render the GitHub mark as a
 // small inline SVG (currentColor, scales with `size`).
 const GithubMark = defineComponent({
   name: 'GithubMark',

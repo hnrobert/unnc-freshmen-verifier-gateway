@@ -88,7 +88,7 @@ import {
   UserPlus,
   Users,
   X,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 
 export const iconRegistry: Record<string, Component> = {
   ArrowLeft,

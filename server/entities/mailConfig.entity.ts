@@ -89,6 +89,17 @@ export class MailConfig {
   @Column({ name: 'post_field_map', type: 'text', default: '' })
   postFieldMap!: string
 
+  /**
+   * The post-schemas library (email-poster `PostSchema[]`) as JSON — the named
+   * field maps the operator switches between / adds / renames / deletes in the
+   * editor. Stored server-side (shared across admins, not per-browser). The
+   * active webhook format is `post_field_map`; this is the palette behind it.
+   * Empty string = never stored (the editor seeds the built-in defaults on first
+   * use and persists them here); `'[]'` = explicitly cleared (stays empty).
+   */
+  @Column({ name: 'post_schemas', type: 'text', default: '' })
+  postSchemas!: string
+
   @Column({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date
 

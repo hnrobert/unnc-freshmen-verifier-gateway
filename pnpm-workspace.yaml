@@ -5,4 +5,12 @@ allowBuilds:
   tesseract.js: true
   vue-demi: true
 minimumReleaseAgeExclude:
-  - email-poster@0.2.2 || 0.3.1 || 0.3.2
+  - email-poster@0.3.4
+# Force the transitive `ini` (rc <- prebuild-install <- better-sqlite3) off the
+# deprecated 1.3.0 (prototype-pollution CVE) onto the latest 1.x, which is
+# non-deprecated and still inside rc's own declared `~1.3.0` range. The other
+# two deprecated transitive dependencies — glob@10 (archiver/nitro pins `^10`, no clean 10.x)
+# and prebuild-install@7.1.3 (latest, package unmaintained) — have no safe
+# in-range successor and clear only when nuxt/nitro/better-sqlite3 update.
+overrides:
+  ini: 1.3.8

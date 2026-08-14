@@ -35,6 +35,8 @@ export interface MailConfigInput {
   postAuthToken?: string
   /** email-poster FieldMap JSON (logical field → downstream key). '' = derive from post_schema. */
   postFieldMap?: string
+  /** email-poster PostSchema[] JSON — the editor's post-schemas library. '' = never stored. */
+  postSchemas?: string
 }
 
 /**
@@ -89,6 +91,7 @@ export function mailConfigToClient(c: MailConfig | null) {
     postUrl: c.postUrl,
     postSchema: c.postSchema,
     postFieldMap: c.postFieldMap,
+    postSchemas: c.postSchemas,
     hasPostAuthToken: !!c.postAuthToken,
   }
 }
@@ -138,7 +141,7 @@ function resolveFieldMapFromConfig(c: MailConfig): FieldMap {
 
 /**
  * Send via an HTTP POST webhook through email-poster. The field map is fully
- * editable from the admin UI; the two legacy shapes (smtogo / Power Automate)
+ * editable from the admin UI; the two legacy shapes (smtogo / Custom Example)
  * are the presets / migration defaults, so payloads are byte-identical to the
  * previous hand-rolled implementation.
  *

@@ -250,7 +250,7 @@ an `<a>` (invite) or `<strong>` (reminder) by the endpoint.
 
 - **SMTP** — nodemailer createTransport (host, port, SSL/STARTTLS, auth).
 - **POST webhook** — HTTP POST with schema-specific payload (smtogo or
-  powerautomate), bearer token auth.
+  custom_example), bearer token auth.
 
 ### Disclaimer hiding
 

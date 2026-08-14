@@ -23,7 +23,7 @@ const config: SiteConfig = {
     requestTimeoutMs: 20000,
   },
 
-  // Every icon on every page. Use any lucide-vue-next name, or
+  // Every icon on every page. Use any @lucide/vue (lucide) name, or
   // { img: '/path.svg' } for a custom image (great for a school crest).
   icons: {
     brand: 'GraduationCap',

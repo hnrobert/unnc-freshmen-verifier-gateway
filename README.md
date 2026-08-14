@@ -73,7 +73,7 @@ Each organization gets its own public verification page with:
   (configurable: 3/2/1 days before and/or day-of, at a custom time).
 - **Welcome content** — visitors can request the welcome page content emailed to
   their `@nottingham.edu.cn` address.
-- **Dual mail provider** — SMTP or POST webhook (Power Automate / smtogo).
+- **Dual mail provider** — SMTP or POST webhook (Custom Example / smtogo).
 - **Rate limiting** — per-recipient (1/min, 10/day) and per-account (6/min,
   24/day) with near-limit warnings.
 - **Disclaimer hiding** — outgoing emails use a text-color-matches-background

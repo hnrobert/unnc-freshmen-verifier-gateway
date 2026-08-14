@@ -59,9 +59,9 @@ export function validateSlug(slug: string): string | null {
   return null
 }
 
-/** An icon reference: a lucide-vue-next name, or an image URL/key for custom art. */
+/** An icon reference: an @lucide/vue (lucide) name, or an image URL/key for custom art. */
 export interface IconSpec {
-  /** A lucide-vue-next icon name, e.g. `"User"`, `"GraduationCap"`. */
+  /** An @lucide/vue (lucide) icon name, e.g. `"User"`, `"GraduationCap"`. */
   lucide?: string
   /** An image used instead of an icon — `img:<key>` (DB image) or a URL. */
   img?: string

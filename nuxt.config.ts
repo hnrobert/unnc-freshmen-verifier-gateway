@@ -53,7 +53,6 @@ export default defineNuxtConfig({
         'chart.js',
         'class-variance-authority',
         'clsx',
-        'lucide-vue-next',
         'tailwind-merge',
         'vue-chartjs',
         'vue-i18n',
