@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import type { Locale } from '#shared/types'
 
-const { config } = useOrgConfig()
+const { config } = usePageConfig()
 const { t } = useI18n()
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
@@ -51,7 +51,7 @@ function contrastFg(hex: string): string {
   const b = parseInt(hex.slice(5, 7), 16) / 255
   return 0.299 * r + 0.587 * g + 0.114 * b > 0.55 ? '#1c1917' : '#fafafa'
 }
-// Scoped CSS vars for org theme color — applied to the ConfigEditor root div,
+// Scoped CSS vars for page theme color — applied to the ConfigEditor root div,
 // NOT documentElement, so the dashboard sidebar/nav keeps its default color.
 const primaryVars = computed(() => {
   const c =
@@ -623,7 +623,7 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
         </div>
       </section>
 
-      <!-- Emails: org-customizable text for outbound emails -->
+      <!-- Emails: page-customizable text for outbound emails -->
       <section class="space-y-3">
         <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           {{ t('editor.emailsSection') }}

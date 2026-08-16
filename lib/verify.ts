@@ -8,13 +8,7 @@ export interface VerifyInput {
 }
 
 export type VerifyReason =
-  | 'empty_name'
-  | 'bad_id_format'
-  | 'not_admitted'
-  | 'captcha'
-  | 'network'
-  | 'generic'
-  | 'ok'
+  'empty_name' | 'bad_id_format' | 'not_admitted' | 'captcha' | 'network' | 'generic' | 'ok'
 
 export interface VerifyOutput {
   ok: boolean
@@ -49,8 +43,8 @@ function mapResult(result: AdmissionResult): VerifyOutput {
 }
 
 /**
- * Verify a name + ID against the org's gateway. POSTs to the Nitro
- * `/api/orgs/:slug/check` route (which calls the portal server-side).
+ * Verify a name + ID against the page's gateway. POSTs to the Nitro
+ * `/api/pages/:slug/check` route (which calls the portal server-side).
  */
 export async function verify(
   slug: string,
@@ -69,7 +63,7 @@ export async function verify(
   }
 
   try {
-    const result = await $fetch<AdmissionResult>(`/api/orgs/${slug}/check`, {
+    const result = await $fetch<AdmissionResult>(`/api/pages/${slug}/check`, {
       method: 'POST',
       body: { username: input.name, userid: input.idNumber },
     })

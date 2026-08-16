@@ -2,7 +2,7 @@
 import { useColorMode } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
-const { config } = useOrgConfig()
+const { config } = usePageConfig()
 const { t } = useI18n()
 const mode = useColorMode({ storageKey: 'vg.theme' })
 

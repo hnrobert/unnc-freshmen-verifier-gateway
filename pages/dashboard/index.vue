@@ -1,10 +1,10 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
-// --- Pending org invitations (GitHub-style notification) ---
+// --- Pending page invitations (GitHub-style notification) ---
 interface PendingInvite {
   token: string
-  orgName: string
+  pageName: string
   slug: string
   role: string
 }
@@ -44,7 +44,7 @@ async function onDeclineInvite(token: string) {
       >
         <div class="flex items-center gap-2">
           <Icon spec="Building2" :size="18" />
-          <span class="font-medium">{{ inv.orgName }}</span>
+          <span class="font-medium">{{ inv.pageName }}</span>
           <span
             class="rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
             >{{ inv.role }}</span
@@ -65,7 +65,7 @@ async function onDeclineInvite(token: string) {
       <Button @click="navigateTo('/dashboard/new')">New page</Button>
     </div>
 
-    <!-- Overview: range selector + KPIs + trend + per-org cards (scoped to this user's orgs) -->
+    <!-- Overview: range selector + KPIs + trend + per-page cards (scoped to this user's pages) -->
     <StatsOverview endpoint="/api/stats/overview" />
   </div>
 </template>

@@ -5,9 +5,9 @@ import { resolveIcon } from '../../lib/icon'
 /**
  * Renders a lucide icon as an SVG favicon (HTTP 200, image/svg+xml).
  *
- * Used by the org layout when the brand icon is a lucide *name*. Image-based
+ * Used by the page layout when the brand icon is a lucide *name*. Image-based
  * brands (`img:<key>` / URLs) are already resolved to a data: or http URL by
- * `loadOrgConfig` → `resolveImageRefs`, so the layout links those directly; only
+ * `loadPageConfig` → `resolveImageRefs`, so the layout links those directly; only
  * vector brands need this route to turn a name into renderable favicon bytes.
  */
 export default defineEventHandler(async (event) => {

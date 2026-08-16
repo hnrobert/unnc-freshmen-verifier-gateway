@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import type { SiteConfig } from '#shared/types'
 import { useI18n } from 'vue-i18n'
-import { OrgConfigKey } from '~/composables/useOrgConfig'
+import { PageConfigKey } from '~/composables/usePageConfig'
 
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 const isDemo = computed(() => route.path.split('/').filter(Boolean)[1] === 'preview')
 
-// Load the org's resolved config (SSR-cached by slug). Reactive key + watch so
-// cross-org navigation refetches.
+// Load the page's resolved config (SSR-cached by slug). Reactive key + watch so
+// cross-page navigation refetches.
 const { data: config } = await useAsyncData(
-  () => `org:${slug.value}`,
-  () => $fetch<SiteConfig>(`/api/orgs/${slug.value}/config`),
+  () => `page:${slug.value}`,
+  () => $fetch<SiteConfig>(`/api/pages/${slug.value}/config`),
   { watch: [slug] },
 )
 
-provide(OrgConfigKey, { config: config as unknown as Ref<SiteConfig> })
+provide(PageConfigKey, { config: config as unknown as Ref<SiteConfig> })
 
-const { applyOrgI18n } = useOrgI18n()
+const { applyPageI18n } = usePageI18n()
 // Browser language for locale detection: Accept-Language on SSR, navigator on
 // client — they match, so SSR renders the right locale on first paint (no flash).
 const acceptLanguage = import.meta.server
@@ -26,12 +26,12 @@ const acceptLanguage = import.meta.server
     ? navigator.language
     : ''
 watchEffect(() => {
-  if (config.value) applyOrgI18n(config.value, acceptLanguage)
+  if (config.value) applyPageI18n(config.value, acceptLanguage)
 })
 
-// Tab title + meta description follow the org's brand (current locale), so they
+// Tab title + meta description follow the page's brand (current locale), so they
 // swap live with the language toggle. t() is reactive to i18n.locale, which is
-// set by applyOrgI18n / setLocale.
+// set by applyPageI18n / setLocale.
 const { t, locale } = useI18n()
 useHead({
   title: () => t('brand.title'),
@@ -42,9 +42,9 @@ useHead({
 const radius = computed(() => config.value?.theme.radius ?? '0.65rem')
 const primaryColor = computed(() => config.value?.theme.primaryColor ?? '#F7D447')
 
-// Per-org favicon: the org's brand icon. Image brands are already resolved to
-// a data: / http URL by loadOrgConfig → resolveImageRefs, so link them directly;
-// lucide brand names render to SVG via /api/icon.svg (in the org primary color).
+// Per-page favicon: the page's brand icon. Image brands are already resolved to
+// a data: / http URL by loadPageConfig → resolveImageRefs, so link them directly;
+// lucide brand names render to SVG via /api/icon.svg (in the page primary color).
 const faviconHref = computed(() => {
   const brand = config.value?.icons.brand
   if (brand && typeof brand === 'object' && brand.img) return brand.img

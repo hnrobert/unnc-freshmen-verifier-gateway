@@ -14,8 +14,8 @@ const emailLogo = `data:image/svg+xml;base64,${Buffer.from(
   readFileSync(fileURLToPath(new URL('./public/favicon.svg', import.meta.url))),
 ).toString('base64')}`
 
-// Nuxt 4 full-stack config. The public per-org gateway is SSR-rendered so each
-// org's config/i18n/theme apply on first paint; auth + orgs + admission run as
+// Nuxt 4 full-stack config. The public per-page gateway is SSR-rendered so each
+// page's config/i18n/theme apply on first paint; auth + pages + admission run as
 // Nitro server routes (no CORS — the portal is called server-side).
 //
 // `shared/` is Nuxt 4's app↔server dir, auto-aliased to `#shared` (used by the
@@ -82,8 +82,8 @@ export default defineNuxtConfig({
   // before first paint (matches @vueuse useColorMode's vg.theme key + logic).
   app: {
     head: {
-      // Default favicon for non-org pages (homepage, auth, dashboard). Org
-      // pages override this same key in layouts/default.vue with the org's
+      // Default favicon for non-page pages (homepage, auth, dashboard). Page
+      // pages override this same key in layouts/default.vue with the page's
       // brand icon.
       link: [{ key: 'favicon', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
       script: [
@@ -126,18 +126,18 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
 
-  // Clone the org dashboard route subtree under the admin path so a superadmin
-  // can open any org at /dashboard/admin/organizations/<slug> with the FULL org
+  // Clone the page dashboard route subtree under the admin path so a superadmin
+  // can open any page at /dashboard/admin/pages/<slug> with the FULL page
   // dashboard (same components — no page duplication). Each cloned route also
   // gets the 'superadmin' middleware so only superadmins can use the admin URL.
   hooks: {
     'pages:extend'(routes) {
-      // Source: the /dashboard/:slug org subtree. Nuxt renders the param as
+      // Source: the /dashboard/:slug page subtree. Nuxt renders the param as
       // ':slug()' (not ':slug'), so match by prefix and rebuild the admin path
-      // by swapping the '/dashboard' prefix → '/dashboard/admin/organizations'.
+      // by swapping the '/dashboard' prefix → '/dashboard/admin/pages'.
       const src = routes.find((r) => r.path.startsWith('/dashboard/:slug'))
       if (!src) return
-      const adminPath = `/dashboard/admin/organizations${src.path.replace(/^\/dashboard/, '')}`
+      const adminPath = `/dashboard/admin/pages${src.path.replace(/^\/dashboard/, '')}`
       const clone = (node: typeof src, pathOverride?: string): typeof src => {
         const meta = (node.meta ?? {}) as Record<string, unknown> & {
           middleware?: string[] | string

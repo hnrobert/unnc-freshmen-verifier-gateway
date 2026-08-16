@@ -1,8 +1,8 @@
 /**
- * Per-org email text lookup. Org-scoped emails (invitation, QR-expiry reminder,
- * welcome-content footer) read their strings from the org's `config.messages`
+ * Per-page email text lookup. Page-scoped emails (invitation, QR-expiry reminder,
+ * welcome-content footer) read their strings from the page's `config.messages`
  * (`<locale>.email.*`) so owners can customize them in the editor; this resolves
- * a key with fallbacks: org(locale) → org(en) → default(locale) → default(en).
+ * a key with fallbacks: page(locale) → page(en) → default(locale) → default(en).
  * {@link tpl} fills `{token}` placeholders the endpoints supply.
  */
 import defaultConfig from '#shared/lib/defaultConfig'
@@ -16,7 +16,7 @@ function emailKey(msgs: Msgs, key: string): string {
   return v && typeof v === 'string' ? v : ''
 }
 
-/** Resolve an org email string for `locale` (org → en → default → default-en). */
+/** Resolve an page email string for `locale` (page → en → default → default-en). */
 export function emailMsg(config: SiteConfig, locale: Locale, key: string): string {
   const m = config.messages as Record<Locale, Msgs>
   const d = defaultConfig.messages as Record<Locale, Msgs>

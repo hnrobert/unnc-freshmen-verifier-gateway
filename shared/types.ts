@@ -12,7 +12,7 @@ export type Locale = 'zh' | 'en'
 export type Localized<T = string> = Record<Locale, T>
 
 /** Selectable QR-expiry reminder slots. Each fires on its respective day —
- * `-3d`/`-2d`/`-1d` = that many days before the org's `welcome.expiresAt`,
+ * `-3d`/`-2d`/`-1d` = that many days before the page's `welcome.expiresAt`,
  * `day-of` = on `expiresAt` itself — at the recipient's own reminder time
  * (per-user preference; default 12:00 server-local). */
 export type ReminderSlot = '-3d' | '-2d' | '-1d' | 'day-of'
@@ -23,19 +23,19 @@ export const REMINDER_SLOTS: readonly ReminderSlot[] = ['-3d', '-2d', '-1d', 'da
 /**
  * Default maximum number of organizations a regular admin (`role: 'admin'`) may
  * create. A superadmin can raise (or lower) this per-user via the Users panel
- * (`User.orgLimit`); `null` on the user falls back to this default. Superadmins
+ * (`User.pageLimit`); `null` on the user falls back to this default. Superadmins
  * themselves are always unlimited.
  */
-export const DEFAULT_ADMIN_ORG_LIMIT = 3
+export const DEFAULT_ADMIN_PAGE_LIMIT = 3
 
 /**
- * Org slug rules. Shared between the server (org create/rename), the old-slug
- * redirect middleware, and the client (new-org / rename forms) so every layer
+ * Page slug rules. Shared between the server (page create/rename), the old-slug
+ * redirect middleware, and the client (new-page / rename forms) so every layer
  * validates against one source of truth.
  */
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
 
-/** Top-level path segments that can never be an org slug (routes/files/reserved words). */
+/** Top-level path segments that can never be an page slug (routes/files/reserved words). */
 export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   'api',
   'dashboard',
@@ -51,7 +51,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   'welcome',
 ])
 
-/** Validate an org slug. Returns an error message, or null when valid. */
+/** Validate an page slug. Returns an error message, or null when valid. */
 export function validateSlug(slug: string): string | null {
   if (!SLUG_RE.test(slug))
     return 'Slug must be 3-32 chars: lowercase letters, digits, hyphens (no leading/trailing/consecutive hyphens).'
@@ -102,12 +102,12 @@ export interface WelcomeAssetsConfig {
   /** If true, the welcome image gets a watermark of the visitor's name / email prefix. */
   watermark?: boolean
   /** Expiry date of the shared QR ('YYYY-MM-DD'). Auto-detected via OCR on upload,
-   * manually editable. Reminder *schedules* are not org-level — each person picks
+   * manually editable. Reminder *schedules* are not page-level — each person picks
    * their own in their Notification preferences (see `shared/lib/reminderPref.ts`). */
   expiresAt?: string
 }
 
-/** Optional full-page background for the org's verify/welcome pages. */
+/** Optional full-page background for the page's verify/welcome pages. */
 export interface BackgroundConfig {
   /** Background image: `img:<key>` (DB image), public path, or URL. Omit/empty for no background. */
   image?: string
@@ -119,7 +119,7 @@ export interface BackgroundConfig {
 export type VerifyMode = 'live' | 'mock'
 
 /**
- * Per-org live-gateway configuration. The Nitro server queries the admission
+ * Per-page live-gateway configuration. The Nitro server queries the admission
  * portal directly (no CORS server-side), so there is no transport/proxy here.
  */
 export interface GatewayConfig {
@@ -156,7 +156,7 @@ export interface AdmissionResult {
 }
 
 /**
- * The full per-org site configuration (one row in `org_settings`). `messages` is
+ * The full per-page site configuration (one row in `org_settings`). `messages` is
  * fed verbatim into vue-i18n, so the message keys (e.g. `verify.nameLabel`) are
  * the same keys used by `t()` / templates. Images are referenced by `img:<key>`
  * and resolved to serving URLs at render time.
@@ -170,7 +170,7 @@ export interface SiteConfig {
   icons: IconsConfig
   theme: ThemeConfig
   welcome: WelcomeAssetsConfig
-  /** Optional full-page background image for the org's pages. */
+  /** Optional full-page background image for the page's pages. */
   background?: BackgroundConfig
   /** Localized labels & content. Keys are referenced via `t('...')`. */
   messages: Record<Locale, Record<string, unknown>>

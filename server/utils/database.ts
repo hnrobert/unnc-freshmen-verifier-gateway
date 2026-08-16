@@ -4,19 +4,19 @@ import { DataSource } from 'typeorm'
 import type { Logger } from 'typeorm'
 import { User } from '#server/entities/user.entity'
 import { Session } from '#server/entities/session.entity'
-import { Organization } from '#server/entities/organization.entity'
-import { OrgSetting } from '#server/entities/orgSetting.entity'
-import { OrgImage } from '#server/entities/orgImage.entity'
+import { Page } from '#server/entities/page.entity'
+import { PageSetting } from '#server/entities/pageSetting.entity'
+import { PageImage } from '#server/entities/pageImage.entity'
 import { Passkey } from '#server/entities/passkey.entity'
-import { OrgVerifiedIdentity } from '#server/entities/orgVerifiedIdentity.entity'
+import { PageVerifiedIdentity } from '#server/entities/pageVerifiedIdentity.entity'
 import { AppSetting } from '#server/entities/appSetting.entity'
-import { OrgMember } from '#server/entities/orgMember.entity'
-import { UserOrgNotificationPref } from '#server/entities/userOrgNotificationPref.entity'
-import { OrgEvent } from '#server/entities/orgEvent.entity'
-import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
+import { PageMember } from '#server/entities/pageMember.entity'
+import { UserPageNotificationPref } from '#server/entities/userPageNotificationPref.entity'
+import { PageEvent } from '#server/entities/pageEvent.entity'
+import { PageDailyStat } from '#server/entities/pageDailyStat.entity'
 import { MailConfig } from '#server/entities/mailConfig.entity'
-import { OrgReminderSent } from '#server/entities/orgReminderSent.entity'
-import { OrgRedirect } from '#server/entities/orgRedirect.entity'
+import { PageReminderSent } from '#server/entities/pageReminderSent.entity'
+import { PageRedirect } from '#server/entities/pageRedirect.entity'
 import { AuditEvent } from '#server/entities/auditEvent.entity'
 
 const dbPath = process.env.DB_PATH || './data/app.db'
@@ -43,19 +43,19 @@ export const AppDataSource = new DataSource({
   entities: [
     User,
     Session,
-    Organization,
-    OrgSetting,
-    OrgImage,
-    OrgVerifiedIdentity,
+    Page,
+    PageSetting,
+    PageImage,
+    PageVerifiedIdentity,
     AppSetting,
     Passkey,
-    OrgMember,
-    UserOrgNotificationPref,
-    OrgEvent,
-    OrgDailyStat,
+    PageMember,
+    UserPageNotificationPref,
+    PageEvent,
+    PageDailyStat,
     MailConfig,
-    OrgReminderSent,
-    OrgRedirect,
+    PageReminderSent,
+    PageRedirect,
     AuditEvent,
   ],
   synchronize: true,

@@ -16,12 +16,12 @@ const slugHint = computed(() => {
 async function onSubmit() {
   loading.value = true
   try {
-    const res = await $fetch<{ org: { slug: string } }>('/api/orgs', {
+    const res = await $fetch<{ page: { slug: string } }>('/api/pages', {
       method: 'POST',
       body: { slug: slug.value.trim().toLowerCase(), name: name.value.trim() },
     })
-    await refreshNuxtData('orgs-list')
-    await navigateTo(`/dashboard/${res.org.slug}/edit`)
+    await refreshNuxtData('pages-list')
+    await navigateTo(`/dashboard/${res.page.slug}/edit`)
   } catch (e) {
     toast.error(messageFromError(e, 'Could not create page'))
   } finally {

@@ -9,7 +9,7 @@ const props = defineProps<{
   defaultId?: string
   welcomePath?: string
 }>()
-const { config } = useOrgConfig()
+const { config } = usePageConfig()
 const { t, locale } = useI18n()
 const router = useRouter()
 const { setVerified } = useVerifier()
@@ -72,7 +72,7 @@ async function onSendEmail(): Promise<void> {
   if (!emailValid.value) return
   emailSending.value = true
   try {
-    const res = await $fetch<{ warning?: string }>(`/api/orgs/${props.slug}/email-page`, {
+    const res = await $fetch<{ warning?: string }>(`/api/pages/${props.slug}/email-page`, {
       method: 'POST',
       // Send in the locale the visitor currently has selected, so the email
       // content (brand/welcome/footer) matches their page language.

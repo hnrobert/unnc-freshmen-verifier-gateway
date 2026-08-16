@@ -3,7 +3,7 @@ import type { Locale } from '#shared/types'
 import defaultConfig from '#shared/lib/defaultConfig'
 import { escapeI18nMessages } from '#shared/lib/escapeMessage'
 
-// Dashboard/editor UI labels (always available, not per-org).
+// Dashboard/editor UI labels (always available, not per-page).
 const dashboardMessages: Record<Locale, Record<string, unknown>> = {
   zh: {
     editor: {
@@ -328,9 +328,9 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
   },
 }
 
-// Deep-merge the default org config's messages (brand.title, welcome.badge,
-// etc.) into the base so they're always present — even before an org layout
-// calls `applyOrgI18n`. Org-specific messages are merged on top later.
+// Deep-merge the default page config's messages (brand.title, welcome.badge,
+// etc.) into the base so they're always present — even before an page layout
+// calls `applyPageI18n`. Page-specific messages are merged on top later.
 function deepMerge(
   base: Record<string, unknown>,
   override: Record<string, unknown>,

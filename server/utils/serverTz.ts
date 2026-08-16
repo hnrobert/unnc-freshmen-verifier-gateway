@@ -3,7 +3,7 @@ import { isValidTz } from '#shared/lib/reminderTz'
 
 /**
  * The server's local timezone — the default reminder timezone and the zone
- * shown in the org editor's server-clock readout. Resolved once (cached) from
+ * shown in the page editor's server-clock readout. Resolved once (cached) from
  * the most authoritative available source, first valid wins:
  *
  *   1. `TZ` env var

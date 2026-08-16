@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DEFAULT_ADMIN_ORG_LIMIT } from '#shared/types'
+import { DEFAULT_ADMIN_PAGE_LIMIT } from '#shared/types'
 
 definePageMeta({ layout: 'dashboard', middleware: ['auth', 'superadmin'] })
 
@@ -7,8 +7,8 @@ interface UserRow {
   id: number
   email: string
   role: string
-  orgLimit: number | null
-  orgCount: number
+  pageLimit: number | null
+  pageCount: number
   createdAt: string
 }
 
@@ -16,16 +16,16 @@ const { user: currentUser } = useAuth()
 const { data: users, refresh: refreshUsers } = await useFetch<UserRow[]>('/api/admin/users')
 const saving = ref<Record<number, boolean>>({})
 const deleting = ref<Record<number, boolean>>({})
-// Per-user text draft for the org-limit input. '' (empty) = use the default.
+// Per-user text draft for the page-limit input. '' (empty) = use the default.
 const limitDraft = ref<Record<number, string>>({})
 
-// App-wide default org limit (superadmin-tunable). Falls back to the constant
+// App-wide default page limit (superadmin-tunable). Falls back to the constant
 // before the first load resolves.
 const { data: limitsData, refresh: refreshLimits } = await useFetch<{
-  defaultAdminOrgLimit: number
+  defaultAdminPageLimit: number
 }>('/api/admin/limits')
 const defaultLimit = computed(
-  () => limitsData.value?.defaultAdminOrgLimit ?? DEFAULT_ADMIN_ORG_LIMIT,
+  () => limitsData.value?.defaultAdminPageLimit ?? DEFAULT_ADMIN_PAGE_LIMIT,
 )
 const defaultDraft = ref(limitsData.value ? String(defaultLimit.value) : '')
 const savingDefault = ref(false)
@@ -34,7 +34,7 @@ const savingDefault = ref(false)
 watchEffect(() => {
   for (const u of users.value ?? []) {
     if (!(u.id in limitDraft.value)) {
-      limitDraft.value[u.id] = u.orgLimit == null ? '' : String(u.orgLimit)
+      limitDraft.value[u.id] = u.pageLimit == null ? '' : String(u.pageLimit)
     }
   }
 })
@@ -44,7 +44,7 @@ function isSelf(user: UserRow) {
 }
 
 function limitDirty(user: UserRow): boolean {
-  const cur = user.orgLimit == null ? '' : String(user.orgLimit)
+  const cur = user.pageLimit == null ? '' : String(user.pageLimit)
   return (limitDraft.value[user.id] ?? '') !== cur
 }
 
@@ -67,26 +67,26 @@ async function onRoleChange(user: UserRow, role: string) {
 
 async function onSaveLimit(user: UserRow) {
   const raw = (limitDraft.value[user.id] ?? '').trim()
-  let body: { orgLimit: number | null }
+  let body: { pageLimit: number | null }
   if (raw === '') {
-    body = { orgLimit: null }
+    body = { pageLimit: null }
   } else {
     const n = Number(raw)
     if (!Number.isInteger(n) || n < 0) {
       toast.error('Limit must be a non-negative integer')
       return
     }
-    body = { orgLimit: n }
+    body = { pageLimit: n }
   }
   saving.value[user.id] = true
   try {
-    const res = await $fetch<{ orgLimit: number | null }>(`/api/admin/users/${user.id}`, {
+    const res = await $fetch<{ pageLimit: number | null }>(`/api/admin/users/${user.id}`, {
       method: 'PATCH',
       body,
     })
-    user.orgLimit = res.orgLimit
-    limitDraft.value[user.id] = res.orgLimit == null ? '' : String(res.orgLimit)
-    toast.success('Org limit updated')
+    user.pageLimit = res.pageLimit
+    limitDraft.value[user.id] = res.pageLimit == null ? '' : String(res.pageLimit)
+    toast.success('Page limit updated')
   } catch (e) {
     toast.error(messageFromError(e, 'Update failed'))
     await refreshUsers()
@@ -107,13 +107,13 @@ async function onSaveDefault() {
   }
   savingDefault.value = true
   try {
-    const res = await $fetch<{ defaultAdminOrgLimit: number }>('/api/admin/limits', {
+    const res = await $fetch<{ defaultAdminPageLimit: number }>('/api/admin/limits', {
       method: 'PUT',
-      body: { defaultAdminOrgLimit: n },
+      body: { defaultAdminPageLimit: n },
     })
-    limitsData.value = { defaultAdminOrgLimit: res.defaultAdminOrgLimit }
-    defaultDraft.value = String(res.defaultAdminOrgLimit)
-    toast.success('Default org limit updated')
+    limitsData.value = { defaultAdminPageLimit: res.defaultAdminPageLimit }
+    defaultDraft.value = String(res.defaultAdminPageLimit)
+    toast.success('Default page limit updated')
   } catch (e) {
     toast.error(messageFromError(e, 'Update failed'))
     await refreshLimits()
@@ -132,12 +132,12 @@ async function onDelete(user: UserRow) {
     return
   deleting.value[user.id] = true
   try {
-    const res = await $fetch<{ reassignedOrgs: number }>(`/api/admin/users/${user.id}`, {
+    const res = await $fetch<{ reassignedPages: number }>(`/api/admin/users/${user.id}`, {
       method: 'DELETE',
     })
     toast.success(
-      res.reassignedOrgs > 0
-        ? `User deleted (${res.reassignedOrgs} page${res.reassignedOrgs > 1 ? 's' : ''} transferred to you)`
+      res.reassignedPages > 0
+        ? `User deleted (${res.reassignedPages} page${res.reassignedPages > 1 ? 's' : ''} transferred to you)`
         : 'User deleted',
     )
     await refreshUsers()
@@ -188,7 +188,7 @@ async function onDelete(user: UserRow) {
                 <th class="py-3 font-medium">ID</th>
                 <th class="py-3 font-medium">Email</th>
                 <th class="py-3 font-medium">Role</th>
-                <th class="py-3 font-medium">Org limit</th>
+                <th class="py-3 font-medium">Page limit</th>
                 <th class="py-3 font-medium">Created</th>
                 <th class="py-3 font-medium"></th>
               </tr>
@@ -230,7 +230,7 @@ async function onDelete(user: UserRow) {
                       @keydown.enter.prevent="onSaveLimit(u)"
                     />
                     <span class="whitespace-nowrap text-xs text-muted-foreground"
-                      >{{ u.orgCount }} used</span
+                      >{{ u.pageCount }} used</span
                     >
                     <Button
                       variant="ghost"
@@ -300,20 +300,20 @@ async function onDelete(user: UserRow) {
               v-if="u.role !== 'superadmin'"
               class="mt-3 flex flex-wrap items-center gap-2 border-t pt-3"
             >
-              <span class="text-xs text-muted-foreground">Org limit</span>
+              <span class="text-xs text-muted-foreground">Page limit</span>
               <input
                 type="number"
                 min="0"
                 inputmode="numeric"
                 class="h-9 w-20 rounded-md border bg-transparent px-2 text-sm"
-                :placeholder="`Default (${DEFAULT_ADMIN_ORG_LIMIT})`"
+                :placeholder="`Default (${DEFAULT_ADMIN_PAGE_LIMIT})`"
                 :value="limitDraft[u.id] ?? ''"
                 :disabled="saving[u.id]"
                 @input="limitDraft[u.id] = ($event.target as HTMLInputElement).value"
                 @keydown.enter.prevent="onSaveLimit(u)"
               />
               <span class="whitespace-nowrap text-xs text-muted-foreground"
-                >{{ u.orgCount }} used</span
+                >{{ u.pageCount }} used</span
               >
               <Button
                 variant="ghost"

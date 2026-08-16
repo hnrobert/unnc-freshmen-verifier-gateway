@@ -4,13 +4,13 @@ import { User } from '#server/entities/user.entity'
 export default defineEventHandler(async (event) => {
   const me = requireSuperAdmin(event)
   const id = Number(getRouterParam(event, 'id'))
-  const body = await readBody<{ role?: unknown; orgLimit?: unknown }>(event)
+  const body = await readBody<{ role?: unknown; pageLimit?: unknown }>(event)
 
   const repo = AppDataSource.getRepository(User)
   const user = await repo.findOneBy({ id })
   if (!user) throw createError({ statusCode: 404, statusMessage: 'User not found' })
   const oldRole = user.role
-  const oldOrgLimit = user.orgLimit
+  const oldPageLimit = user.pageLimit
 
   if (body.role !== undefined) {
     const role = String(body.role)
@@ -19,17 +19,17 @@ export default defineEventHandler(async (event) => {
     user.role = role
   }
 
-  // Per-user org-creation cap. `null` resets to the default; otherwise a
-  // non-negative integer (0 blocks org creation entirely). Superadmins ignore
+  // Per-user page-creation cap. `null` resets to the default; otherwise a
+  // non-negative integer (0 blocks page creation entirely). Superadmins ignore
   // this (always unlimited), but it can still be stored for when they demote.
-  if (body.orgLimit !== undefined) {
-    if (body.orgLimit === null) {
-      user.orgLimit = null
+  if (body.pageLimit !== undefined) {
+    if (body.pageLimit === null) {
+      user.pageLimit = null
     } else {
-      const n = Number(body.orgLimit)
+      const n = Number(body.pageLimit)
       if (!Number.isInteger(n) || n < 0)
-        throw createError({ statusCode: 400, statusMessage: 'Invalid org limit' })
-      user.orgLimit = n
+        throw createError({ statusCode: 400, statusMessage: 'Invalid page limit' })
+      user.pageLimit = n
     }
   }
 
@@ -44,9 +44,9 @@ export default defineEventHandler(async (event) => {
       targetUserId: user.id,
       targetEmail: user.email,
       role: oldRole !== user.role ? { from: oldRole, to: user.role } : undefined,
-      orgLimit:
-        oldOrgLimit !== user.orgLimit ? { from: oldOrgLimit, to: user.orgLimit } : undefined,
+      pageLimit:
+        oldPageLimit !== user.pageLimit ? { from: oldPageLimit, to: user.pageLimit } : undefined,
     },
   })
-  return { id: user.id, email: user.email, role: user.role, orgLimit: user.orgLimit }
+  return { id: user.id, email: user.email, role: user.role, pageLimit: user.pageLimit }
 })

@@ -4,7 +4,7 @@ import { REMINDER_SLOTS, type ReminderSlot } from '#shared/types'
 /**
  * Shared editor for a reminder preference triplet: master on/off, which days
  * (REMINDER_SLOTS), and a time-of-day. `v-model` over the whole object so both
- * the account Settings card and the per-org Notifications tab reuse it. The
+ * the account Settings card and the per-page Notifications tab reuse it. The
  * timezone is account-level, so it is NOT part of this component.
  */
 interface PrefState {

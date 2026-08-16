@@ -1,6 +1,6 @@
 import type { Locale, SiteConfig } from '../types'
 
-/** Dotted i18n keys every org must provide for every enabled locale. */
+/** Dotted i18n keys every page must provide for every enabled locale. */
 export const REQUIRED_KEYS = [
   'brand.title',
   'brand.subtitle',

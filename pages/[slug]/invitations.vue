@@ -5,11 +5,11 @@ const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
 const { data: invite, error } = await useFetch<{
-  orgName: string
+  pageName: string
   slug: string
   role: string
   inviteToken: string
-}>(() => `/api/orgs/${slug.value}/invitation`)
+}>(() => `/api/pages/${slug.value}/invitation`)
 
 const claiming = ref(false)
 const declining = ref(false)

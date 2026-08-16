@@ -42,7 +42,7 @@ const {
   data: stats,
   pending,
   error,
-} = await useFetch<StatsResult>(() => `/api/orgs/${slug.value}/stats?range=${range.value}`, {
+} = await useFetch<StatsResult>(() => `/api/pages/${slug.value}/stats?range=${range.value}`, {
   watch: [slug, range],
 })
 
@@ -163,24 +163,24 @@ const horizOpts: ChartOptions<'bar'> = {
 
 const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)}%`)
 
-// --- Danger zone: owner-only org deletion (moved off the orgs-list card) ---
-const { data: orgsData } = useFetch<{ orgs: { slug: string; name: string; role: string }[] }>(
-  '/api/orgs',
+// --- Danger zone: owner-only page deletion (moved off the pages-list card) ---
+const { data: pagesData } = useFetch<{ pages: { slug: string; name: string; role: string }[] }>(
+  '/api/pages',
 )
-const currentOrg = computed(() => orgsData.value?.orgs.find((o) => o.slug === slug.value))
-const orgName = computed(() => currentOrg.value?.name ?? slug.value)
-const isOwner = computed(() => ['owner', 'superadmin'].includes(currentOrg.value?.role ?? ''))
+const currentPage = computed(() => pagesData.value?.pages.find((o) => o.slug === slug.value))
+const pageName = computed(() => currentPage.value?.name ?? slug.value)
+const isOwner = computed(() => ['owner', 'superadmin'].includes(currentPage.value?.role ?? ''))
 const canEdit = computed(() =>
-  ['owner', 'manager', 'editor', 'superadmin'].includes(currentOrg.value?.role ?? ''),
+  ['owner', 'manager', 'editor', 'superadmin'].includes(currentPage.value?.role ?? ''),
 )
 const deleting = ref(false)
 async function onDelete() {
   if (!confirm(`Delete page "${slug.value}"? This cannot be undone.`)) return
   deleting.value = true
   try {
-    await $fetch(`/api/orgs/${slug.value}`, { method: 'DELETE' })
+    await $fetch(`/api/pages/${slug.value}`, { method: 'DELETE' })
     toast.success('Page deleted')
-    await navigateTo('/dashboard/orgs')
+    await navigateTo('/dashboard/pages')
   } catch (e) {
     toast.error(messageFromError(e, 'Delete failed'))
   } finally {
@@ -194,8 +194,8 @@ async function onDelete() {
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <div class="flex flex-wrap items-center gap-2">
-          <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">{{ orgName }}</h1>
-          <span v-if="currentOrg" class="text-sm text-muted-foreground">{{
+          <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">{{ pageName }}</h1>
+          <span v-if="currentPage" class="text-sm text-muted-foreground">{{
             isOwner ? 'Owner' : 'Collaborator'
           }}</span>
         </div>
@@ -217,7 +217,7 @@ async function onDelete() {
             {{ r === 'all' ? 'All' : `${r}d` }}
           </button>
         </div>
-        <!-- Prominent entry to the org's settings (config editor) -->
+        <!-- Prominent entry to the page's settings (config editor) -->
         <Button v-if="canEdit" @click="navigateTo(`/dashboard/${slug}/edit`)">
           <Icon spec="Settings" :size="16" />
           Configure

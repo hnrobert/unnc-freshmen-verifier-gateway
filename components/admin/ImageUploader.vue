@@ -49,7 +49,7 @@ async function onFile(e: Event): Promise<void> {
   try {
     const base64 = await fileToBase64(file)
     const res = await $fetch<{ ref?: string; expiresAt?: string | null }>(
-      `/api/orgs/${props.slug}/images`,
+      `/api/pages/${props.slug}/images`,
       { method: 'POST', body: { key: props.imageKey, mime: file.type, base64 } },
     )
     // When `silent`, the parent shows its own (combined) toast — e.g. the
@@ -73,7 +73,7 @@ async function onDelete(): Promise<void> {
   error.value = ''
   try {
     // Endpoint is idempotent — a missing row (already deleted) is fine.
-    await $fetch(`/api/orgs/${props.slug}/images/${props.imageKey}`, { method: 'DELETE' })
+    await $fetch(`/api/pages/${props.slug}/images/${props.imageKey}`, { method: 'DELETE' })
     toast.success(t('editor.imageDeleted'))
     emit('deleted')
   } catch (err) {

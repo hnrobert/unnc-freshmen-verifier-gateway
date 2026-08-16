@@ -39,7 +39,7 @@ export function buildWatermarkSvg(width: number, height: number, text: string): 
   }
 
   return Buffer.from(
-    `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(-30 ${width / 2} ${height / 2})">${rows.join('')}</g></svg>`,
+    `<svg width="${width}" height="${height}" xmlns="http://www.w3.page/2000/svg"><g transform="rotate(-30 ${width / 2} ${height / 2})">${rows.join('')}</g></svg>`,
   )
 }
 

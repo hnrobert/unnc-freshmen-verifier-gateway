@@ -3,7 +3,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 /**
  * Site-wide audit trail (superadmin-visible). One row per audited action across
  * the whole site — verification attempts, verification-code emails, auth &
- * registration, org lifecycle, membership changes, and superadmin actions — so a
+ * registration, page lifecycle, membership changes, and superadmin actions — so a
  * superadmin can see "who did what, when, and whether it succeeded" in one place.
  *
  * Retention is configurable (default 90 days; pruned by `pruneOldAuditEvents`).
@@ -16,7 +16,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
  */
 @Entity({ name: 'audit_events' })
 @Index('idx_audit_created', ['createdAt'])
-@Index('idx_audit_org', ['orgId', 'createdAt'])
+@Index('idx_audit_org', ['pageId', 'createdAt'])
 @Index('idx_audit_action', ['action', 'createdAt'])
 @Index('idx_audit_user', ['userId', 'createdAt'])
 export class AuditEvent {
@@ -28,9 +28,9 @@ export class AuditEvent {
 
   /** Null for site-wide events (login/register/admin-user). */
   @Column({ name: 'org_id', type: 'integer', nullable: true })
-  orgId!: number | null
+  pageId!: number | null
 
-  /** verify | send_code | login | register | password_change | passkey_add | org.create | org.rename | member.add | admin.user_update … */
+  /** verify | send_code | login | register | password_change | passkey_add | page.create | page.rename | member.add | admin.user_update … */
   @Column({ type: 'text', nullable: false })
   action!: string
 

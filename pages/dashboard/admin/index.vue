@@ -9,15 +9,15 @@ definePageMeta({ layout: 'dashboard', middleware: ['auth', 'superadmin'] })
       <p class="mt-1 text-sm text-muted-foreground">Site-wide analytics across every page.</p>
     </div>
 
-    <!-- All-orgs overview (KPIs + trend) -->
+    <!-- All-pages overview (KPIs + trend) -->
     <StatsOverview
       endpoint="/api/admin/stats/overview"
-      :show-org-cards="false"
-      org-link-base="/dashboard/admin/organizations"
+      :show-page-cards="false"
+      page-link-base="/dashboard/admin/pages"
     />
 
     <div class="flex flex-wrap gap-3">
-      <Button variant="outline" @click="navigateTo('/dashboard/admin/organizations')"
+      <Button variant="outline" @click="navigateTo('/dashboard/admin/pages')"
         >Browse all pages</Button
       >
       <Button variant="outline" @click="navigateTo('/dashboard/admin/users')">Manage users</Button>

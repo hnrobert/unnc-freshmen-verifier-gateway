@@ -1,11 +1,11 @@
 /**
- * Default per-org SiteConfig — the seed/template used when a new organization is
- * created (see server/db/seed.ts + POST /api/orgs). Org owners then customize
+ * Default per-page SiteConfig — the seed/template used when a new organization is
+ * created (see server/db/seed.ts + POST /api/pages). Page owners then customize
  * their own copy via the dashboard editor. The `messages` block is fed verbatim
  * into vue-i18n; keys (e.g. `verify.nameLabel`) are exactly what templates use.
  *
  * Images use `img:<key>` (stored as base64 in the `org_images` table, served at
- * `/api/orgs/:slug/img-:key`). Set `gateway.mode: 'mock'` to preview the UI
+ * `/api/pages/:slug/img-:key`). Set `gateway.mode: 'mock'` to preview the UI
  * without the portal. The portal is always queried server-side (no CORS).
  */
 import type { SiteConfig } from '../types'
@@ -51,7 +51,7 @@ const config: SiteConfig = {
     imageRadius: '0.5rem',
     watermark: false,
     // Auto-detected from the uploaded QR image (OCR); manually editable. 'YYYY-MM-DD'.
-    // Reminder schedules are per-user (Notification preferences), not org-level.
+    // Reminder schedules are per-user (Notification preferences), not page-level.
     expiresAt: undefined,
   },
 

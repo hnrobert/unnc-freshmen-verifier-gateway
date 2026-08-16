@@ -56,14 +56,14 @@ export function clearTrustCookie(event: H3Event): void {
 // Privacy: the payload carries only the salted SHA-256 `idHash` (never the raw
 // ID number) plus a `deviceHash` binding the token to the browser that earned
 // it. `admission` is cached so a trusted visitor can be fast-tracked to another
-// org's welcome page without re-querying the portal.
+// page's welcome page without re-querying the portal.
 
 export interface VerifyTrustPayload {
   name: string
   idHash: string
   deviceHash: string
   trustedUntil: string
-  /** Cached portal result so a cross-org skip can render the welcome page. */
+  /** Cached portal result so a cross-page skip can render the welcome page. */
   admission?: AdmissionResult
 }
 

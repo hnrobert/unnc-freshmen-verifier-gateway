@@ -3,10 +3,10 @@
  *
  *  • Per-target (recipient address), per flow: 1/minute, {@link EMAIL_DAILY_LIMIT}/day.
  *    Applied to every user-initiated send (welcome content, registration code,
- *    org invite, mail test) so one address can't be spammed. {@link checkEmailSend}
+ *    page invite, mail test) so one address can't be spammed. {@link checkEmailSend}
  *  • Per-account (the authenticated sender), aggregated across all flows they
  *    initiate: {@link ACCOUNT_PER_MINUTE}/min, {@link ACCOUNT_DAILY_LIMIT}/day.
- *    Applies only to sends by a logged-in user (org invite, mail test);
+ *    Applies only to sends by a logged-in user (page invite, mail test);
  *    unauthenticated flows (welcome/code) have no account and rely on the
  *    per-target cap. {@link checkAccountSend}
  *

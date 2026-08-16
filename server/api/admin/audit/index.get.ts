@@ -4,12 +4,12 @@ import { readAudit, getAuditRetentionDays } from '#server/utils/stats'
 export default defineEventHandler(async (event) => {
   requireSuperAdmin(event)
   const q = getQuery(event)
-  const orgId = q.orgId != null && q.orgId !== '' ? Number(q.orgId) : null
+  const pageId = q.pageId != null && q.pageId !== '' ? Number(q.pageId) : null
   const userId = q.userId != null && q.userId !== '' ? Number(q.userId) : null
   const result = await readAudit({
     action: typeof q.action === 'string' && q.action ? q.action : null,
     outcome: typeof q.outcome === 'string' && q.outcome ? q.outcome : null,
-    orgId: orgId != null && Number.isFinite(orgId) ? orgId : null,
+    pageId: pageId != null && Number.isFinite(pageId) ? pageId : null,
     userId: userId != null && Number.isFinite(userId) ? userId : null,
     search: typeof q.search === 'string' && q.search.trim() ? q.search.trim() : null,
     from: typeof q.from === 'string' && q.from ? q.from : null,

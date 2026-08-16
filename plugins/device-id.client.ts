@@ -2,7 +2,7 @@
  * Ensures every browser carries a stable `vg_device` cookie — a random ID used
  * (together with the User-Agent, salted-hashed server-side) to bind the verify
  * JWT to the browser that earned it. This is what lets a visitor who verified in
- * one org skip the form in another org on the SAME browser, while a stolen token
+ * one page skip the form in another page on the SAME browser, while a stolen token
  * alone won't work on a different browser/device.
  *
  * Client-only: the ID is generated and stored in the browser. It rides on every

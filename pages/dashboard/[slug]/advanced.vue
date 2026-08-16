@@ -7,17 +7,17 @@ const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
 const { data: access } = await useFetch<{ role: string | null }>(
-  () => `/api/orgs/${slug.value}/access`,
+  () => `/api/pages/${slug.value}/access`,
   { watch: [slug] },
 )
 const { data: raw } = await useAsyncData(
-  () => `org-edit:${slug.value}`,
-  () => useRequestFetch()<SiteConfig>(`/api/orgs/${slug.value}/config?edit=1`),
+  () => `page-edit:${slug.value}`,
+  () => useRequestFetch()<SiteConfig>(`/api/pages/${slug.value}/config?edit=1`),
   { watch: [slug] },
 )
 if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
 
-const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscard } = useOrgDraft(
+const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscard } = usePageDraft(
   raw.value,
   access,
 )

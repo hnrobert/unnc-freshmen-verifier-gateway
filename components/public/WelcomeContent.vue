@@ -5,7 +5,7 @@ import type { AdmissionResult, Locale } from '#shared/types'
 const props = defineProps<{ stubAdmission?: AdmissionResult }>()
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
-const { config } = useOrgConfig()
+const { config } = usePageConfig()
 const { t, locale } = useI18n()
 const router = useRouter()
 const { reset, admission } = useVerifier()
@@ -16,7 +16,7 @@ const body = computed(() => {
     { welcome?: { body?: string } } | undefined
   return messages?.welcome?.body ?? ''
 })
-// The welcome image is lazy-loaded AFTER first paint. loadOrgConfig keeps it as
+// The welcome image is lazy-loaded AFTER first paint. loadPageConfig keeps it as
 // `img:<key>` (un-inlined) so it never blocks SSR or bloats the payload; this
 // component fetches it via /welcome-image once on the client. Both the plain and
 // watermarked cases share that endpoint — watermark just appends ?name=<visitor>.
@@ -44,7 +44,7 @@ watchEffect(async () => {
   imgError.value = false
   try {
     const qs = watermarkEnabled.value && name ? `?name=${encodeURIComponent(name)}` : ''
-    imgSrc.value = await $fetch<string>(`/api/orgs/${slug.value}/welcome-image${qs}`, {
+    imgSrc.value = await $fetch<string>(`/api/pages/${slug.value}/welcome-image${qs}`, {
       responseType: 'text',
     })
   } catch {

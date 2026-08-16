@@ -8,7 +8,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   try {
     const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
-    await $fetch(`/api/orgs/${slug}/config`, { query: { edit: 1 }, headers })
+    await $fetch(`/api/pages/${slug}/config`, { query: { edit: 1 }, headers })
   } catch {
     return navigateTo('/dashboard')
   }

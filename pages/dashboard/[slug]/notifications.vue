@@ -18,14 +18,14 @@ interface EffectivePref {
   tz: string
 }
 interface NotifResult {
-  orgName: string
+  pageName: string
   expiresAt: string | null
   override: NotifOverride | null
   effective: EffectivePref
 }
 
 const { data, refresh } = await useFetch<NotifResult>(
-  () => `/api/orgs/${slug.value}/me/notifications`,
+  () => `/api/pages/${slug.value}/me/notifications`,
   { watch: [slug] },
 )
 
@@ -117,7 +117,7 @@ async function onSave(): Promise<void> {
   saving.value = true
   saved.value = false
   try {
-    await $fetch(`/api/orgs/${slug.value}/me/notifications`, {
+    await $fetch(`/api/pages/${slug.value}/me/notifications`, {
       method: 'PATCH',
       body: draft.value.inherit
         ? { inherit: true }
@@ -154,7 +154,7 @@ function onDiscard(): void {
 
     <Card v-if="data">
       <CardHeader>
-        <CardTitle class="text-base">{{ data.orgName }}</CardTitle>
+        <CardTitle class="text-base">{{ data.pageName }}</CardTitle>
         <CardDescription>
           Expires <span class="font-medium">{{ expiryDate ?? '— no expiry date set' }}</span>
         </CardDescription>

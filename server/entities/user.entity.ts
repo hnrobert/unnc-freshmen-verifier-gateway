@@ -40,12 +40,12 @@ export class User {
 
   /**
    * Per-user cap on the number of organizations this account can create.
-   * `null` = fall back to the default admin limit (see DEFAULT_ADMIN_ORG_LIMIT).
+   * `null` = fall back to the default admin limit (see DEFAULT_ADMIN_PAGE_LIMIT).
    * Superadmins are always unlimited regardless of this value. Configured by a
    * superadmin from the Users panel.
    */
   @Column({ name: 'org_limit', type: 'integer', nullable: true })
-  orgLimit!: number | null
+  pageLimit!: number | null
 
   /** Preferred UI / notification locale ('zh' | 'en'). Null until first visit. */
   @Column({ type: 'text', nullable: true })
@@ -57,12 +57,12 @@ export class User {
 
   /** IANA timezone in which this user's reminder `reminderTime` fires. Null until
    * first set (the dashboard auto-detects from the browser); resolved downwards
-   * to the org's tz, then the server's. */
+   * to the page's tz, then the server's. */
   @Column({ type: 'text', nullable: true })
   tz!: string | null
 
   /** Account-level default reminder slots; null = "not personalized" (inherit
-   * the org config / system default). `[]` is an explicit "no reminders". */
+   * the page config / system default). `[]` is an explicit "no reminders". */
   @Column({
     name: 'reminder_slots',
     type: 'text',

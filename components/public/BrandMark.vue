@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { isImageIcon } from '~/lib/icon'
 
-const { config } = useOrgConfig()
+const { config } = usePageConfig()
 const { t } = useI18n()
 
 const brandIsImg = computed(() => isImageIcon(config.value.icons.brand))
@@ -18,7 +18,9 @@ const brandIsImg = computed(() => isImageIcon(config.value.icons.brand))
       <Icon :spec="config.icons.brand" :size="22" :cover="brandIsImg" />
     </span>
     <div class="min-w-0">
-      <div class="truncate text-sm font-semibold leading-tight sm:text-base">{{ t('brand.title') }}</div>
+      <div class="truncate text-sm font-semibold leading-tight sm:text-base">
+        {{ t('brand.title') }}
+      </div>
       <div class="truncate text-xs text-foreground/60">{{ t('brand.subtitle') }}</div>
     </div>
   </div>

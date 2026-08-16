@@ -3,20 +3,20 @@ import { User } from '#server/entities/user.entity'
 import { Session } from '#server/entities/session.entity'
 import { Passkey } from '#server/entities/passkey.entity'
 import { MailConfig } from '#server/entities/mailConfig.entity'
-import { OrgMember } from '#server/entities/orgMember.entity'
-import { Organization } from '#server/entities/organization.entity'
+import { PageMember } from '#server/entities/pageMember.entity'
+import { Page } from '#server/entities/page.entity'
 
 /**
  * Permanently delete a user account (superadmin only).
  *
  * Side effects, all in one transaction:
- *  - Ownership of any orgs they owned is reassigned to the acting superadmin
+ *  - Ownership of any pages they owned is reassigned to the acting superadmin
  *    (`organizations.owner_id` is non-nullable, so we can't just orphan them).
  *  - Personal artifacts are removed: sessions, passkeys, per-user mail config,
- *    and their active org memberships.
- *  - Org analytics + verified-identity records (`org_events`,
- *    `org_verified_identities`) are KEPT — they belong to the org's history,
- *    not the user's account, and are org-scoped (no `userId`).
+ *    and their active page memberships.
+ *  - Page analytics + verified-identity records (`org_events`,
+ *    `org_verified_identities`) are KEPT — they belong to the page's history,
+ *    not the user's account, and are page-scoped (no `userId`).
  *
  * Guards: cannot delete yourself; cannot delete the last superadmin.
  */
@@ -38,17 +38,17 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Cannot delete the last superadmin' })
   }
 
-  const reassignedOrgs = await AppDataSource.transaction(async (m) => {
-    const orgRepo = m.getRepository(Organization)
-    const ownedOrgs = await orgRepo.countBy({ ownerId: id })
-    if (ownedOrgs > 0) await orgRepo.update({ ownerId: id }, { ownerId: me.id })
+  const reassignedPages = await AppDataSource.transaction(async (m) => {
+    const pageRepo = m.getRepository(Page)
+    const ownedPages = await pageRepo.countBy({ ownerId: id })
+    if (ownedPages > 0) await pageRepo.update({ ownerId: id }, { ownerId: me.id })
 
     await m.getRepository(Session).delete({ userId: id })
     await m.getRepository(Passkey).delete({ userId: id })
     await m.getRepository(MailConfig).delete({ userId: id })
-    await m.getRepository(OrgMember).delete({ userId: id })
+    await m.getRepository(PageMember).delete({ userId: id })
     await m.getRepository(User).delete({ id })
-    return ownedOrgs
+    return ownedPages
   })
 
   void recordAudit(event, {
@@ -61,9 +61,9 @@ export default defineEventHandler(async (event) => {
       targetUserId: target.id,
       targetEmail: target.email,
       targetRole: target.role,
-      reassignedOrgs,
+      reassignedPages,
     },
   })
 
-  return { ok: true, reassignedOrgs }
+  return { ok: true, reassignedPages }
 })
