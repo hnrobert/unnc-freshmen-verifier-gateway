@@ -1,5 +1,4 @@
 import type { Locale, SiteConfig } from '../types'
-import { REMINDER_SLOTS } from '../types'
 
 /** Dotted i18n keys every org must provide for every enabled locale. */
 export const REQUIRED_KEYS = [
@@ -75,36 +74,6 @@ export function validateConfig(config: SiteConfig): string[] {
   if (expiresAt !== undefined && expiresAt !== null && expiresAt !== '') {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresAt) || Number.isNaN(Date.parse(expiresAt))) {
       errors.push('welcome.expiresAt must be a YYYY-MM-DD date')
-    }
-  }
-  // Reminder slots (optional; if present must be valid ReminderSlot values).
-  const reminders = config.welcome?.reminders
-  if (reminders !== undefined) {
-    if (!Array.isArray(reminders)) {
-      errors.push('welcome.reminders must be an array')
-    } else {
-      const valid = new Set(REMINDER_SLOTS)
-      for (const slot of reminders) {
-        if (!valid.has(slot)) errors.push(`welcome.reminders has invalid slot "${slot}"`)
-      }
-    }
-  }
-  // Reminder time-of-day (optional HH:MM, 24h).
-  const reminderTime = config.welcome?.reminderTime
-  if (
-    reminderTime !== undefined &&
-    reminderTime !== '' &&
-    !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)
-  ) {
-    errors.push('welcome.reminderTime must be HH:MM (24-hour)')
-  }
-  // Reminder timezone (optional IANA tz — invalid values throw on construction).
-  const reminderTz = config.welcome?.reminderTz
-  if (reminderTz !== undefined && reminderTz !== '') {
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone: reminderTz })
-    } catch {
-      errors.push('welcome.reminderTz must be a valid IANA timezone')
     }
   }
 

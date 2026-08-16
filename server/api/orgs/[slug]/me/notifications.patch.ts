@@ -1,7 +1,6 @@
 import { AppDataSource } from '#server/utils/database'
 import { User } from '#server/entities/user.entity'
 import { UserOrgNotificationPref } from '#server/entities/userOrgNotificationPref.entity'
-import { loadOrgConfig } from '#server/utils/orgs'
 import { resolveServerTz } from '#server/utils/serverTz'
 import { resolveEffectivePref, sanitizeSlots, isValidReminderTime } from '#shared/lib/reminderPref'
 
@@ -60,7 +59,6 @@ export default defineEventHandler(async (event) => {
   // Return the resulting override + effective schedule.
   const pref = await repo.findOneBy({ orgId: org.id, userId: me.id })
   const user = await AppDataSource.getRepository(User).findOneBy({ id: me.id })
-  const config = await loadOrgConfig(org.slug)
   const effective = resolveEffectivePref({
     user: {
       notifyExpiry: !!user?.notifyExpiry,
@@ -69,11 +67,6 @@ export default defineEventHandler(async (event) => {
       tz: user?.tz ?? null,
     },
     orgOverride: pref ?? null,
-    orgConfig: {
-      reminders: sanitizeSlots(config.welcome?.reminders),
-      reminderTime: config.welcome?.reminderTime || null,
-      reminderTz: config.welcome?.reminderTz || null,
-    },
     serverTz: resolveServerTz(),
   })
 

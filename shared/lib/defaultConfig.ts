@@ -51,13 +51,8 @@ const config: SiteConfig = {
     imageRadius: '0.5rem',
     watermark: false,
     // Auto-detected from the uploaded QR image (OCR); manually editable. 'YYYY-MM-DD'.
+    // Reminder schedules are per-user (Notification preferences), not org-level.
     expiresAt: undefined,
-    // Which reminder slots are on; empty = off.
-    reminders: [],
-    // Time-of-day (HH:MM) when slots fire.
-    reminderTime: '12:00',
-    // IANA timezone the schedule runs in. '' = use the server's local timezone.
-    reminderTz: '',
   },
 
   // Optional full-page background (upload via the editor → img:background).

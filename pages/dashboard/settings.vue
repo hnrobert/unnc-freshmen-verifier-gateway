@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ReminderSlot } from '#shared/types'
+import { SYSTEM_DEFAULT_SLOTS } from '#shared/lib/reminderPref'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -20,9 +21,12 @@ const { data: timezones } = await useFetch<string[]>('/api/timezones')
 // notification preferences — saved together via the bottom save/discard bar
 // (same pattern as the config editor). `originalX` snapshots drive isDirty and
 // Discard; the PATCH only sends fields that actually changed.
+// Unset account values are seeded from the system default (2 days / 1 day /
+// day-of at 12:00 server tz) so the card shows what's actually in effect. An
+// untouched seeded draft isn't dirty, so `null` (inherit) is preserved on save.
 const originalEmail = ref(user.value?.email ?? '')
 const originalNotify = ref(meData.value?.notifyExpiry ?? true)
-const originalSlots = ref<ReminderSlot[]>(meData.value?.reminderSlots ?? [])
+const originalSlots = ref<ReminderSlot[]>(meData.value?.reminderSlots ?? [...SYSTEM_DEFAULT_SLOTS])
 const originalTime = ref(meData.value?.reminderTime ?? '12:00')
 const originalTz = ref<string | null>(meData.value?.tz ?? null)
 
@@ -138,7 +142,7 @@ async function onSave(): Promise<void> {
     originalEmail.value = res.user.email
     if (user.value) user.value.email = res.user.email
     originalNotify.value = res.notifyExpiry
-    originalSlots.value = res.reminderSlots ?? []
+    originalSlots.value = res.reminderSlots ?? [...SYSTEM_DEFAULT_SLOTS]
     originalTime.value = res.reminderTime ?? '12:00'
     originalTz.value = res.tz ?? null
     draft.value = {
@@ -147,7 +151,7 @@ async function onSave(): Promise<void> {
       newPassword: '',
       confirm: '',
       notifyExpiry: res.notifyExpiry,
-      reminderSlots: [...(res.reminderSlots ?? [])],
+      reminderSlots: [...(res.reminderSlots ?? SYSTEM_DEFAULT_SLOTS)],
       reminderTime: res.reminderTime ?? '12:00',
       tz: res.tz ?? null,
     }

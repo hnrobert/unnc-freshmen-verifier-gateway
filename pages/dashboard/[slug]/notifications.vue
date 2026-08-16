@@ -36,27 +36,56 @@ const SLOT_LABELS: Record<ReminderSlot, string> = {
   'day-of': 'On the day',
 }
 
-// Whether this org currently uses the account default (no override row).
-const inherits = ref(data.value?.override === null)
-// Draft for custom mode, seeded from the override (falling back to the resolved
-// effective schedule) so un-touched fields start at what's currently in effect.
-const draft = ref<{ enabled: boolean; slots: ReminderSlot[]; time: string }>({
-  enabled: data.value?.override?.notifyExpiry ?? data.value?.effective.enabled ?? true,
-  slots: data.value?.override?.reminderSlots ?? data.value?.effective.slots ?? [],
-  time: data.value?.override?.reminderTime ?? data.value?.effective.time ?? '12:00',
-})
+// One draft for the whole page — the inherit toggle plus the custom schedule —
+// saved together via the bottom save/discard bar (same pattern as account
+// Settings and the config editor). `inherit` = use the account default (the
+// custom fields are then read-only, showing what's currently in effect).
+interface Draft {
+  inherit: boolean
+  enabled: boolean
+  slots: ReminderSlot[]
+  time: string
+}
+function seedDraft(d: NotifResult | null | undefined): Draft {
+  const eff = d?.effective
+  const ov = d?.override
+  return {
+    inherit: ov == null,
+    enabled: ov?.notifyExpiry ?? eff?.enabled ?? true,
+    slots: ov?.reminderSlots ?? [...(eff?.slots ?? [])],
+    time: ov?.reminderTime ?? eff?.time ?? '12:00',
+  }
+}
+const original = ref<Draft>(seedDraft(data.value))
+const draft = ref<Draft>(seedDraft(data.value))
 const saving = ref(false)
+const saved = ref(false)
+
+function slotsEqual(a: ReminderSlot[], b: ReminderSlot[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((s) => b.includes(s))
+}
+const isDirty = computed(
+  () =>
+    draft.value.inherit !== original.value.inherit ||
+    draft.value.enabled !== original.value.enabled ||
+    draft.value.time !== original.value.time ||
+    !slotsEqual(draft.value.slots, original.value.slots),
+)
+
+// Unsaved-changes prompt on leave (matches the config editor + Settings).
+const { confirmLeave, proceed } = useUnsavedLeaveGuard(isDirty, saving)
 
 // In inherit mode the controls render the resolved effective schedule (disabled,
 // read-only); in custom mode they render the editable draft.
 const controlsModel = computed(() =>
-  inherits.value
+  draft.value.inherit
     ? {
         enabled: data.value?.effective.enabled ?? false,
         slots: data.value?.effective.slots ?? [],
         time: data.value?.effective.time ?? '12:00',
       }
-    : draft.value,
+    : { enabled: draft.value.enabled, slots: draft.value.slots, time: draft.value.time },
 )
 
 const expiryDate = computed(() => {
@@ -79,72 +108,43 @@ const effectiveReadout = computed(() => {
   return `You'll be reminded ${formatSlots(eff.slots)} at ${eff.time} (${eff.tz}).`
 })
 
-async function onToggleInherit(e: Event): Promise<void> {
-  const val = (e.target as HTMLInputElement).checked
+function reseed(): void {
+  original.value = seedDraft(data.value)
+  draft.value = seedDraft(data.value)
+}
+
+async function onSave(): Promise<void> {
   saving.value = true
+  saved.value = false
   try {
-    if (val) {
-      await $fetch(`/api/orgs/${slug.value}/me/notifications`, {
-        method: 'PATCH',
-        body: { inherit: true },
-      })
-      inherits.value = true
-      toast.success('Using your account default for this org')
-    } else {
-      // Seed the custom draft from the current effective schedule, then persist it
-      // so the override row exists and the controls become editable.
-      const eff = data.value?.effective
-      if (eff) draft.value = { enabled: eff.enabled, slots: [...eff.slots], time: eff.time }
-      await $fetch(`/api/orgs/${slug.value}/me/notifications`, {
-        method: 'PATCH',
-        body: {
-          notifyExpiry: draft.value.enabled,
-          reminderSlots: draft.value.slots,
-          reminderTime: draft.value.time,
-        },
-      })
-      inherits.value = false
-      toast.success('Custom reminder saved')
-    }
+    await $fetch(`/api/orgs/${slug.value}/me/notifications`, {
+      method: 'PATCH',
+      body: draft.value.inherit
+        ? { inherit: true }
+        : {
+            notifyExpiry: draft.value.enabled,
+            reminderSlots: draft.value.slots,
+            reminderTime: draft.value.time,
+          },
+    })
     await refresh()
-  } catch (err) {
-    toast.error(messageFromError(err, 'Could not save'))
-    await refresh()
-    inherits.value = data.value?.override === null
+    reseed()
+    saved.value = true
+    setTimeout(() => (saved.value = false), 2000)
+  } catch (e) {
+    toast.error(messageFromError(e, 'Could not save'))
   } finally {
     saving.value = false
   }
 }
 
-async function onDraftChange(val: {
-  enabled: boolean
-  slots: ReminderSlot[]
-  time: string
-}): Promise<void> {
-  draft.value = val
-  saving.value = true
-  try {
-    await $fetch(`/api/orgs/${slug.value}/me/notifications`, {
-      method: 'PATCH',
-      body: {
-        notifyExpiry: val.enabled,
-        reminderSlots: val.slots,
-        reminderTime: val.time,
-      },
-    })
-    toast.success('Reminder preference saved')
-    await refresh()
-  } catch (err) {
-    toast.error(messageFromError(err, 'Could not save'))
-    await refresh()
-  } finally {
-    saving.value = false
-  }
+function onDiscard(): void {
+  draft.value = { ...original.value, slots: [...original.value.slots] }
 }
 </script>
 
 <template>
-  <div class="max-w-md space-y-6">
+  <div class="space-y-6 pb-24">
     <div>
       <h2 class="text-lg font-semibold tracking-tight">Notifications</h2>
       <p class="mt-1 text-sm text-muted-foreground">
@@ -153,12 +153,13 @@ async function onDraftChange(val: {
     </div>
 
     <Card v-if="data">
-      <CardContent class="space-y-4 p-6">
-        <div class="text-sm">
-          <span class="text-muted-foreground">{{ data.orgName }} expires</span>
-          <span class="ml-1 font-medium">{{ expiryDate ?? '— no expiry date set' }}</span>
-        </div>
-
+      <CardHeader>
+        <CardTitle class="text-base">{{ data.orgName }}</CardTitle>
+        <CardDescription>
+          Expires <span class="font-medium">{{ expiryDate ?? '— no expiry date set' }}</span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-4">
         <div
           v-if="!data.expiresAt"
           class="rounded-md border border-dashed p-3 text-xs text-muted-foreground"
@@ -172,9 +173,9 @@ async function onDraftChange(val: {
               type="checkbox"
               class="size-4 shrink-0"
               style="accent-color: var(--primary)"
-              :checked="inherits"
+              :checked="draft.inherit"
               :disabled="saving"
-              @change="onToggleInherit"
+              @change="draft.inherit = ($event.target as HTMLInputElement).checked"
             />
             <span>Use my account default</span>
           </label>
@@ -184,11 +185,7 @@ async function onDraftChange(val: {
         </div>
 
         <div class="border-t pt-4">
-          <ReminderControls
-            :model-value="controlsModel"
-            :disabled="saving || inherits"
-            @update:model-value="onDraftChange"
-          />
+          <ReminderControls :model-value="controlsModel" :disabled="saving || draft.inherit" />
         </div>
 
         <div class="rounded-md bg-muted/40 p-3 text-sm">
@@ -196,5 +193,27 @@ async function onDraftChange(val: {
         </div>
       </CardContent>
     </Card>
+
+    <!-- Sticky save/discard bar (dirty tracking + save logic live in this page) -->
+    <SaveBar :dirty="isDirty" :saving="saving" :saved="saved" @save="onSave" @discard="onDiscard" />
+
+    <!-- Unsaved changes leave dialog -->
+    <UnsavedLeaveDialog
+      :open="confirmLeave"
+      :saving="saving"
+      @stay="confirmLeave = false"
+      @discard="
+        () => {
+          onDiscard()
+          proceed()
+        }
+      "
+      @save="
+        async () => {
+          await onSave()
+          proceed()
+        }
+      "
+    />
   </div>
 </template>

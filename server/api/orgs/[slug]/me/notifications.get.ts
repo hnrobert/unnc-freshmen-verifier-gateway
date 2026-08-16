@@ -3,7 +3,7 @@ import { User } from '#server/entities/user.entity'
 import { UserOrgNotificationPref } from '#server/entities/userOrgNotificationPref.entity'
 import { loadOrgConfig } from '#server/utils/orgs'
 import { resolveServerTz } from '#server/utils/serverTz'
-import { resolveEffectivePref, sanitizeSlots } from '#shared/lib/reminderPref'
+import { resolveEffectivePref } from '#shared/lib/reminderPref'
 
 /**
  * The caller's per-org notification preference for this org, plus the
@@ -28,11 +28,6 @@ export default defineEventHandler(async (event) => {
       tz: user?.tz ?? null,
     },
     orgOverride: existing ?? null,
-    orgConfig: {
-      reminders: sanitizeSlots(config.welcome?.reminders),
-      reminderTime: config.welcome?.reminderTime || null,
-      reminderTz: config.welcome?.reminderTz || null,
-    },
     serverTz: resolveServerTz(),
   })
 

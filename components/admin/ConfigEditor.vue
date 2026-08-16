@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { REMINDER_SLOTS, type Locale, type ReminderSlot } from '#shared/types'
+import type { Locale } from '#shared/types'
 
 const { config } = useOrgConfig()
 const { t } = useI18n()
@@ -18,106 +18,6 @@ function toggleLocale(loc: Locale, checked: boolean): void {
     config.value.defaultLocale = locales[0]!
   }
 }
-
-// QR-expiry reminder slot multi-select (4 fixed slots, toggled in/out of the array).
-function reminderChecked(slot: ReminderSlot): boolean {
-  return (config.value.welcome.reminders ?? []).includes(slot)
-}
-function toggleReminder(slot: ReminderSlot, checked: boolean): void {
-  const arr = [...(config.value.welcome.reminders ?? [])]
-  const i = arr.indexOf(slot)
-  if (checked && i < 0) arr.push(slot)
-  if (!checked && i >= 0) arr.splice(i, 1)
-  config.value.welcome.reminders = arr
-}
-
-// Reminder time-of-day (HH:MM, in the org timezone) — defaults to 12:00.
-const reminderTimeModel = computed({
-  get: () => config.value.welcome.reminderTime || '12:00',
-  set: (v: string) => {
-    config.value.welcome.reminderTime = v
-  },
-})
-
-// Timezones available on this server, grouped by region (Africa, America, Asia,
-// …) for the reminder-timezone <select>. The server is the authority (it runs
-// the scheduler), so the set of zones comes from /api/timezones rather than a
-// hardcoded client list. Derives reactively from that fetch (SSR-resolved, so
-// the picker is populated on first paint). `timezones` is declared below — safe
-// because computed getters run lazily.
-const ALL_TZ_GROUPS = computed<{ region: string; zones: string[] }[]>(() => {
-  const list = timezones.value ?? []
-  const byRegion = new Map<string, string[]>()
-  for (const tz of list) {
-    const region = tz.includes('/') ? tz.slice(0, tz.indexOf('/')) : tz
-    const arr = byRegion.get(region)
-    if (arr) arr.push(tz)
-    else byRegion.set(region, [tz])
-  }
-  return [...byRegion.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([region, zones]) => ({ region, zones }))
-})
-
-// Reminder timezone (IANA) the schedule runs in. Defaults to the server's local
-// tz (reported by /api/server-time) when the org hasn't set one; 'UTC' is a safe
-// non-empty guard for the brief pre-hydration moment (both fetches are
-// SSR-resolved, so it is effectively never shown).
-const reminderTzModel = computed({
-  get: () => config.value.welcome.reminderTz || serverTimeData.value?.tz || 'UTC',
-  set: (v: string) => {
-    config.value.welcome.reminderTz = v
-  },
-})
-
-/** IANA tz → human-friendly display ("America/New_York" → "America/New York").
- * The stored value keeps underscores; only the label is prettified. */
-function tzDisplayName(tz: string): string {
-  return tz.replaceAll('_', ' ')
-}
-
-/** IANA tz → "America/New York (GMT-4)" style option label (current offset). */
-function tzLabel(tz: string): string {
-  const display = tzDisplayName(tz)
-  try {
-    const off = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
-      timeZoneName: 'shortOffset',
-    })
-      .formatToParts(new Date())
-      .find((p) => p.type === 'timeZoneName')?.value
-    return off ? `${display} (${off})` : display
-  } catch {
-    return display
-  }
-}
-
-// Live server clock (informational — reminders fire in the org timezone, see
-// reminderTzModel). Fetch the server-now offset once, then tick client-side so
-// the displayed time stays current.
-const { data: serverTimeData } = await useFetch<{ now: string; tz: string }>('/api/server-time')
-// All timezones the server supports — drives the reminder-timezone picker.
-const { data: timezones } = await useFetch<string[]>('/api/timezones')
-const serverOffsetMs = ref(0)
-watchEffect(() => {
-  if (serverTimeData.value) {
-    serverOffsetMs.value = new Date(serverTimeData.value.now).getTime() - Date.now()
-  }
-})
-const serverTick = ref(0)
-let serverTimer: ReturnType<typeof setInterval> | null = null
-onMounted(() => {
-  serverTimer = setInterval(() => {
-    serverTick.value++
-  }, 1000)
-})
-onUnmounted(() => {
-  if (serverTimer) clearInterval(serverTimer)
-})
-const serverNow = computed(() => {
-  serverTick.value // re-evaluate each second
-  return new Date(Date.now() + serverOffsetMs.value)
-})
 
 // Template refs for refreshing preview after re-upload
 const bgPreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
@@ -400,7 +300,8 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
             </span>
           </label>
 
-          <!-- QR expiry date + reminder slots -->
+          <!-- QR expiry date (reminder schedules are per-user, set in each
+               person's Notification preferences — not here) -->
           <div class="space-y-2 rounded-lg border p-3">
             <label class="flex items-center gap-2 text-sm">
               <span class="shrink-0">{{ t('editor.expiresAt') }}</span>
@@ -411,62 +312,6 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
               />
             </label>
             <p class="text-xs text-muted-foreground">{{ t('editor.expiresAtHint') }}</p>
-
-            <div>
-              <span class="text-sm">{{ t('editor.reminders') }}</span>
-              <p class="mb-2 text-xs text-muted-foreground">{{ t('editor.remindersHint') }}</p>
-              <div class="grid grid-cols-2 gap-2">
-                <label
-                  v-for="slot in REMINDER_SLOTS"
-                  :key="slot"
-                  class="flex items-center gap-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    class="shrink-0"
-                    :checked="reminderChecked(slot)"
-                    @change="toggleReminder(slot, ($event.target as HTMLInputElement).checked)"
-                  />
-                  <span>{{
-                    slot === '-3d'
-                      ? t('editor.reminder3d')
-                      : slot === '-2d'
-                        ? t('editor.reminder2d')
-                        : slot === '-1d'
-                          ? t('editor.reminder1d')
-                          : t('editor.reminderDayOf')
-                  }}</span>
-                </label>
-              </div>
-
-              <div
-                class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 pt-1 text-sm"
-              >
-                <span class="shrink-0">{{ t('editor.reminderTime') }}</span>
-                <div class="flex min-w-0 flex-wrap items-center gap-2">
-                  <input
-                    v-model="reminderTimeModel"
-                    type="time"
-                    class="min-w-0 rounded-md border bg-background px-2 py-1 text-sm"
-                  />
-                  <select
-                    v-model="reminderTzModel"
-                    class="h-8 min-w-0 rounded-md border bg-background px-2 text-sm"
-                  >
-                    <optgroup v-for="g in ALL_TZ_GROUPS" :key="g.region" :label="g.region">
-                      <option v-for="z in g.zones" :key="z" :value="z">{{ tzLabel(z) }}</option>
-                    </optgroup>
-                  </select>
-                </div>
-              </div>
-              <p class="text-xs text-muted-foreground">
-                {{ t('editor.remindersFireAt') }}: {{ reminderTimeModel }} ({{
-                  tzDisplayName(reminderTzModel)
-                }}) · {{ t('editor.serverTime') }}: {{ serverNow.toLocaleTimeString() }} ({{
-                  tzDisplayName(serverTimeData?.tz ?? '')
-                }})
-              </p>
-            </div>
           </div>
           <Label
             >Preview

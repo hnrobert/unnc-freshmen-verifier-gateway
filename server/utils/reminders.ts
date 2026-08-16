@@ -4,23 +4,23 @@
  *
  *  • {@link autoEnableRemindersFromImages} — runs once at startup: OCR-scans each
  *    org's welcome image for an expiry date and, when one is found, fills
- *    `expiresAt` and seeds a default `reminders` set (auto-creating the schedule).
+ *    `expiresAt` (only when empty — a manual date is never overwritten).
  *  • {@link sendDueReminders} — the scheduler tick (every few minutes):
  *    **per-user** scheduling. Each recipient (owner + active members) is reminded
  *    on their own resolved schedule — slots + time-of-day in their own timezone —
  *    derived through `resolveEffectivePref` (per-org override → account default →
- *    org config → system default of `['-1d']` @ 12:00). Each send is recorded in
- *    `OrgReminderSent` keyed by `(orgId, userId, expiresAt, kind)` so it never
- *    repeats and is race-safe across instances.
+ *    system default of `['-2d','-1d','day-of']` @ 12:00 server-tz; the org itself
+ *    only supplies the expiry date). Each send is recorded in `OrgReminderSent`
+ *    keyed by `(orgId, userId, expiresAt, kind)` so it never repeats and is
+ *    race-safe across instances.
  *
  * Reminder targets are resolved to UTC instants in each user's timezone: when a
  * user sets their tz, their targets fire at that wall-clock regardless of the
  * server's own timezone (e.g. a UTC host fires "12:00 Asia/Shanghai" at 04:00Z);
- * when the user has no tz, the org's `welcome.reminderTz` then the server's local
- * zone is used (see `resolveServerTz`). `qrExpiry.ts` OCR dates remain
- * server-local calendar days. Everything is best-effort: OCR failures, missing
- * mail config, or no opted-in recipients degrade to a silent no-op rather than
- * crashing the scheduler.
+ * when the user has no tz, the server's local zone is used (see
+ * `resolveServerTz`). `qrExpiry.ts` OCR dates remain server-local calendar days.
+ * Everything is best-effort: OCR failures, missing mail config, or no opted-in
+ * recipients degrade to a silent no-op rather than crashing the scheduler.
  */
 import { In } from 'typeorm'
 import { AppDataSource } from './database'
@@ -31,7 +31,7 @@ import { OrgMember } from '#server/entities/orgMember.entity'
 import { OrgReminderSent } from '#server/entities/orgReminderSent.entity'
 import { User } from '#server/entities/user.entity'
 import { UserOrgNotificationPref } from '#server/entities/userOrgNotificationPref.entity'
-import { REMINDER_SLOTS, type Locale, type ReminderSlot, type SiteConfig } from '#shared/types'
+import type { Locale, ReminderSlot, SiteConfig } from '#shared/types'
 import { detectWelcomeExpiry } from './ocr'
 import { toLocalDateStr } from './qrExpiry'
 import { invalidateOrgConfig } from './orgs'
@@ -39,15 +39,8 @@ import { resolveServerTz } from './serverTz'
 import { renderEmail } from '#server/mail/render'
 import { getMailConfig, sendMailWithConfig } from './mail'
 import { getSiteOrigin } from './siteOrigin'
-import { isValidTz, shiftCalendarDate, zonedDateTimeToUtcMs } from '#shared/lib/reminderTz'
-import {
-  SYSTEM_DEFAULT_SLOTS,
-  SYSTEM_DEFAULT_TIME,
-  isValidReminderTime,
-  resolveEffectivePref,
-  sanitizeSlots,
-  type PrefOrgConfig,
-} from '#shared/lib/reminderPref'
+import { shiftCalendarDate, zonedDateTimeToUtcMs } from '#shared/lib/reminderTz'
+import { resolveEffectivePref } from '#shared/lib/reminderPref'
 
 /** How often the scheduler wakes to check for due reminders. */
 export const REMINDER_TICK_MS = 5 * 60 * 1000
@@ -55,9 +48,7 @@ export const REMINDER_TICK_MS = 5 * 60 * 1000
  * hours of downtime don't cause a miss, bounded so a fresh deploy doesn't emit
  * a burst of long-stale reminders. */
 const SEND_WINDOW_MS = 24 * 60 * 60 * 1000
-/** Default slots enabled by the startup auto-detect (owner can widen in the UI). */
-const DEFAULT_SLOTS: ReminderSlot[] = ['-1d', 'day-of']
-/** Default time-of-day (HH:MM) when `welcome.reminderTime` is unset. */
+/** Default time-of-day (HH:MM) when a user preference doesn't supply one. */
 const DEFAULT_REMINDER_TIME = '12:00'
 
 const MONTHS_EN = [
@@ -95,15 +86,6 @@ function formatExpiryDate(expiresAt: string, locale: Locale): string {
 /** Absolute URL to the org's edit page (so the recipient can refresh the QR). */
 function orgUrl(slug: string, base: string): string {
   return `${base}/dashboard/${slug}/edit`
-}
-
-/** Resolve the configured reminder slots, falling back to the legacy
- * `reminderEnabled` flag for old config rows that predate the `reminders` array. */
-function effectiveReminders(w: SiteConfig['welcome']): ReminderSlot[] {
-  const valid = new Set<ReminderSlot>(REMINDER_SLOTS)
-  const slots = (w?.reminders ?? []).filter((s): s is ReminderSlot => valid.has(s))
-  if (slots.length) return slots
-  return w?.reminderEnabled ? DEFAULT_SLOTS : []
 }
 
 /** The epoch instant a given reminder slot should fire — at `reminderTime`
@@ -161,10 +143,11 @@ function reminderEmail(
 // ---------------------------------------------------------------------------
 
 /**
- * For every org, if no expiry schedule is active yet, try to read one from the
- * welcome image via OCR. On success: set `welcome.expiresAt` (only when empty —
- * a manual date is never overwritten) and seed `welcome.reminders` with a default
- * set. Persists the change and invalidates the config cache. Best-effort, never throws.
+ * For every org with no expiry date yet, try to read one from the welcome image
+ * via OCR and set `welcome.expiresAt` (only when empty — a manual date is never
+ * overwritten). Reminder schedules are per-user (each person's Notification
+ * preference), so nothing else is seeded here. Persists the change and
+ * invalidates the config cache. Best-effort, never throws.
  */
 export async function autoEnableRemindersFromImages(): Promise<void> {
   if (!AppDataSource.isInitialized) return
@@ -179,13 +162,6 @@ export async function autoEnableRemindersFromImages(): Promise<void> {
       const config = JSON.parse(s.config) as SiteConfig
       const w = config.welcome
       if (!w) continue
-      let changed = false
-
-      // Activate an existing manually-set date that has no reminder slots yet.
-      if (w.expiresAt && effectiveReminders(w).length === 0) {
-        w.reminders = DEFAULT_SLOTS
-        changed = true
-      }
 
       // No date yet → OCR the welcome image (DB-stored images only: img:<key>).
       if (!w.expiresAt && typeof w.image === 'string' && w.image.startsWith('img:')) {
@@ -194,67 +170,30 @@ export async function autoEnableRemindersFromImages(): Promise<void> {
           const date = await detectWelcomeExpiry(Buffer.from(img.base64, 'base64'))
           if (date) {
             w.expiresAt = toLocalDateStr(date)
-            w.reminders = DEFAULT_SLOTS
-            changed = true
+            await settingRepo.update(
+              { orgId: s.orgId },
+              { config: JSON.stringify(config), updatedAt: new Date() },
+            )
+            const org = await orgRepo.findOneBy({ id: s.orgId })
+            if (org) invalidateOrgConfig(org.slug)
+            enabled++
+            console.log(
+              `[reminders] auto-detected · org=${org?.slug ?? s.orgId} expiresAt=${w.expiresAt}`,
+            )
           }
         }
       }
-
-      if (!changed) continue
-      await settingRepo.update(
-        { orgId: s.orgId },
-        { config: JSON.stringify(config), updatedAt: new Date() },
-      )
-      const org = await orgRepo.findOneBy({ id: s.orgId })
-      if (org) invalidateOrgConfig(org.slug)
-      enabled++
-      console.log(`[reminders] auto-enabled · org=${org?.slug ?? s.orgId} expiresAt=${w.expiresAt}`)
     } catch (e) {
-      console.error(`[reminders] auto-enable failed for org ${s.orgId}:`, e)
+      console.error(`[reminders] auto-detect failed for org ${s.orgId}:`, e)
     }
   }
   if (settings.length)
-    console.log(`[reminders] startup scan done · ${enabled}/${settings.length} org(s) enabled`)
+    console.log(`[reminders] startup scan done · ${enabled}/${settings.length} org(s) dated`)
 }
 
 // ---------------------------------------------------------------------------
 // Part B — scheduler tick
 // ---------------------------------------------------------------------------
-
-/** Extract the org-config tier (the per-user fallback) from a SiteConfig. */
-function orgConfigTier(config: SiteConfig): PrefOrgConfig {
-  const w = config.welcome
-  return {
-    reminders: sanitizeSlots(w?.reminders),
-    reminderTime: w?.reminderTime || null,
-    reminderTz: w?.reminderTz || null,
-  }
-}
-
-/** Conservative skim: could ANY user of this org still have a slot in-window?
- * Checks the union of slots a user might resolve to (system default ∪ org config)
- * at the latest plausible time/timezone. A false "not past" is harmless — the
- * per-user window check inside the loop is authoritative; this only avoids
- * loading users/prefs for orgs that can't possibly fire. */
-function isOrgFullyPast(
-  expiresAt: string,
-  tier: PrefOrgConfig,
-  serverTz: string,
-  now: number,
-): boolean {
-  const skimSlots = new Set<ReminderSlot>([...SYSTEM_DEFAULT_SLOTS, ...tier.reminders])
-  const skimTz = tier.reminderTz && isValidTz(tier.reminderTz) ? tier.reminderTz : serverTz
-  const skimTime =
-    tier.reminderTime && isValidReminderTime(tier.reminderTime)
-      ? tier.reminderTime
-      : SYSTEM_DEFAULT_TIME
-  let latest = -Infinity
-  for (const slot of skimSlots) {
-    const t = reminderTarget(expiresAt, slot, skimTime, skimTz)
-    if (t > latest) latest = t
-  }
-  return latest !== -Infinity && now >= latest + SEND_WINDOW_MS
-}
 
 /**
  * One scheduler tick. Schedules are per-user: for each org with an expiry date,
@@ -281,13 +220,13 @@ export async function sendDueReminders(): Promise<void> {
   const serverTz = resolveServerTz()
 
   // A. Enumerate candidate orgs (those with an expiry date), reading the raw
-  //    settings JSON directly (bypassing the 60s config cache). Skip orgs whose
-  //    entire schedule is already past.
+  //    settings JSON directly (bypassing the 60s config cache). Schedules are
+  //    per-user, so there is no org-level schedule to skim past — the per-user
+  //    window check inside the loop below is authoritative.
   const settings = await settingRepo.find()
   const candidates: {
     orgId: number
     expiresAt: string
-    tier: PrefOrgConfig
     config: SiteConfig
   }[] = []
   for (const s of settings) {
@@ -295,9 +234,7 @@ export async function sendDueReminders(): Promise<void> {
       const config = JSON.parse(s.config) as SiteConfig
       const expiresAt = config.welcome?.expiresAt
       if (!expiresAt) continue
-      const tier = orgConfigTier(config)
-      if (isOrgFullyPast(expiresAt, tier, serverTz, now)) continue
-      candidates.push({ orgId: s.orgId, expiresAt, tier, config })
+      candidates.push({ orgId: s.orgId, expiresAt, config })
     } catch (e) {
       console.error(`[reminders] skipping org ${s.orgId} (bad config):`, e)
     }
@@ -361,7 +298,6 @@ export async function sendDueReminders(): Promise<void> {
           tz: user.tz,
         },
         orgOverride: prefByOrgUser.get(`${c.orgId}:${uid}`) ?? null,
-        orgConfig: c.tier,
         serverTz,
       })
       if (!pref.enabled || pref.slots.length === 0) continue
