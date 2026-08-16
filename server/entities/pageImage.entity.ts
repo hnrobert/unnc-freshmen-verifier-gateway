@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 
-@Entity({ name: 'org_images' })
+@Entity({ name: 'page_images' })
 @Index('uq_org_images_org_key', ['pageId', 'key'], { unique: true })
 export class PageImage {
   @PrimaryGeneratedColumn('increment', {
@@ -9,7 +9,7 @@ export class PageImage {
   })
   id!: number
 
-  @Column({ name: 'org_id', type: 'integer', nullable: false })
+  @Column({ name: 'page_id', type: 'integer', nullable: false })
   pageId!: number
 
   @Column({ type: 'text', nullable: false })

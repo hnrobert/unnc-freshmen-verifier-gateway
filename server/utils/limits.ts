@@ -8,7 +8,7 @@ import { DEFAULT_ADMIN_PAGE_LIMIT } from '#shared/types'
  * Stored in `app_settings` so a superadmin can tune it from the Users panel
  * without a code change. When unset, falls back to DEFAULT_ADMIN_PAGE_LIMIT.
  */
-const SETTING_KEY = 'limits.adminOrgLimit'
+const SETTING_KEY = 'limits.adminPageLimit'
 const CACHE_TTL_MS = 30_000
 let cache: { t: number; value: number } | null = null
 

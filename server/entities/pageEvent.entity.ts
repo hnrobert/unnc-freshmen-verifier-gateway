@@ -10,7 +10,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
  * `type = 'view'` rows come from the public track beacon; `type = 'verify'` rows
  * come from the check handler (one per attempt, with its outcome/mode).
  */
-@Entity({ name: 'org_events' })
+@Entity({ name: 'page_events' })
 @Index('idx_org_events_org_time', ['pageId', 'createdAt'])
 @Index('idx_org_events_type', ['pageId', 'type', 'createdAt'])
 export class PageEvent {
@@ -20,7 +20,7 @@ export class PageEvent {
   })
   id!: number
 
-  @Column({ name: 'org_id', type: 'integer', nullable: false })
+  @Column({ name: 'page_id', type: 'integer', nullable: false })
   pageId!: number
 
   @Column({ type: 'text', nullable: false })

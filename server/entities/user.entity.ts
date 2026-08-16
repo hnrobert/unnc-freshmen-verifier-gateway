@@ -44,7 +44,7 @@ export class User {
    * Superadmins are always unlimited regardless of this value. Configured by a
    * superadmin from the Users panel.
    */
-  @Column({ name: 'org_limit', type: 'integer', nullable: true })
+  @Column({ name: 'page_limit', type: 'integer', nullable: true })
   pageLimit!: number | null
 
   /** Preferred UI / notification locale ('zh' | 'en'). Null until first visit. */

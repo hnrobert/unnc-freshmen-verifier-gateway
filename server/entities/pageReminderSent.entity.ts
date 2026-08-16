@@ -14,7 +14,7 @@ import type { ReminderSlot } from '#shared/types'
  * even under races / restarts. (The legacy 3-column index from the page-centric
  * era is dropped once by `03.reminders-migration.ts`.)
  */
-@Entity({ name: 'org_reminder_sents' })
+@Entity({ name: 'page_reminder_sents' })
 @Index('uq_org_reminder_org_user_date_kind', ['pageId', 'userId', 'expiresAt', 'kind'], {
   unique: true,
 })
@@ -25,7 +25,7 @@ export class PageReminderSent {
   })
   id!: number
 
-  @Column({ name: 'org_id', type: 'integer', nullable: false })
+  @Column({ name: 'page_id', type: 'integer', nullable: false })
   pageId!: number
 
   /** The recipient this send belongs to (schedules are per-user). Nullable at

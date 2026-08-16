@@ -27,7 +27,7 @@ export class AuditEvent {
   id!: number
 
   /** Null for site-wide events (login/register/admin-user). */
-  @Column({ name: 'org_id', type: 'integer', nullable: true })
+  @Column({ name: 'page_id', type: 'integer', nullable: true })
   pageId!: number | null
 
   /** verify | send_code | login | register | password_change | passkey_add | page.create | page.rename | member.add | admin.user_update … */

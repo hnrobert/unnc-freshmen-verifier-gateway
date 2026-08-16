@@ -10,10 +10,10 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
  * `org_events.name`) so the welcome page can greet a returning visitor.
  *
  * Unlike `org_events` (90-day retention), this table is permanent so a one-time
- * verification dedupes for the page's lifetime. Unique on `(org_id, id_hash)` —
+ * verification dedupes for the page's lifetime. Unique on `(page_id, id_hash)` —
  * one identity per page.
  */
-@Entity({ name: 'org_verified_identities' })
+@Entity({ name: 'page_verified_identities' })
 @Index('idx_org_verified_identity_org_hash', ['pageId', 'idHash'], { unique: true })
 export class PageVerifiedIdentity {
   @PrimaryGeneratedColumn('increment', {
@@ -22,7 +22,7 @@ export class PageVerifiedIdentity {
   })
   id!: number
 
-  @Column({ name: 'org_id', type: 'integer', nullable: false })
+  @Column({ name: 'page_id', type: 'integer', nullable: false })
   pageId!: number
 
   @Column({ type: 'text', nullable: false })

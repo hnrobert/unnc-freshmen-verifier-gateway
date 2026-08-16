@@ -26,7 +26,7 @@ const slotArrayTransformer: ValueTransformer = {
  * equivalent to "use my account default" — the UI writes/destroys the whole row
  * rather than tracking per-field inheritance.
  */
-@Entity({ name: 'user_org_notification_prefs' })
+@Entity({ name: 'user_page_notification_prefs' })
 @Index('uq_user_org_pref_org_user', ['pageId', 'userId'], { unique: true })
 @Index('idx_user_org_pref_user', ['userId'])
 export class UserPageNotificationPref {
@@ -36,7 +36,7 @@ export class UserPageNotificationPref {
   })
   id!: number
 
-  @Column({ name: 'org_id', type: 'integer', nullable: false })
+  @Column({ name: 'page_id', type: 'integer', nullable: false })
   pageId!: number
 
   @Column({ name: 'user_id', type: 'integer', nullable: false })

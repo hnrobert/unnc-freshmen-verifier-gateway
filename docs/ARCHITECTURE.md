@@ -12,7 +12,7 @@
 | --------------- | -------------------------------------------------------------------------------------------------- |
 | Framework       | Nuxt 4 (SSR + Nitro server)                                                                        |
 | Database        | SQLite via better-sqlite3                                                                          |
-| ORM             | TypeORM (entities, `synchronize: true`)                                                            |
+| ORM             | TypeORM (entities + migrations, auto-run on boot)                                                  |
 | Auth            | argon2id (`@noble/hashes`), revocable sessions, JWT (`jsonwebtoken`), passkeys (`@simplewebauthn`) |
 | UI              | Tailwind CSS v4, shadcn-vue, reka-ui, lucide-vue-next                                              |
 | i18n            | vue-i18n (per-page messages)                                                                       |
@@ -47,36 +47,43 @@ project root (not under `app/`).
 
 ## Database
 
-Schema is defined by **TypeORM entities** in `server/entities/`. On boot,
-`initDataSource()` runs `AppDataSource.initialize()` with `synchronize: true` —
-TypeORM auto-creates/updates tables/columns from entities (additive: never drops
-or alters existing data). No migration system.
+Schema is defined by **TypeORM entities** in `server/entities/` and changed
+through **migrations** in `server/migrations/` (`synchronize: false`). On boot,
+`initDataSource()` applies pending migrations automatically (dev and prod
+alike) — a `pnpm migration:generate` output takes effect on the next start.
+Entity changes without a new, barrel-registered migration are rejected at
+commit time (`.husky/commit-msg` → `pnpm migration:check`). A journal bootstrap
+(`bootstrapMigrationJournal` in `database.ts`) drops the stale journal of the
+abandoned first migration system and baselines pre-migration databases — see
+[DATABASE-NAMING.md](DATABASE-NAMING.md) and
+[server/migrations/README.md](../server/migrations/README.md).
 
-**16 entity tables** (physical names keep the `org_*` prefix by design — the
-code-level concept is "page", mapped through entity decorators; see
-[DATABASE-NAMING.md](DATABASE-NAMING.md)):
+**16 entity tables** (renamed from `org_*` to `page_*` by migration
+`1760000000001-OrgToPageRename`; index/constraint names keep their legacy
+spelling):
 
-| Table                         | Purpose                                                     |
-| ----------------------------- | ----------------------------------------------------------- |
-| `users`                       | Accounts (email, password hash, role, locale, notifyExpiry) |
-| `sessions`                    | Revocable server-side sessions (30-day TTL)                 |
-| `organizations`               | Page metadata (slug, name, ownerId)                         |
-| `org_settings`                | Per-page JSON config (`SiteConfig`)                         |
-| `org_images`                  | Base64-encoded uploaded images (keyed by page + name)       |
-| `org_members`                 | Page memberships (userId, role, invite status/token)        |
-| `org_events`                  | Raw analytics event log (90-day retention)                  |
-| `org_daily_stats`             | Permanent daily rollup per metric                           |
-| `org_reminder_sents`          | Idempotency tracking for QR-expiry reminder emails          |
-| `org_redirects`               | Old-slug → new-slug redirects after renames                 |
-| `org_verified_identities`     | Cross-page trust: verified name+ID (hashed)                 |
-| `user_org_notification_prefs` | Per-user per-page reminder overrides                        |
-| `audit_events`                | Admin audit log                                             |
-| `passkeys`                    | WebAuthn credentials                                        |
-| `mail_configs`                | Site-wide SMTP/POST mail configuration                      |
-| `app_settings`                | Generic key/value store (whitelist, limits, origin tally)   |
+| Table                          | Purpose                                                                |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `users`                        | Accounts (email, password hash, role, locale, notifyExpiry, pageLimit) |
+| `sessions`                     | Revocable server-side sessions (30-day TTL)                            |
+| `pages`                        | Page metadata (slug, name, ownerId)                                    |
+| `page_settings`                | Per-page JSON config (`SiteConfig`)                                    |
+| `page_images`                  | Base64-encoded uploaded images (keyed by page + name)                  |
+| `page_members`                 | Page memberships (userId, role, invite status/token)                   |
+| `page_events`                  | Raw analytics event log (90-day retention)                             |
+| `page_daily_stats`             | Permanent daily rollup per metric                                      |
+| `page_reminder_sents`          | Idempotency tracking for QR-expiry reminder emails                     |
+| `page_redirects`               | Old-slug → new-slug redirects after renames                            |
+| `page_verified_identities`     | Cross-page trust: verified name+ID (hashed)                            |
+| `user_page_notification_prefs` | Per-user per-page reminder overrides                                   |
+| `audit_events`                 | Admin audit log                                                        |
+| `passkeys`                     | WebAuthn credentials                                                   |
+| `mail_configs`                 | Site-wide SMTP/POST mail configuration                                 |
+| `app_settings`                 | Generic key/value store (whitelist, limits, origin tally)              |
 
-Two additional legacy tables (`verifications`, `migrations`) exist in older
-databases from earlier designs — no entity maps to them anymore.
+`migrations` is TypeORM's journal (managed by the runner). Older databases may
+also carry a `verifications` table from an earlier design — no entity maps to
+it.
 
 ---
 
@@ -454,7 +461,8 @@ URL for background-email links (reminders). Tally persisted in `app_settings`
 ├── public/favicon.svg
 ├── server/
 │   ├── api/                  # auth · pages · admin · mail · stats · invites · icon.svg · timezones
-│   ├── entities/             # 16 TypeORM entities (DB keeps `org_*` names — see docs/DATABASE-NAMING.md)
+│   ├── entities/             # 16 TypeORM entities (barrel in index.ts)
+│   ├── migrations/          # Init + OrgToPageRename + README (barrel in index.ts)
 │   ├── mail/render.ts        # HTML email renderer
 │   ├── middleware/           # session · origin (tally visitor origins) · page-slug-redirect
 │   ├── plugins/              # 01.db (init) · 02.reminders (scheduler) · 03.site-origin (tally flush) · 03.reminders-migration

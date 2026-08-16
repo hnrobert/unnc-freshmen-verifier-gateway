@@ -33,4 +33,7 @@ if ! echo "$commit_msg" | grep -qE "^($valid_types): .+"; then
 	exit 1
 fi
 
+# Entity changes must ship with a registered migration.
+pnpm migration:check "$commit_msg_file"
+
 exit 0

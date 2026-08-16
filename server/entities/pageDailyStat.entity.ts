@@ -8,7 +8,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
  * be a simple increment; it's computed on read as `COUNT(DISTINCT ip_hash)` from
  * the raw events, within the 90-day window.)
  */
-@Entity({ name: 'org_daily_stats' })
+@Entity({ name: 'page_daily_stats' })
 @Index('uq_org_daily_stats_day_metric', ['pageId', 'day', 'metric'], { unique: true })
 @Index('idx_org_daily_stats_org_day', ['pageId', 'day'])
 export class PageDailyStat {
@@ -18,7 +18,7 @@ export class PageDailyStat {
   })
   id!: number
 
-  @Column({ name: 'org_id', type: 'integer', nullable: false })
+  @Column({ name: 'page_id', type: 'integer', nullable: false })
   pageId!: number
 
   /** 'YYYY-MM-DD' (UTC). */

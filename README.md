@@ -121,8 +121,11 @@ pnpm install          # installs deps + runs nuxt prepare
 pnpm dev              # http://localhost:3000
 ```
 
-The database schema auto-syncs on boot — no migration commands needed. The
-first user to register becomes the **superadmin**.
+Database schema is managed by **TypeORM migrations** — pending ones apply
+automatically on every boot (dev and production alike), so a freshly generated
+migration takes effect on the next start. Entity changes should ship with a
+generated migration (`pnpm migration:generate --name=<Name>`; enforced at
+commit time). The first user to register becomes the **superadmin**.
 
 > **Node ≥ 24** is required.
 
@@ -141,7 +144,8 @@ docker compose up --build -d
 
 The Docker image (`node:24-slim`) bundles the app, OCR traineddata, and fonts
 for image processing. Mount a persistent volume at `/app/data` for the SQLite
-database.
+database. Pending migrations apply automatically on container start — back up
+the DB file before deploying a migration that renames or drops anything.
 
 Optional env vars: `SITE_URL` (for email links), `TZ` (timezone, via host
 `/etc/localtime` mount).

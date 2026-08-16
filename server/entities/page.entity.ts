@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 
-@Entity({ name: 'organizations' })
+@Entity({ name: 'pages' })
 @Index('uq_organizations_slug', ['slug'], { unique: true })
 export class Page {
   @PrimaryGeneratedColumn('increment', {

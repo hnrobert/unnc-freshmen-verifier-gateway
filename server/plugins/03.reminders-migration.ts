@@ -24,7 +24,7 @@ export default defineNitroPlugin(async () => {
     const done = await settingRepo.findOneBy({ key: FLAG_KEY })
     if (done) return
 
-    await AppDataSource.query('DELETE FROM org_reminder_sents')
+    await AppDataSource.query('DELETE FROM page_reminder_sents')
     await AppDataSource.query('DROP INDEX IF EXISTS uq_org_reminder_org_date_kind')
 
     // Idempotent against an unlikely boot race.

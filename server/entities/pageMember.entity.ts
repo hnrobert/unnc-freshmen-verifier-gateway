@@ -10,7 +10,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
  * `manager` (also manage members). The page owner is not stored here — ownership
  * lives on `Page.ownerId`; superadmins bypass entirely.
  */
-@Entity({ name: 'org_members' })
+@Entity({ name: 'page_members' })
 @Index('uq_org_members_org_email', ['pageId', 'invitedEmail'], { unique: true })
 @Index('uq_org_members_token', ['inviteToken'], { unique: true })
 @Index('idx_org_members_org', ['pageId'])
@@ -22,7 +22,7 @@ export class PageMember {
   })
   id!: number
 
-  @Column({ name: 'org_id', type: 'integer', nullable: false })
+  @Column({ name: 'page_id', type: 'integer', nullable: false })
   pageId!: number
 
   /** Null until the invite is claimed. */
