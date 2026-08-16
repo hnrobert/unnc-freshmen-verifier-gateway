@@ -7,7 +7,7 @@ see `server/utils/database.ts`). On every boot the server **auto-applies
 pending migrations** (dev and production alike), so after `pnpm
 migration:generate` the change takes effect on the next start — no manual step.
 
-## The first two migrations are special
+## The first three migrations are special
 
 - **`1760000000000-Init`** — baseline schema (all 16 tables, post-rename
   `page_*` spelling). Runs only on FRESH databases.
@@ -15,6 +15,11 @@ migration:generate` the change takes effect on the next start — no manual step
   `page_*` (tables, `org_id` → `page_id`, `users.org_limit` → `page_limit`, the
   `app_settings` limits key). Existence-guarded, so it is a no-op on fresh
   databases that never had `org_*` names.
+- **`1760000010000-AlignLegacySchema`** — repairs databases whose v1 schema
+  lags the entities (deployments missed during the `synchronize: true` era —
+  e.g. production lacked `mail_configs.post_field_map`): replays Init's
+  guarded DDL (missing tables/indexes) and adds missing columns from the live
+  entity metadata. Add-only and idempotent — a no-op on healthy databases.
 
 Existing pre-migration databases are handled by the journal bootstrap in
 `server/utils/database.ts` (`bootstrapMigrationJournal`): the stale journal

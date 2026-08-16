@@ -109,6 +109,9 @@ export default defineNuxtConfig({
   },
 
   // TypeORM decorator support for the Nitro server (esbuild tsconfigRaw).
+  // The Vue compile-time flags must be defined for SSR bundles: vue-i18n's
+  // prod build reads `__VUE_PROD_DEVTOOLS__` and crashes Nitro requests with
+  // an unhandled ReferenceError when it is left undefined.
   nitro: {
     esbuild: {
       options: {
@@ -118,6 +121,10 @@ export default defineNuxtConfig({
             emitDecoratorMetadata: true,
           },
         }),
+        define: {
+          __VUE_PROD_DEVTOOLS__: 'false',
+          __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+        },
       },
     },
   },

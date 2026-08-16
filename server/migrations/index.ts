@@ -10,6 +10,7 @@
  */
 import { Init1760000000000 } from './1760000000000-Init'
 import { OrgToPageRename1760000000001 } from './1760000000001-OrgToPageRename'
+import { AlignLegacySchema1760000010000 } from './1760000010000-AlignLegacySchema'
 
 /** Identity of the first (baseline) migration. */
 export const BASELINE_MIGRATION = {
@@ -20,6 +21,8 @@ export const BASELINE_MIGRATION = {
 // typeorm@1 typings expect `(string | Function)[]` for the DataSource option;
 // migration classes satisfy that at runtime (classes are functions) but not
 // structurally, hence the cast.
-export const migrations = [Init1760000000000, OrgToPageRename1760000000001] as unknown as (
-  string | Function
-)[]
+export const migrations = [
+  Init1760000000000,
+  OrgToPageRename1760000000001,
+  AlignLegacySchema1760000010000,
+] as unknown as (string | Function)[]

@@ -16,17 +16,17 @@ export class Init1760000000000 implements MigrationInterface {
   name = 'Init1760000000000'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    for (const sql of DDL) await queryRunner.query(sql)
+    for (const sql of INIT_DDL) await queryRunner.query(sql)
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    for (const table of TABLES) {
+    for (const table of INIT_TABLES) {
       await queryRunner.query(`DROP TABLE IF EXISTS ${table}`)
     }
   }
 }
 
-const TABLES = [
+export const INIT_TABLES = [
   'users',
   'sessions',
   'pages',
@@ -45,7 +45,7 @@ const TABLES = [
   'app_settings',
 ]
 
-const DDL: string[] = [
+export const INIT_DDL: string[] = [
   // table: users
   'CREATE TABLE IF NOT EXISTS "users" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "email" text NOT NULL, "password_hash" text NOT NULL, "created_at" datetime NOT NULL DEFAULT (CURRENT_TIMESTAMP), "trusted_until" datetime, "role" text NOT NULL DEFAULT (\'admin\'), "page_limit" integer, "locale" text, "notify_expiry" boolean NOT NULL DEFAULT (1), "tz" text, "reminder_slots" text, "reminder_time" text);',
   // table: sessions
