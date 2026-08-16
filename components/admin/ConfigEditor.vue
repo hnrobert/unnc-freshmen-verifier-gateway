@@ -64,6 +64,18 @@ const primaryVars = computed(() => {
   } as Record<string, string>
 })
 
+// True when a real image is configured (DB `img:` key or remote URL) — flips
+// the uploader button from "Upload" to "Update". Path refs like the default
+// './welcome.svg' don't count (nothing is actually displayed for them).
+const hasBackgroundImage = computed(() => {
+  const img = config.value.background?.image
+  return !!img && (img.startsWith('img:') || img.startsWith('http'))
+})
+const hasWelcomeImage = computed(() => {
+  const img = config.value.welcome.image
+  return !!img && (img.startsWith('img:') || img.startsWith('http'))
+})
+
 function onWelcomeImage(payload: { ref: string; expiresAt: string | null }): void {
   config.value.welcome.image = payload.ref
   // OCR ran on the upload — fold upload-success + detection into one toast
@@ -178,17 +190,10 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
         <ImageUploader
           :slug="slug"
           image-key="background"
-          :label="t('editor.uploadBackground')"
+          :label="hasBackgroundImage ? t('editor.updateBackground') : t('editor.uploadBackground')"
           @uploaded="onBackgroundImage"
         />
-        <div
-          v-if="
-            (config.background as any).image &&
-            ((config.background as any).image.startsWith('img:') ||
-              (config.background as any).image.startsWith('http'))
-          "
-          class="flex flex-wrap items-center gap-3 text-sm"
-        >
+        <div v-if="hasBackgroundImage" class="flex flex-wrap items-center gap-3 text-sm">
           <Label class="mb-0">{{ t('editor.overlay') }}</Label>
           <input
             type="range"
@@ -262,17 +267,11 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
         <ImageUploader
           :slug="slug"
           image-key="welcome"
-          :label="t('editor.uploadWelcome')"
+          :label="hasWelcomeImage ? t('editor.updateWelcome') : t('editor.uploadWelcome')"
           :silent="true"
           @uploaded="onWelcomeImage"
         />
-        <div
-          v-if="
-            config.welcome.image &&
-            (config.welcome.image.startsWith('img:') || config.welcome.image.startsWith('http'))
-          "
-          class="space-y-3"
-        >
+        <div v-if="hasWelcomeImage" class="space-y-3">
           <div class="flex flex-wrap gap-3 text-sm">
             <label class="flex items-center gap-1"
               >{{ t('editor.maxWidth') }}
@@ -326,7 +325,7 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
             <ImagePreview
               ref="welcomePreview"
               :slug="slug"
-              :src="config.welcome.image"
+              :src="config.welcome.image ?? ''"
               :img-style="{ borderRadius: config.welcome.imageRadius || '0.5rem' }"
               class="shadow-sm"
             />
