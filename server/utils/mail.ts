@@ -163,6 +163,17 @@ async function sendViaPost(c: MailConfig, input: SendMailInput): Promise<string>
     retry: { maxAttempts: 1 },
     recipients: { serialize: 'comma' },
     parseMessageId: false,
+    // The library's own caps default to maxLenBody 50 000 — welcome emails
+    // embed a base64 image and run into hundreds of KB, so the default rejects
+    // them with "Validation failed". Pass the admin-configured limits, with a
+    // deliberately huge body ceiling: the hand-rolled implementation this
+    // replaced had no body cap, and our own validate() doesn't check body
+    // length either (per-product decision).
+    limits: {
+      maxLenRecipientEmail: c.maxLenRecipientEmail,
+      maxLenSubject: c.maxLenSubject,
+      maxLenBody: 100_000_000,
+    },
   })
   try {
     const { messageId } = await poster.send({
