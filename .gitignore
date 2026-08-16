@@ -163,3 +163,6 @@ eng.traineddata
 chi_tra.traineddata
 
 data*/
+
+# tsup-built CLI bundles
+scripts/dist/

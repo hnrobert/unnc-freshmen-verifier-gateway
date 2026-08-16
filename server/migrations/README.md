@@ -49,10 +49,12 @@ Both scripts accept `--db=<path>` (default `DB_PATH` env or `./data/app.db`).
 - `.husky/commit-msg` runs `pnpm migration:check`: staging entity changes
   without a new, barrel-registered migration fails the commit. Bypass with
   `bypass migration check` in the commit message.
-- Scripts run through `scripts/lib/ts-loader.mjs` (esbuild, legacy decorators +
-  metadata). Do NOT switch them to tsx: under Node 24 tsx passes `.ts` through
-  to native type stripping, which executes TypeORM's legacy decorators with
-  stage-3 semantics and crashes.
+- Scripts are prebuilt to `scripts/dist/` by [tsup](https://tsup.egoist.dev)
+  (`pnpm build:scripts`, auto-run before each `migration:*` command and
+  `pnpm test` — ~15 ms; config in `tsup.config.ts`). Never run the raw `.ts`
+  with tsx: under Node 24 tsx passes `.ts` through to native type stripping,
+  which executes TypeORM's legacy decorators with stage-3 semantics and
+  crashes.
 
 ## Rules
 
