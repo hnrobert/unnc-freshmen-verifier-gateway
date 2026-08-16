@@ -175,11 +175,11 @@ const canEdit = computed(() =>
 )
 const deleting = ref(false)
 async function onDelete() {
-  if (!confirm(`Delete organization "${slug.value}"? This cannot be undone.`)) return
+  if (!confirm(`Delete page "${slug.value}"? This cannot be undone.`)) return
   deleting.value = true
   try {
     await $fetch(`/api/orgs/${slug.value}`, { method: 'DELETE' })
-    toast.success('Organization deleted')
+    toast.success('Page deleted')
     await navigateTo('/dashboard/orgs')
   } catch (e) {
     toast.error(messageFromError(e, 'Delete failed'))
@@ -347,13 +347,13 @@ async function onDelete() {
       <CardHeader>
         <CardTitle class="text-base text-destructive">Danger zone</CardTitle>
         <CardDescription
-          >Deleting an organization permanently removes its config, collaborators, and
+          >Deleting a page permanently removes its config, collaborators, and
           statistics.</CardDescription
         >
       </CardHeader>
       <CardContent>
         <Button variant="destructive" :disabled="deleting" @click="onDelete">
-          {{ deleting ? 'Deleting…' : 'Delete this organization' }}
+          {{ deleting ? 'Deleting…' : 'Delete this page' }}
         </Button>
       </CardContent>
     </Card>

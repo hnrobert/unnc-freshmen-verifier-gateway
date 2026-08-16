@@ -175,8 +175,8 @@ function tabActive(to: string, exact: boolean) {
               : 'text-muted-foreground hover:bg-accent hover:text-foreground'
           "
         >
-          <Icon spec="Building2" :size="16" />
-          Organizations
+          <Icon spec="FileText" :size="16" />
+          Pages
         </NuxtLink>
 
         <!-- Settings (user account: email / password / passkeys / mail) -->
@@ -199,7 +199,7 @@ function tabActive(to: string, exact: boolean) {
           <div
             class="flex items-center gap-2 px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/60"
           >
-            <Icon spec="Building2" :size="14" />
+            <Icon spec="FileText" :size="14" />
             <span class="truncate">{{ currentOrg?.name ?? orgSlug }}</span>
           </div>
           <NuxtLink
@@ -259,8 +259,8 @@ function tabActive(to: string, exact: boolean) {
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             "
           >
-            <Icon spec="Building2" :size="16" />
-            All Organizations
+            <Icon spec="FileText" :size="16" />
+            All Pages
           </NuxtLink>
           <NuxtLink
             to="/dashboard/admin/registration"

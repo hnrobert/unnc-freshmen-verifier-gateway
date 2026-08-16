@@ -126,7 +126,7 @@ async function onDelete(user: UserRow) {
   if (isSelf(user)) return
   if (
     !confirm(
-      `Permanently delete user "${user.email}"? Any organizations they own will be transferred to you. This cannot be undone.`,
+      `Permanently delete user "${user.email}"? Any pages they own will be transferred to you. This cannot be undone.`,
     )
   )
     return
@@ -137,7 +137,7 @@ async function onDelete(user: UserRow) {
     })
     toast.success(
       res.reassignedOrgs > 0
-        ? `User deleted (${res.reassignedOrgs} organization${res.reassignedOrgs > 1 ? 's' : ''} transferred to you)`
+        ? `User deleted (${res.reassignedOrgs} page${res.reassignedOrgs > 1 ? 's' : ''} transferred to you)`
         : 'User deleted',
     )
     await refreshUsers()
@@ -156,7 +156,7 @@ async function onDelete(user: UserRow) {
       <CardContent>
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div class="text-sm font-medium">Default org limit</div>
+            <div class="text-sm font-medium">Default page limit</div>
             <p class="mt-0.5 text-xs text-muted-foreground">
               Applied to admins without a per-user override. Superadmins are always unlimited.
             </p>
@@ -325,7 +325,7 @@ async function onDelete(user: UserRow) {
               </Button>
             </div>
             <div v-else class="mt-3 border-t pt-3 text-xs text-muted-foreground">
-              Unlimited organizations
+              Unlimited pages
             </div>
           </CardContent>
         </Card>

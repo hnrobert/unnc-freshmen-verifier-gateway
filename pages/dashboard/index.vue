@@ -60,9 +60,9 @@ async function onDeclineInvite(token: string) {
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Dashboard</h1>
-        <p class="mt-1 text-sm text-muted-foreground">Analytics across your organizations.</p>
+        <p class="mt-1 text-sm text-muted-foreground">Analytics across your pages.</p>
       </div>
-      <Button @click="navigateTo('/dashboard/new')">New organization</Button>
+      <Button @click="navigateTo('/dashboard/new')">New page</Button>
     </div>
 
     <!-- Overview: range selector + KPIs + trend + per-org cards (scoped to this user's orgs) -->

@@ -30,8 +30,8 @@ const grouped = computed(() => {
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">All Organizations</h1>
-      <p class="mt-1 text-sm text-muted-foreground">Every org on the site, grouped by owner.</p>
+      <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">All Pages</h1>
+      <p class="mt-1 text-sm text-muted-foreground">Every page on the site, grouped by owner.</p>
     </div>
 
     <section v-for="g in grouped" :key="g.ownerId" class="space-y-2">

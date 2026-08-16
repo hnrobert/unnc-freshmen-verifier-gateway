@@ -148,7 +148,7 @@ function onDiscard(): void {
     <div>
       <h2 class="text-lg font-semibold tracking-tight">Notifications</h2>
       <p class="mt-1 text-sm text-muted-foreground">
-        Choose when this organization should remind you before its expiry date.
+        Choose when this page should remind you before its expiry date.
       </p>
     </div>
 
@@ -164,7 +164,7 @@ function onDiscard(): void {
           v-if="!data.expiresAt"
           class="rounded-md border border-dashed p-3 text-xs text-muted-foreground"
         >
-          This organization has no expiry date configured, so no reminders will be sent.
+          This page has no expiry date configured, so no reminders will be sent.
         </div>
 
         <div class="space-y-1.5 border-t pt-4">
@@ -180,7 +180,7 @@ function onDiscard(): void {
             <span>Use my account default</span>
           </label>
           <p class="pl-6 text-xs text-muted-foreground">
-            When on, this org uses the schedule from your account settings.
+            When on, this page uses the schedule from your account settings.
           </p>
         </div>
 

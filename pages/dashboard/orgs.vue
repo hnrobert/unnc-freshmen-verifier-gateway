@@ -27,12 +27,12 @@ const collaborated = computed(() =>
   <div>
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Your organizations</h1>
+        <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Your pages</h1>
         <p class="mt-1 text-sm text-muted-foreground">
           Each org has its own verify gateway at <code>/&lt;slug&gt;</code>.
         </p>
       </div>
-      <Button @click="navigateTo('/dashboard/new')">New organization</Button>
+      <Button @click="navigateTo('/dashboard/new')">New page</Button>
     </div>
 
     <div v-if="pending" class="mt-10 text-muted-foreground">Loading…</div>
@@ -41,8 +41,8 @@ const collaborated = computed(() =>
       v-else-if="!data?.orgs?.length"
       class="mt-10 rounded-lg border border-dashed p-12 text-center"
     >
-      <p class="text-muted-foreground">No organizations yet.</p>
-      <Button class="mt-4" @click="navigateTo('/dashboard/new')">Create your first org</Button>
+      <p class="text-muted-foreground">No pages yet.</p>
+      <Button class="mt-4" @click="navigateTo('/dashboard/new')">Create your first page</Button>
     </div>
 
     <div v-else class="mt-6 space-y-10">

@@ -98,10 +98,10 @@ async function onTransfer(memberId: number) {
 
 async function onLeave() {
   if (myMemberId.value === null) return
-  if (!confirm('Leave this organization?')) return
+  if (!confirm('Leave this page?')) return
   try {
     await $fetch(`/api/orgs/${slug.value}/members/${myMemberId.value}`, { method: 'DELETE' })
-    toast.success('You left the organization')
+    toast.success('You left the page')
     await navigateTo('/dashboard')
   } catch (e) {
     toast.error(messageFromError(e, 'Leave failed'))
@@ -121,7 +121,7 @@ async function copyUrl(url: string) {
 <template>
   <div class="max-w-3xl space-y-8">
     <div v-if="myMemberId !== null" class="flex justify-end">
-      <Button variant="outline" size="sm" @click="onLeave">Leave org</Button>
+      <Button variant="outline" size="sm" @click="onLeave">Leave page</Button>
     </div>
 
     <!-- Owner -->

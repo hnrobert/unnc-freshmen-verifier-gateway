@@ -15,7 +15,7 @@ const { data: raw } = await useAsyncData(
   () => useRequestFetch()<SiteConfig>(`/api/orgs/${slug.value}/config?edit=1`),
   { watch: [slug] },
 )
-if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
+if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
 
 const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscard } = useOrgDraft(
   raw.value,
@@ -28,7 +28,7 @@ const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscar
     <StatusAlert
       v-if="!canEdit"
       variant="error"
-      message="You have view-only access to this organization. Changes can't be saved."
+      message="You have view-only access to this page. Changes can't be saved."
     />
     <ConfigEditor mode="advanced" />
 

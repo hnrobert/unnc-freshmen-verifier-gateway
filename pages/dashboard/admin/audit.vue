@@ -242,7 +242,7 @@ function timeLabel(iso: string): string {
             </select>
           </div>
           <div class="flex flex-col gap-1">
-            <label class="text-xs font-medium text-muted-foreground">Organization</label>
+            <label class="text-xs font-medium text-muted-foreground">Page</label>
             <select
               v-model="orgId"
               class="h-9 max-w-48 rounded-md border bg-transparent px-2 text-sm"
@@ -313,7 +313,7 @@ function timeLabel(iso: string): string {
                 <th class="py-3 pr-4 font-medium">Action</th>
                 <th class="py-3 pr-4 font-medium">Outcome</th>
                 <th class="py-3 pr-4 font-medium">Person</th>
-                <th class="py-3 pr-4 font-medium">Organization</th>
+                <th class="py-3 pr-4 font-medium">Page</th>
                 <th class="py-3 font-medium">Detail</th>
               </tr>
             </thead>
@@ -383,7 +383,7 @@ function timeLabel(iso: string): string {
               </dd>
             </div>
             <div class="flex gap-2">
-              <dt class="w-20 shrink-0 text-muted-foreground">Organization</dt>
+              <dt class="w-20 shrink-0 text-muted-foreground">Page</dt>
               <dd>{{ row.orgName ?? (row.orgId != null ? `#${row.orgId}` : '—') }}</dd>
             </div>
             <div v-if="row.detail" class="flex gap-2">

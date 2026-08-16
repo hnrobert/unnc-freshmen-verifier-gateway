@@ -130,9 +130,9 @@ function sparkPoints(data: number[], w = 140, h = 36): string {
       v-else-if="!overview?.orgs?.length"
       class="rounded-lg border border-dashed p-12 text-center"
     >
-      <p class="text-muted-foreground">No organizations to show.</p>
+      <p class="text-muted-foreground">No pages to show.</p>
       <Button v-if="showOrgCards" class="mt-4" @click="navigateTo('/dashboard/new')"
-        >Create your first org</Button
+        >Create your first page</Button
       >
     </div>
 
@@ -188,7 +188,7 @@ function sparkPoints(data: number[], w = 140, h = 36): string {
 
       <!-- Per-org sparkline cards -->
       <div v-if="showOrgCards">
-        <h2 class="mb-3 text-sm font-medium text-muted-foreground">By organization</h2>
+        <h2 class="mb-3 text-sm font-medium text-muted-foreground">By page</h2>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div
             v-for="org in overview.orgs"

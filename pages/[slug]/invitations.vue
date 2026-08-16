@@ -46,7 +46,7 @@ async function onDecline() {
 <template>
   <Card class="mx-auto mt-2 max-w-md">
     <CardHeader>
-      <CardTitle>Organization invitation</CardTitle>
+      <CardTitle>Page invitation</CardTitle>
       <CardDescription v-if="invite">
         You've been invited to join as <strong>{{ invite.role }}</strong
         >.
@@ -60,7 +60,7 @@ async function onDecline() {
       />
       <template v-else-if="invite">
         <p class="text-sm text-muted-foreground">
-          Accept to join this organization and access its dashboard.
+          Accept to join this page and access its dashboard.
         </p>
         <div class="flex gap-2">
           <Button :disabled="claiming" @click="onAccept">

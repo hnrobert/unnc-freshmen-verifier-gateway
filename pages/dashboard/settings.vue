@@ -257,8 +257,8 @@ onMounted(() => {
       <CardHeader>
         <CardTitle class="text-base">Notifications</CardTitle>
         <CardDescription
-          >Your default expiry-reminder schedule, in your own timezone. You can override it per
-          organization from that org's Notifications tab.</CardDescription
+          >Your default expiry-reminder schedule, in your own timezone. You can override it per page
+          from that page's Notifications tab.</CardDescription
         >
       </CardHeader>
       <CardContent class="space-y-4">

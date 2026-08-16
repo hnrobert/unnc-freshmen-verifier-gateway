@@ -47,7 +47,7 @@ async function onPasskey() {
   <Card>
     <CardHeader>
       <CardTitle>Log in</CardTitle>
-      <CardDescription>Access your organizations.</CardDescription>
+      <CardDescription>Access your pages.</CardDescription>
     </CardHeader>
     <CardContent>
       <form class="flex flex-col gap-4" @submit.prevent="onSubmit">

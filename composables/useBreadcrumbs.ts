@@ -16,16 +16,16 @@ const ADMIN_TAB_LABELS: Record<string, string> = {
  * Build the dashboard breadcrumb trail from the current route (no data fetch).
  * The trail starts at the relevant section — no universal "Dashboard" prefix,
  * since every page already lives under the dashboard (the sidebar makes that
- * clear). So the org pages read "Organizations › <slug>", not
- * "Dashboard › Organizations › <slug>".
+ * clear). So the org pages read "Pages › <slug>", not
+ * "Dashboard › Pages › <slug>".
  */
 function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
   const path = route.path
-  const orgs: BreadcrumbItem = { label: 'Organizations', to: '/dashboard/orgs' }
+  const orgs: BreadcrumbItem = { label: 'Pages', to: '/dashboard/orgs' }
 
   if (path === '/dashboard') return [{ label: 'Dashboard' }]
-  if (path === '/dashboard/orgs') return [{ label: 'Organizations' }]
-  if (path === '/dashboard/new') return [orgs, { label: 'New organization' }]
+  if (path === '/dashboard/orgs') return [{ label: 'Pages' }]
+  if (path === '/dashboard/new') return [orgs, { label: 'New page' }]
   if (path === '/dashboard/settings') return [{ label: 'Settings' }]
 
   // Admin section (superadmin): /dashboard/admin is the index; users /
@@ -38,7 +38,7 @@ function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
     return [{ label: 'Admin Dashboard', to: '/dashboard/admin' }, { label }]
   }
   if (path === '/dashboard/admin/organizations') {
-    return [{ label: 'Admin Dashboard', to: '/dashboard/admin' }, { label: 'All Organizations' }]
+    return [{ label: 'Admin Dashboard', to: '/dashboard/admin' }, { label: 'All Pages' }]
   }
 
   // Admin org view: /dashboard/admin/organizations/<slug>(/<tab>).
@@ -46,10 +46,7 @@ function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
     /^\/dashboard\/admin\/organizations\/([^/]+)(?:\/(edit|advanced|members|share|preview|notifications))?$/,
   )
   if (adminOrg && adminOrg[1]) {
-    return [
-      { label: 'All Organizations', to: '/dashboard/admin/organizations' },
-      { label: adminOrg[1] },
-    ]
+    return [{ label: 'All Pages', to: '/dashboard/admin/organizations' }, { label: adminOrg[1] }]
   }
 
   // /dashboard/<slug>/{edit,advanced,members,share,preview,notifications} — breadcrumb stops at the

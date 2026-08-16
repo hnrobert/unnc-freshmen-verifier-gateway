@@ -134,7 +134,7 @@ const config: SiteConfig = {
         reminderTitleTomorrow: '你的二维码明天过期',
         reminderTitleInDays: '你的二维码 {n} 天后过期',
         reminderBody:
-          '组织 {org} 欢迎页的二维码将于 {date} 过期。请尽快更换最新的二维码图片，以免新生扫码失效。',
+          '验证页 {org} 的二维码将于 {date} 过期。请尽快更换最新的二维码图片，以免新生扫码失效。',
         reminderButton: '更换二维码',
         noReply: '本邮件由系统自动发送，请勿直接回复。',
       },

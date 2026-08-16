@@ -72,7 +72,7 @@ async function onSave() {
       method: 'PATCH',
       body: { name: nameDraft.value.trim(), slug: normalSlug.value },
     })
-    toast.success(res.renamed ? 'Organization renamed' : 'Organization updated')
+    toast.success(res.renamed ? 'Page renamed' : 'Page updated')
     confirmDraft.value = ''
     await refreshOrgs()
     if (res.renamed) {
@@ -95,7 +95,7 @@ async function onSave() {
     <form class="flex flex-col gap-5" @submit.prevent="onSave">
       <!-- Name -->
       <div class="flex flex-col gap-2">
-        <Label for="org-name">Organization name</Label>
+        <Label for="org-name">Page name</Label>
         <Input
           id="org-name"
           v-model="nameDraft"
@@ -140,9 +140,9 @@ async function onSave() {
             <p class="mt-1 text-muted-foreground">
               After saving, <code>/{{ org.slug }}</code> (and any old links, posters, or QR codes
               pointing to it) will automatically redirect to <code>/{{ normalSlug }}</code
-              >. The redirect follows the org across future renames, and it
+              >. The redirect follows the page across future renames, and it
               <strong
-                >only stops once a new organization claims <code>/{{ org.slug }}</code></strong
+                >only stops once a new page claims <code>/{{ org.slug }}</code></strong
               >. Nothing breaks, but share the new address going forward.
             </p>
             <div class="mt-3">
