@@ -97,6 +97,17 @@ function onBackgroundImage(payload: { ref: string; expiresAt: string | null }): 
   setTimeout(() => bgPreview.value?.refresh(), 100)
 }
 
+// The uploader already deleted the stored image; clear the config reference so
+// the preview/settings rows disappear. The draft still needs Save to persist.
+function onWelcomeDeleted(): void {
+  config.value.welcome.image = ''
+  setTimeout(() => welcomePreview.value?.refresh(), 100)
+}
+function onBackgroundDeleted(): void {
+  if (config.value.background) config.value.background.image = ''
+  setTimeout(() => bgPreview.value?.refresh(), 100)
+}
+
 const otherIconSlots = [
   'nameField',
   'idField',
@@ -191,7 +202,9 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           :slug="slug"
           image-key="background"
           :label="hasBackgroundImage ? t('editor.updateBackground') : t('editor.uploadBackground')"
+          :has-existing="hasBackgroundImage"
           @uploaded="onBackgroundImage"
+          @deleted="onBackgroundDeleted"
         />
         <div v-if="hasBackgroundImage" class="flex flex-wrap items-center gap-3 text-sm">
           <Label class="mb-0">{{ t('editor.overlay') }}</Label>
@@ -210,14 +223,6 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           />
           <span class="w-10 text-muted-foreground"
             >{{ Math.round(((config.background as any).overlayOpacity ?? 0) * 100) }}%</span
-          >
-          <Button
-            v-if="(config.background as any).image"
-            size="sm"
-            variant="ghost"
-            type="button"
-            @click="(config.background as any).image = ''"
-            >{{ t('editor.remove') }}</Button
           >
         </div>
         <div v-if="(config.background as any).image" class="grid gap-1.5">
@@ -269,7 +274,9 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           image-key="welcome"
           :label="hasWelcomeImage ? t('editor.updateWelcome') : t('editor.uploadWelcome')"
           :silent="true"
+          :has-existing="hasWelcomeImage"
           @uploaded="onWelcomeImage"
+          @deleted="onWelcomeDeleted"
         />
         <div v-if="hasWelcomeImage" class="space-y-3">
           <div class="flex flex-wrap gap-3 text-sm">

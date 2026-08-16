@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-const props = defineProps<{ slug: string; imageKey: string; label?: string; silent?: boolean }>()
-const emit = defineEmits<{ uploaded: [payload: { ref: string; expiresAt: string | null }] }>()
+const props = defineProps<{
+  slug: string
+  imageKey: string
+  label?: string
+  silent?: boolean
+  /** Show a "delete current image" button next to Upload/Update. */
+  hasExisting?: boolean
+}>()
+const emit = defineEmits<{
+  uploaded: [payload: { ref: string; expiresAt: string | null }]
+  deleted: []
+}>()
 const { t } = useI18n()
 
 const uploading = ref(false)
+const deleting = ref(false)
 const error = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -55,6 +66,22 @@ async function onFile(e: Event): Promise<void> {
     input.value = ''
   }
 }
+
+async function onDelete(): Promise<void> {
+  if (!confirm(t('editor.deleteImageConfirm'))) return
+  deleting.value = true
+  error.value = ''
+  try {
+    // Endpoint is idempotent — a missing row (already deleted) is fine.
+    await $fetch(`/api/orgs/${props.slug}/images/${props.imageKey}`, { method: 'DELETE' })
+    toast.success(t('editor.imageDeleted'))
+    emit('deleted')
+  } catch (err) {
+    error.value = messageFromError(err, 'Delete failed')
+  } finally {
+    deleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -67,18 +94,33 @@ async function onFile(e: Event): Promise<void> {
       class="hidden"
       @change="onFile"
     />
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      :disabled="uploading"
-      class="w-fit"
-      @click="triggerUpload"
-    >
-      <Icon v-if="uploading" spec="LoaderCircle" :size="16" class="animate-spin" />
-      <Icon v-else spec="Upload" :size="16" />
-      {{ uploading ? 'Uploading…' : (label ?? 'Upload image') }}
-    </Button>
+    <div class="flex flex-wrap items-center gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        :disabled="uploading || deleting"
+        class="w-fit"
+        @click="triggerUpload"
+      >
+        <Icon v-if="uploading" spec="LoaderCircle" :size="16" class="animate-spin" />
+        <Icon v-else spec="Upload" :size="16" />
+        {{ uploading ? 'Uploading…' : (label ?? 'Upload image') }}
+      </Button>
+      <Button
+        v-if="hasExisting"
+        type="button"
+        variant="outline"
+        size="sm"
+        :disabled="uploading || deleting"
+        class="w-fit text-destructive hover:bg-destructive/10 hover:text-destructive"
+        @click="onDelete"
+      >
+        <Icon v-if="deleting" spec="LoaderCircle" :size="16" class="animate-spin" />
+        <Icon v-else spec="Trash2" :size="16" />
+        {{ t('editor.deleteImage') }}
+      </Button>
+    </div>
     <p v-if="error" class="text-xs text-destructive">{{ error }}</p>
   </div>
 </template>
