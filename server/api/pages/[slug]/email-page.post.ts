@@ -9,38 +9,39 @@ import { buildWatermarkSvg } from '#server/utils/watermark'
 
 const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
 
-// Email-ready max width for the welcome image. Oversized uploads (e.g. a tall
-// 1290×2796 poster) balloon the base64 payload and get stripped by some mail
-// providers — downscaling keeps the email deliverable.
-const EMAIL_IMG_MAX_WIDTH = 800
+// Email-ready max widths. Oversized uploads (e.g. a tall 1290×2796 poster)
+// balloon the base64 payload — downscaling keeps the email deliverable.
+const EMAIL_WELCOME_MAX_WIDTH = 800
+const EMAIL_BRAND_MAX_WIDTH = 240
 
-/** Resolve a welcome-image reference to an email-ready data URL: pull the bytes
- * (from a `data:` URL, an absolute http(s) URL, or a same-origin path), then in
- * a single sharp pass downscale, optionally composite the watermark, and
- * re-encode — JPEG for opaque images (far smaller, more deliverable), PNG when
- * the source has transparency. Returns null if the source can't be read. */
-async function resolveWelcomeImage(
+/** Resolve an image reference to email-ready bytes: pull the source (data:
+ * URL, absolute http(s) URL, or DB `img:<key>` ref resolved via resolveImgRef),
+ * then in one sharp pass downscale and optionally composite the watermark.
+ * JPEG for opaque images (far smaller), PNG when the source has transparency.
+ * Returns null if the source can't be read (caller omits the image). */
+async function inlineEmailImage(
   ref: string,
-  origin: string,
+  pageId: number,
+  maxWidth: number,
   watermarkText: string,
 ): Promise<string | null> {
   let buffer: Buffer
-  if (ref.startsWith('data:')) {
-    const m = ref.match(/^data:[^;]+;base64,(.*)$/s)
+  const src = ref.startsWith('img:') ? ((await resolveImgRef(ref, pageId)) ?? '') : ref
+  if (src.startsWith('data:')) {
+    const m = src.match(/^data:[^;]+;base64,(.*)$/s)
     if (!m?.[1]) return null
     buffer = Buffer.from(m[1], 'base64')
-  } else {
-    const url = ref.startsWith('http') ? ref : `${origin}/${ref.replace(/^\.?\//, '')}`
-    const ab = await $fetch<ArrayBuffer>(url, { responseType: 'arrayBuffer' }).catch(() => null)
+  } else if (src.startsWith('http')) {
+    const ab = await $fetch<ArrayBuffer>(src, { responseType: 'arrayBuffer' }).catch(() => null)
     if (!ab) return null
     buffer = Buffer.from(ab)
+  } else {
+    return null
   }
 
   const meta = await sharp(buffer).metadata()
-  const origW = meta.width ?? EMAIL_IMG_MAX_WIDTH
-  const origH = meta.height ?? Math.round(origW * 0.75)
-  const targetW = Math.min(origW, EMAIL_IMG_MAX_WIDTH)
-  const targetH = Math.round((origH * targetW) / origW)
+  const targetW = Math.min(meta.width ?? maxWidth, maxWidth)
+  const targetH = Math.round(((meta.height ?? targetW) * targetW) / (meta.width ?? targetW))
 
   let pipe = sharp(buffer).resize({ width: targetW, withoutEnlargement: true })
   if (watermarkText) {
@@ -49,7 +50,6 @@ async function resolveWelcomeImage(
     ])
   }
 
-  // Opaque → JPEG (small, universal); transparent → PNG (preserve alpha).
   if (meta.hasAlpha) {
     const out = await pipe.png().toBuffer()
     return `data:image/png;base64,${out.toString('base64')}`
@@ -123,37 +123,29 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Inline any image URL (data: as-is, http: fetched → data URI) so email
-  // clients don't need external access.
-  async function inlineImg(url: string): Promise<string> {
-    if (url.startsWith('data:')) return url
-    if (url.startsWith('http')) {
-      try {
-        const ab = await $fetch<ArrayBuffer>(url, { responseType: 'arrayBuffer' })
-        return `data:image/png;base64,${Buffer.from(ab).toString('base64')}`
-      } catch {
-        return ''
-      }
-    }
-    return ''
-  }
-
-  // Resolve the brand mark to an inlined data URI. Custom image logos are stored
-  // as { img: 'data:|http:...' } (see isImageIcon), NOT a bare string — so check
-  // the object form; a plain data:/http: string is also accepted as a fallback.
-  // Lucide icons are a bare name string.
+  // Resolve the brand mark to an inlined data URI. Any image logo — img:<key>
+  // DB ref, data: URI, or http URL — goes through the inline pipeline (240px,
+  // re-encoded), so camera-photo logos don't balloon the email. Lucide names
+  // render as small SVG data URIs.
+  const page = await getPageBySlug(slug)
   const brandIcon = config.icons.brand
   const brandImgUrl = isImageIcon(brandIcon)
     ? brandIcon.img
     : typeof brandIcon === 'string' &&
-        (brandIcon.startsWith('data:') || brandIcon.startsWith('http'))
+        (brandIcon.startsWith('data:') ||
+          brandIcon.startsWith('http') ||
+          brandIcon.startsWith('img:'))
       ? brandIcon
       : undefined
-  const brandIconHtml = brandImgUrl
-    ? await inlineImg(brandImgUrl)
-    : typeof brandIcon === 'string'
-      ? await inlineIcon(brandIcon, 22, contrastFg)
-      : ''
+  let brandIconHtml = ''
+  if (brandImgUrl && page) {
+    brandIconHtml =
+      (await inlineEmailImage(brandImgUrl, page.id, EMAIL_BRAND_MAX_WIDTH, '').catch(() => '')) ??
+      ''
+  }
+  if (!brandIconHtml && typeof brandIcon === 'string') {
+    brandIconHtml = await inlineIcon(brandIcon, 22, contrastFg)
+  }
 
   // Brand header cell. A lucide glyph sits centered in a primary-colored rounded
   // chip; a custom image logo is shown DIRECTLY — no accent chip/background, just
@@ -173,24 +165,23 @@ ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMac
 </td>
 </tr></table>`
 
-  // --- Welcome image (resized for email + optional watermark = email prefix) ---
+  // --- Welcome image, INLINED as a data URI (resize + optional watermark of
+  // the email prefix in one sharp pass). A failure omits the image rather than
+  // failing the whole email — logged so outages are visible. ---
   let welcomeImageHtml = ''
-  const welcomeRef = config.welcome.image
-  const watermarkText = config.welcome.watermark ? (email.split('@')[0] ?? '') : ''
-  if (welcomeRef) {
-    try {
-      // config keeps welcome.image as `img:<key>` (un-inlined); resolve it to a
-      // data:/http: source before the resize/watermark pipeline runs.
-      const page = await getPageBySlug(slug)
-      const src = page ? await resolveImgRef(welcomeRef, page.id) : null
-      if (src) {
-        const img = await resolveWelcomeImage(src, origin, watermarkText)
-        if (img) {
-          welcomeImageHtml = `<img src="${img}" alt="" style="display:block;width:100%;max-width:480px;margin:0 auto 24px;border-radius:12px;" />`
-        }
-      }
-    } catch {
-      // image unreadable — omit it rather than failing the whole email
+  if (config.welcome.image && page) {
+    const watermarkText = config.welcome.watermark ? (email.split('@')[0] ?? '') : ''
+    const img = await inlineEmailImage(
+      config.welcome.image,
+      page.id,
+      EMAIL_WELCOME_MAX_WIDTH,
+      watermarkText,
+    ).catch((e: unknown) => {
+      console.error('[email-page] welcome image inline failed:', e)
+      return null
+    })
+    if (img) {
+      welcomeImageHtml = `<img src="${img}" alt="" style="display:block;width:100%;max-width:480px;margin:0 auto 24px;border-radius:12px;" />`
     }
   }
 
