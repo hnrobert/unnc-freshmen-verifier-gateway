@@ -161,3 +161,5 @@ public/*.txt
 chi_sim.traineddata
 eng.traineddata
 chi_tra.traineddata
+
+data*/
