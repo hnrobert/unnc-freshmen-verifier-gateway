@@ -20,6 +20,7 @@ async function onSubmit() {
   loading.value = true
   try {
     await login(email.value, password.value)
+    toast.success('Logged in')
     await navigateTo((route.query.redirect as string) || '/dashboard')
   } catch (e: unknown) {
     toast.error(messageFromError(e, 'Login failed'))
@@ -32,6 +33,7 @@ async function onPasskey() {
   pkLoading.value = true
   try {
     await loginWithPasskey()
+    toast.success('Logged in')
     await navigateTo((route.query.redirect as string) || '/dashboard')
   } catch (e: unknown) {
     toast.error(messageFromError(e, 'Passkey sign-in failed'))
