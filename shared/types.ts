@@ -115,6 +115,12 @@ export interface BackgroundConfig {
   overlayOpacity?: number
 }
 
+/** Share-poster settings (the poster generator on the dashboard Share tab). */
+export interface ShareConfig {
+  /** Custom default poster title. Empty/absent → falls back to the page's brand title. */
+  posterTitle?: string
+}
+
 /** How verification resolves a name + ID. */
 export type VerifyMode = 'live' | 'mock'
 
@@ -172,6 +178,8 @@ export interface SiteConfig {
   welcome: WelcomeAssetsConfig
   /** Optional full-page background image for the page's pages. */
   background?: BackgroundConfig
+  /** Share-poster settings (dashboard Share tab). */
+  share?: ShareConfig
   /** Localized labels & content. Keys are referenced via `t('...')`. */
   messages: Record<Locale, Record<string, unknown>>
 }
