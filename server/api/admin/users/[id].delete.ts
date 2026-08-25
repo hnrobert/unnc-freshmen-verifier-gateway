@@ -14,8 +14,8 @@ import { Page } from '#server/entities/page.entity'
  *    (`organizations.owner_id` is non-nullable, so we can't just orphan them).
  *  - Personal artifacts are removed: sessions, passkeys, per-user mail config,
  *    and their active page memberships.
- *  - Page analytics + verified-identity records (`org_events`,
- *    `org_verified_identities`) are KEPT — they belong to the page's history,
+ *  - Page analytics + verified-identity records (`page_events`,
+ *    `page_verified_identities`) are KEPT — they belong to the page's history,
  *    not the user's account, and are page-scoped (no `userId`).
  *
  * Guards: cannot delete yourself; cannot delete the last superadmin.

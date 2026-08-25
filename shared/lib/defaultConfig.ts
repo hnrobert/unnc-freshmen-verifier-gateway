@@ -4,7 +4,7 @@
  * their own copy via the dashboard editor. The `messages` block is fed verbatim
  * into vue-i18n; keys (e.g. `verify.nameLabel`) are exactly what templates use.
  *
- * Images use `img:<key>` (stored as base64 in the `org_images` table, served at
+ * Images use `img:<key>` (stored as base64 in the `page_images` table, served at
  * `/api/pages/:slug/img-:key`). Set `gateway.mode: 'mock'` to preview the UI
  * without the portal. The portal is always queried server-side (no CORS).
  */

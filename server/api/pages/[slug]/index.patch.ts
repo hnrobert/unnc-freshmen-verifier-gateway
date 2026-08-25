@@ -7,7 +7,7 @@ import { validateSlug } from '#shared/types'
 /**
  * Update an page's name and/or slug (owner or superadmin only — gated by
  * requirePageOwnership). On a slug change:
- *   - the previous slug is recorded in `org_redirects` → this page id, so the
+ *   - the previous slug is recorded in `page_redirects` → this page id, so the
  *     redirect middleware keeps old public URLs working (resolved to the live
  *     slug, so later renames chain automatically);
  *   - any leftover redirect on the newly-claimed slug is freed, fulfilling the

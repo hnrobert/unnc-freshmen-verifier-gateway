@@ -2,7 +2,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
 
 /**
  * Permanent daily rollup of per-page stats (survives the 90-day pruning of
- * `org_events`). EAV-style: one row per (page, day, metric) with a count. Metrics:
+ * `page_events`). EAV-style: one row per (page, day, metric) with a count. Metrics:
  * `view`, `verify_total`, `verify_admitted`, `verify_not_found`, `verify_error`,
  * `verify_missing`, `mock`, `trusted`, `live`. (UV is NOT stored here — it can't
  * be a simple increment; it's computed on read as `COUNT(DISTINCT ip_hash)` from

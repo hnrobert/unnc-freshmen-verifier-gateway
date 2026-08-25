@@ -7,9 +7,9 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
  *
  * Privacy: only the **salted SHA-256** of the normalized ID number is stored
  * (`id_hash`) — never the raw ID. `name` is kept plaintext (consistent with
- * `org_events.name`) so the welcome page can greet a returning visitor.
+ * `page_events.name`) so the welcome page can greet a returning visitor.
  *
- * Unlike `org_events` (90-day retention), this table is permanent so a one-time
+ * Unlike `page_events` (90-day retention), this table is permanent so a one-time
  * verification dedupes for the page's lifetime. Unique on `(page_id, id_hash)` —
  * one identity per page.
  */

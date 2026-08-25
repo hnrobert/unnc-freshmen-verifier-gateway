@@ -8,7 +8,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm'
  *
  * Retention is configurable (default 90 days; pruned by `pruneOldAuditEvents`).
  *
- * Privacy: visitor identities follow the same stance as `org_events` — names are
+ * Privacy: visitor identities follow the same stance as `page_events` — names are
  * stored plaintext, while the ID number and IP are kept only as salted SHA-256
  * (in `detail.idHash` / `ipHash`), never raw. Authenticated actors record their
  * `userId` + `email` (both already exist in the `users` table); anonymous actors

@@ -31,7 +31,7 @@ export default defineNitroPlugin(async () => {
     await settingRepo.upsert({ key: FLAG_KEY, value: 'done' }, ['key'])
 
     console.log(
-      '[reminders] migration v1 · truncated org_reminder_sents + dropped legacy 3-column index',
+      '[reminders] migration v1 · truncated page_reminder_sents + dropped legacy 3-column index',
     )
   } catch (e) {
     console.error('[reminders] migration v1 failed:', e)

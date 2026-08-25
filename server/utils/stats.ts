@@ -71,13 +71,30 @@ export function parseMeta(event: H3Event): EventMeta {
 
 // --- Writers ---
 
+// The two upserts below must be raw SQL: they are ATOMIC COUNTER increments
+// (`SET count = count + 1` referencing the existing row), which TypeORM's
+// upsert APIs cannot express (they only write fixed values). To keep them from
+// drifting off the physical schema again (the 2026-08 rename outage was
+// exactly such a drift), every table/column identifier is pulled from entity
+// metadata — rename an entity/table and these queries follow automatically.
+function metaSql(entity: Function, props: string[]): { table: string; cols: string[] } {
+  const meta = AppDataSource.getMetadata(entity)
+  return {
+    table: meta.tableName,
+    cols: props.map((p) => meta.findColumnWithPropertyPath(p)!.databaseName),
+  }
+}
+const ROLLUP = metaSql(PageDailyStat, ['pageId', 'day', 'metric', 'count'])
+const IDENTITY = metaSql(PageVerifiedIdentity, ['pageId', 'name', 'idHash'])
+
 async function bumpRollup(pageId: number, day: string, metrics: string[]): Promise<void> {
-  for (const metric of metrics) {
-    // SQLite upsert on the unique (org_id, day, metric).
+  const [pid, dayC, metric, count] = ROLLUP.cols
+  for (const m of metrics) {
+    // SQLite upsert on the unique (page_id, day, metric).
     await AppDataSource.query(
-      `INSERT INTO org_daily_stats (org_id, day, metric, count) VALUES (?, ?, ?, 1)
-       ON CONFLICT (org_id, day, metric) DO UPDATE SET count = count + 1`,
-      [pageId, day, metric],
+      `INSERT INTO ${ROLLUP.table} (${pid}, ${dayC}, ${metric}, ${count}) VALUES (?, ?, ?, 1)
+       ON CONFLICT (${pid}, ${dayC}, ${metric}) DO UPDATE SET ${count} = ${count} + 1`,
+      [pageId, day, m],
     )
   }
 }
@@ -203,7 +220,7 @@ export async function findVerifiedIdentity(
 /**
  * Record a verified identity for (page, idHash) — idempotent. Best-effort, never
  * throws (dedup must not break a verify response). Uses INSERT OR IGNORE so the
- * unique (org_id, id_hash) index makes repeat admits a no-op.
+ * unique (page_id, id_hash) index makes repeat admits a no-op.
  */
 export async function upsertVerifiedIdentity(
   pageId: number,
@@ -212,8 +229,9 @@ export async function upsertVerifiedIdentity(
 ): Promise<void> {
   if (!idHash) return
   try {
+    const [pid, nameC, hashC] = IDENTITY.cols
     await AppDataSource.query(
-      'INSERT OR IGNORE INTO org_verified_identities (org_id, name, id_hash) VALUES (?, ?, ?)',
+      `INSERT OR IGNORE INTO ${IDENTITY.table} (${pid}, ${nameC}, ${hashC}) VALUES (?, ?, ?)`,
       [pageId, name, idHash],
     )
   } catch {

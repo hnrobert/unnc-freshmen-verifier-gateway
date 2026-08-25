@@ -6,7 +6,7 @@ import { PageMember } from '#server/entities/pageMember.entity'
  * Transfer ownership to an active member. Owner+ (superadmin may do it without
  * being demoted). The target becomes the new owner; the previous owner is demoted
  * to manager (if they were the owner) and the target's member row is removed
- * (ownership lives on Page.ownerId, not in org_members).
+ * (ownership lives on Page.ownerId, not in page_members).
  */
 export default defineEventHandler(async (event) => {
   const me = requireAuth(event)

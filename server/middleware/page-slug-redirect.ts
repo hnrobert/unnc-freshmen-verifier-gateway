@@ -5,7 +5,7 @@ import { SLUG_RE, RESERVED_SLUGS } from '#shared/types'
 
 /**
  * Old-slug → current-slug redirect for public page URLs. When an page is renamed,
- * a row in `org_redirects` maps its previous slug → the page id; this middleware
+ * a row in `page_redirects` maps its previous slug → the page id; this middleware
  * resolves that id to the page's CURRENT slug and 302s the visitor there, so old
  * links/posters keep working. The redirect stops once a new page claims the old
  * slug (page create/rename frees the row) or the page is deleted.

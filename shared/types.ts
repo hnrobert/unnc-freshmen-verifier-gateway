@@ -162,7 +162,7 @@ export interface AdmissionResult {
 }
 
 /**
- * The full per-page site configuration (one row in `org_settings`). `messages` is
+ * The full per-page site configuration (one row in `page_settings`). `messages` is
  * fed verbatim into vue-i18n, so the message keys (e.g. `verify.nameLabel`) are
  * the same keys used by `t()` / templates. Images are referenced by `img:<key>`
  * and resolved to serving URLs at render time.

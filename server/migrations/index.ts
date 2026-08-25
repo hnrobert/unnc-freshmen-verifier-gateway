@@ -11,6 +11,7 @@
 import { Init1760000000000 } from './1760000000000-Init'
 import { OrgToPageRename1760000000001 } from './1760000000001-OrgToPageRename'
 import { AlignLegacySchema1760000010000 } from './1760000010000-AlignLegacySchema'
+import { BackfillDailyStatsFromEvents1760000011000 } from './1760000011000-BackfillDailyStatsFromEvents'
 
 /** Identity of the first (baseline) migration. */
 export const BASELINE_MIGRATION = {
@@ -25,4 +26,5 @@ export const migrations = [
   Init1760000000000,
   OrgToPageRename1760000000001,
   AlignLegacySchema1760000010000,
+  BackfillDailyStatsFromEvents1760000011000,
 ] as unknown as (string | Function)[]

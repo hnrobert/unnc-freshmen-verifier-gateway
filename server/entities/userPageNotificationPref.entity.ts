@@ -18,7 +18,7 @@ const slotArrayTransformer: ValueTransformer = {
 
 /**
  * A user's per-page reminder-preference override. Keyed by (pageId, userId) — NOT
- * by `org_members.id` — so it covers the page **owner** too, who has no
+ * by `page_members.id` — so it covers the page **owner** too, who has no
  * `PageMember` row (ownership lives on `Page.ownerId`).
  *
  * Every column is nullable: a null field inherits downwards (account default →
