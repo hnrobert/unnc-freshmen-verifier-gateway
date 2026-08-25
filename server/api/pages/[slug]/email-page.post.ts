@@ -195,10 +195,8 @@ ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMac
   // --- Welcome body (markdown → HTML) ---
   const bodyHtml = welcome.body ? md.render(welcome.body) : ''
 
-  // --- Welcome badge (above the title, matching WelcomeContent.vue) ---
-  const badgeHtml = welcome.badge
-    ? `<div style="text-align:center;margin-bottom:12px;"><span class="badge-bg" style="display:inline-block;padding:4px 12px;border-radius:9999px;font-size:13px;font-weight:500;background:#f5f5f5;color:#737373;">${welcome.badge}</span></div>`
-    : ''
+  // Note: the welcome badge is intentionally NOT rendered in the email
+  // (web-only element, per product decision).
 
   // --- Welcome title (with icon inlined as data URI) ---
   const welcomeIcon = config.icons.welcome
@@ -233,9 +231,7 @@ ${brand.subtitle ? `<div class="muted" style="font-family:-apple-system,BlinkMac
   .body-ink { color: #d4d4d4 !important; }
   .body-ink a { color: #a1a1a1 !important; }
   .muted { color: #a1a1a1 !important; }
-  .badge-bg { background-color: #262626 !important; color: #a1a1a1 !important; }
-}
-</style>
+}</style>
 </head>
 <body class="bg" style="margin:0;padding:0;background-color:#fafafa;color:#fafafa;">
 <table role="presentation" class="bg" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafafa;">
@@ -249,7 +245,6 @@ ${brandHeaderHtml}
 
 <!-- Content -->
 <tr><td style="padding:28px 28px 8px;">
-${badgeHtml}
 ${titleHtml}
 ${welcomeImageHtml}
 <div class="body-ink" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#404040;">${bodyHtml}</div>
