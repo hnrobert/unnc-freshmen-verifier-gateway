@@ -4,6 +4,8 @@ import type { AdmissionResult } from '#shared/types'
 import { isSecureRequest } from './request'
 
 const TRUST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+/** Email-code verification grants a longer trust window (admin-chosen flow). */
+export const EMAIL_TRUST_WINDOW_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 const LOGIN_COOKIE = 'vg_jwt' // issued on website login (userId-based)
 const VERIFY_COOKIE = 'vg_verify' // issued on successful portal check (name+ID-based)
 
@@ -76,12 +78,14 @@ export function signVerifyJwt(
   idHash: string,
   deviceHash: string,
   admission?: AdmissionResult,
+  /** Trust-window override (defaults to 7d); the email-code flow passes 30d. */
+  ttlMs: number = TRUST_WINDOW_MS,
 ): string {
-  const trustedUntil = new Date(Date.now() + TRUST_WINDOW_MS).toISOString()
+  const trustedUntil = new Date(Date.now() + ttlMs).toISOString()
   return jwt.sign(
     { name, idHash, deviceHash, trustedUntil, admission } satisfies VerifyTrustPayload,
     getSecret(),
-    { expiresIn: `${TRUST_WINDOW_MS / 1000}s` },
+    { expiresIn: `${ttlMs / 1000}s` },
   )
 }
 
@@ -95,12 +99,16 @@ export function verifyVerifyJwt(event: H3Event): VerifyTrustPayload | null {
   }
 }
 
-export function setVerifyCookie(event: H3Event, token: string): void {
+export function setVerifyCookie(
+  event: H3Event,
+  token: string,
+  ttlMs: number = TRUST_WINDOW_MS,
+): void {
   setCookie(event, VERIFY_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: TRUST_WINDOW_MS / 1000,
+    maxAge: ttlMs / 1000,
     secure: isSecureRequest(event),
   })
 }

@@ -11,6 +11,13 @@ function normalizeId(s: string): string {
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
+
+  // Site-wide kill switch (admin panel → Verification). Refused before any
+  // portal traffic, for every branch incl. trusted/reused cookies.
+  const settings = await getVerificationSettings()
+  if (!settings.freshmanEnabled)
+    throw createError({ statusCode: 403, statusMessage: 'Freshman verification is disabled' })
+
   const config = await loadPageConfig(slug)
   const page = await getPageBySlug(slug)
 

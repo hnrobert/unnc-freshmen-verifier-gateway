@@ -63,6 +63,13 @@ async function inlineEmailImage(
  * address. Blocks student/staff emails. */
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
+
+  // Welcome-mailing only exists in 'welcome' mode — in 'code' mode the email
+  // tab goes through the code endpoints instead.
+  const settings = await getVerificationSettings()
+  if (settings.emailMode === 'code')
+    throw createError({ statusCode: 403, statusMessage: 'Email verification uses code mode' })
+
   const body = await readBody<{ email?: unknown; locale?: unknown }>(event)
   const email = String(body?.email ?? '')
     .trim()

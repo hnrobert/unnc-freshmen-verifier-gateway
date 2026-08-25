@@ -86,6 +86,13 @@ const config: SiteConfig = {
         emailSubmitting: '发送中…',
         emailSent: '已发送到你的邮箱',
         emailHint: '输入你的 UNNC 邮箱，我们会把欢迎页内容发送到你的邮箱。',
+        codeLabel: '验证码',
+        codePlaceholder: '6 位验证码',
+        codeSend: '发送验证码',
+        codeSent: '验证码已发送到你的邮箱',
+        codeSubmit: '验证',
+        codeInvalid: '验证码错误或已过期',
+        codeHint: '输入你的 UNNC 邮箱并获取验证码，验证通过后 30 天内无需重复验证。',
       },
       errors: {
         emptyName: '请输入姓名',
@@ -165,6 +172,14 @@ const config: SiteConfig = {
         emailSubmitting: 'Sending…',
         emailSent: 'Sent to your email',
         emailHint: 'Enter your UNNC email and we will send the welcome page to your inbox.',
+        codeLabel: 'Verification code',
+        codePlaceholder: '6-digit code',
+        codeSend: 'Send code',
+        codeSent: 'Code sent to your email',
+        codeSubmit: 'Verify',
+        codeInvalid: 'Invalid or expired code',
+        codeHint:
+          'Enter your UNNC email and request a code — verifying trusts this browser for 30 days.',
       },
       errors: {
         emptyName: 'Please enter your name',

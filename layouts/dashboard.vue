@@ -275,6 +275,18 @@ function tabActive(to: string, exact: boolean) {
             Registration
           </NuxtLink>
           <NuxtLink
+            to="/dashboard/admin/verification"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin/verification'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="ShieldCheck" :size="16" />
+            Verification
+          </NuxtLink>
+          <NuxtLink
             to="/dashboard/admin/mail"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="
