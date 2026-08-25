@@ -3,10 +3,13 @@ import { validateSlug } from '#shared/types'
 
 // The "Name & URL" card — the last card on the Edit page. Edits the
 // Page entity (name + slug) via PATCH /api/pages/:slug, which is a
-// separate save path from the SiteConfig draft the rest of the editor uses, so
-// this card has its own Save button. Owner-only: only a real owner can rename
-// (a superadmin viewing another owner's page has a synthesized role, not real
-// ownership, and the page won't appear in their /api/pages list anyway).
+// separate save path from the SiteConfig draft the rest of the editor uses
+// (different table, owner-only permission, and a rename relocates the URL), so
+// it keeps its OWN save logic — but surfaces it through the same shared
+// SaveBar + UnsavedLeaveDialog affordance as everything else. Owner-only: only
+// a real owner can rename (a superadmin viewing another owner's page has a
+// synthesized role, not real ownership, and the page won't appear in their
+// /api/pages list anyway).
 const props = defineProps<{ slug: string }>()
 const router = useRouter()
 
@@ -53,6 +56,10 @@ const canSave = computed(
   () => canManage.value && dirty.value && !slugError.value && confirmed.value && !saving.value,
 )
 
+// Leave-guard for the card's own draft (the page-level one covers the config
+// draft; both may be dirty independently).
+const { confirmLeave, proceed } = useUnsavedLeaveGuard(dirty, saving)
+
 function reset() {
   if (!page.value) return
   nameDraft.value = page.value.name
@@ -74,6 +81,8 @@ async function onSave() {
     })
     toast.success(res.renamed ? 'Page renamed' : 'Page updated')
     confirmDraft.value = ''
+    saved.value = true
+    setTimeout(() => (saved.value = false), 2000)
     await refreshPages()
     if (res.renamed) {
       // The URL changed — relocate to the new slug's edit page.
@@ -85,6 +94,11 @@ async function onSave() {
     saving.value = false
   }
 }
+
+// Surfaced to the parent (edit.vue) so the config editor's SaveBar can hide
+// while this card's bar is up — two fixed bottom bars must never stack.
+defineExpose({ isDirty: dirty })
+const saved = ref(false)
 </script>
 
 <template>
@@ -160,15 +174,26 @@ async function onSave() {
           </div>
         </div>
       </div>
-
-      <div class="flex items-center gap-2">
-        <Button type="submit" :disabled="!canSave">{{
-          saving ? 'Saving…' : 'Save changes'
-        }}</Button>
-        <Button v-if="dirty" type="button" variant="ghost" :disabled="saving" @click="reset">
-          Reset
-        </Button>
-      </div>
     </form>
+
+    <!-- Same shared save affordance as the rest of the app (own save path). -->
+    <SaveBar :dirty="dirty" :saving="saving" :saved="saved" @save="onSave" @discard="reset" />
+    <UnsavedLeaveDialog
+      :open="confirmLeave"
+      :saving="saving"
+      @stay="confirmLeave = false"
+      @discard="
+        () => {
+          reset()
+          proceed()
+        }
+      "
+      @save="
+        async () => {
+          await onSave()
+          proceed()
+        }
+      "
+    />
   </section>
 </template>

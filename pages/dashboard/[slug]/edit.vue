@@ -23,6 +23,11 @@ const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscar
   raw.value,
   access,
 )
+
+// The Name & URL card renders its own SaveBar (separate save path) — track its
+// dirty state so this page's config SaveBar can yield while it's up.
+const nameCard = ref<{ isDirty: boolean } | null>(null)
+const nameCardDirty = computed(() => !!nameCard.value?.isDirty)
 </script>
 
 <template>
@@ -34,11 +39,13 @@ const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscar
     />
     <div class="space-y-8">
       <ConfigEditor mode="basic" />
-      <PageNameSlugCard :key="slug" :slug="slug" />
+      <PageNameSlugCard ref="nameCard" :key="slug" :slug="slug" />
     </div>
 
+    <!-- Hidden while the Name & URL card has its own unsaved changes — two
+         fixed bottom bars must never stack (the card renders its own SaveBar). -->
     <SaveBar
-      v-if="canEdit"
+      v-if="canEdit && !nameCardDirty"
       :dirty="isDirty"
       :saving="saving"
       :saved="saved"
