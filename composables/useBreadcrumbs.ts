@@ -41,12 +41,13 @@ function buildTrail(route: RouteLocationNormalized): BreadcrumbItem[] {
     return [{ label: 'Admin Dashboard', to: '/dashboard/admin' }, { label: 'All Pages' }]
   }
 
-  // Admin page view: /dashboard/admin/pages/<slug>(/<tab>).
-  const adminOrg = path.match(
-    /^\/dashboard\/admin\/organizations\/([^/]+)(?:\/(edit|advanced|members|share|preview|notifications))?$/,
+  // Admin page view: /dashboard/admin/pages/<slug>(/<tab>) — same shape as the
+  // personal pages trail ("Pages › <slug>"), but rooted at All Pages.
+  const adminPageView = path.match(
+    /^\/dashboard\/admin\/pages\/([^/]+)(?:\/(edit|advanced|members|share|preview|notifications))?$/,
   )
-  if (adminOrg && adminOrg[1]) {
-    return [{ label: 'All Pages', to: '/dashboard/admin/pages' }, { label: adminOrg[1] }]
+  if (adminPageView && adminPageView[1]) {
+    return [{ label: 'All Pages', to: '/dashboard/admin/pages' }, { label: adminPageView[1] }]
   }
 
   // /dashboard/<slug>/{edit,advanced,members,share,preview,notifications} — breadcrumb stops at the

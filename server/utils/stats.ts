@@ -84,15 +84,24 @@ function metaSql(entity: Function, props: string[]): { table: string; cols: stri
     cols: props.map((p) => meta.findColumnWithPropertyPath(p)!.databaseName),
   }
 }
-const ROLLUP = metaSql(PageDailyStat, ['pageId', 'day', 'metric', 'count'])
-const IDENTITY = metaSql(PageVerifiedIdentity, ['pageId', 'name', 'idHash'])
+// LAZY: TypeORM builds entity metadata on initialize(), not on `new DataSource`
+// — resolving at module scope crashed cold boots ("No metadata for …") whenever
+// this module loaded before the db plugin ran. Resolved on first write instead
+// (always post-init), then cached.
+function lazyMetaSql(entity: Function, props: string[]) {
+  let cached: { table: string; cols: string[] } | null = null
+  return () => (cached ??= metaSql(entity, props))
+}
+const rollupSql = lazyMetaSql(PageDailyStat, ['pageId', 'day', 'metric', 'count'])
+const identitySql = lazyMetaSql(PageVerifiedIdentity, ['pageId', 'name', 'idHash'])
 
 async function bumpRollup(pageId: number, day: string, metrics: string[]): Promise<void> {
-  const [pid, dayC, metric, count] = ROLLUP.cols
+  const { table, cols } = rollupSql()
+  const [pid, dayC, metric, count] = cols
   for (const m of metrics) {
     // SQLite upsert on the unique (page_id, day, metric).
     await AppDataSource.query(
-      `INSERT INTO ${ROLLUP.table} (${pid}, ${dayC}, ${metric}, ${count}) VALUES (?, ?, ?, 1)
+      `INSERT INTO ${table} (${pid}, ${dayC}, ${metric}, ${count}) VALUES (?, ?, ?, 1)
        ON CONFLICT (${pid}, ${dayC}, ${metric}) DO UPDATE SET ${count} = ${count} + 1`,
       [pageId, day, m],
     )
@@ -229,9 +238,10 @@ export async function upsertVerifiedIdentity(
 ): Promise<void> {
   if (!idHash) return
   try {
-    const [pid, nameC, hashC] = IDENTITY.cols
+    const { table, cols } = identitySql()
+    const [pid, nameC, hashC] = cols
     await AppDataSource.query(
-      `INSERT OR IGNORE INTO ${IDENTITY.table} (${pid}, ${nameC}, ${hashC}) VALUES (?, ?, ?)`,
+      `INSERT OR IGNORE INTO ${table} (${pid}, ${nameC}, ${hashC}) VALUES (?, ?, ?)`,
       [pageId, name, idHash],
     )
   } catch {

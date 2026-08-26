@@ -47,9 +47,9 @@ function toggleTheme() {
 // header so the breadcrumb + tabs span the main column and stay pinned.
 const RESERVED_SEGS = new Set(['', 'admin', 'pages', 'settings', 'new'])
 const pathParts = computed(() => route.path.split('/'))
-const isAdminPage = computed(
-  () => pathParts.value[2] === 'admin' && pathParts.value[3] === 'organizations',
-)
+// Admin page view = /dashboard/admin/pages/<slug>/… (renamed from
+// admin/organizations during the org→page rename).
+const isAdminPage = computed(() => pathParts.value[2] === 'admin' && pathParts.value[3] === 'pages')
 const pageSlug = computed(() => {
   if (isAdminPage.value) return pathParts.value[4] ?? ''
   const seg = pathParts.value[2] ?? ''

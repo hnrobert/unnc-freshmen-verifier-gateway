@@ -6,21 +6,29 @@ import { validateSlug } from '#shared/types'
 // separate save path from the SiteConfig draft the rest of the editor uses
 // (different table, owner-only permission, and a rename relocates the URL), so
 // it keeps its OWN save logic — but surfaces it through the same shared
-// SaveBar + UnsavedLeaveDialog affordance as everything else. Owner-only: only
-// a real owner can rename (a superadmin viewing another owner's page has a
-// synthesized role, not real ownership, and the page won't appear in their
-// /api/pages list anyway).
+// SaveBar + UnsavedLeaveDialog affordance as everything else. Owner-only —
+// which for the API means rank ≥ owner, so a SUPERADMIN opening someone else's
+// page via the admin route has full control here too.
 const props = defineProps<{ slug: string }>()
 const router = useRouter()
+const route = useRoute()
+
+// Identity + role come from /access (works for every viewer incl. a superadmin
+// on a page they don't own — the /api/pages list only covers owned/shared).
+const { data: access, refresh: refreshAccess } = await useFetch<{
+  role: string | null
+  rank: number
+  page: { slug: string; name: string }
+}>(() => `/api/pages/${props.slug}/access`, { watch: [() => props.slug] })
 
 // Shared page list (same key as the dashboard layout → stays in sync, and the
 // tab bar / breadcrumb pick up the new slug after a rename).
-const { data: pageList, refresh: refreshPages } = await useFetch<{
+const { refresh: refreshPages } = await useFetch<{
   pages: { slug: string; name: string; role: string }[]
 }>('/api/pages', { default: () => ({ pages: [] }), key: 'pages-list' })
 
-const page = computed(() => pageList.value?.pages.find((o) => o.slug === props.slug))
-const canManage = computed(() => page.value?.role === 'owner')
+const page = computed(() => access.value?.page)
+const canManage = computed(() => (access.value?.rank ?? 0) >= 4) // owner or superadmin
 
 const nameDraft = ref('')
 const slugDraft = ref('')
@@ -85,9 +93,15 @@ async function onSave() {
     setTimeout(() => (saved.value = false), 2000)
     await refreshPages()
     if (res.renamed) {
-      // The URL changed — relocate to the new slug's edit page.
-      await router.replace(`/dashboard/${res.page.slug}/edit`)
+      // The URL changed — relocate to the new slug's edit page, staying on the
+      // admin route when the page was opened through it (a superadmin may not
+      // have access to the personal URL of someone else's page).
+      const base = route.path.startsWith('/dashboard/admin')
+        ? `/dashboard/admin/pages/${res.page.slug}`
+        : `/dashboard/${res.page.slug}`
+      await router.replace(`${base}/edit`)
     }
+    await refreshAccess()
   } catch (e) {
     toast.error(messageFromError(e, 'Update failed'))
   } finally {
