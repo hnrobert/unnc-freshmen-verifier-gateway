@@ -130,7 +130,7 @@ const details = computed(() => {
       href="/"
       class="mt-8 inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors hover:bg-accent"
     >
-      <Icon spec="House" :size="16" />
+      <Icon spec="Home" :size="16" />
       {{ t('welcome.home') }}
     </a>
   </div>
