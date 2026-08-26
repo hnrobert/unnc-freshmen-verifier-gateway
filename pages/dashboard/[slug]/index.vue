@@ -57,8 +57,12 @@ const C = {
   red: '#ef4444',
   purple: '#a855f7',
   gray: '#94a3b8',
+  orange: '#f97316',
+  teal: '#14b8a6',
 }
-const PALETTE = [C.primary, C.blue, C.green, C.red, C.purple, C.gray, '#f97316', '#14b8a6']
+// Default info color = the site theme yellow; semantic series only deviate by
+// convention (success green / error red / warning orange / neutral gray).
+const DEFAULT_INFO = C.primary
 
 const lineData = computed(() => ({
   labels: stats.value?.daily.days ?? [],
@@ -95,8 +99,8 @@ const barData = computed(() => ({
   labels: stats.value?.daily.days ?? [],
   datasets: [
     { label: 'Admitted', data: stats.value?.daily.admitted ?? [], backgroundColor: C.green },
-    { label: 'Not found', data: stats.value?.daily.notFound ?? [], backgroundColor: C.red },
-    { label: 'Error', data: stats.value?.daily.error ?? [], backgroundColor: C.purple },
+    { label: 'Not found', data: stats.value?.daily.notFound ?? [], backgroundColor: C.gray },
+    { label: 'Error', data: stats.value?.daily.error ?? [], backgroundColor: C.red },
   ],
 }))
 const barOpts: ChartOptions<'bar'> = {
@@ -122,11 +126,34 @@ const PRETTY: Record<string, string> = {
   mock: 'Mock',
   trusted: 'Trusted',
   live: 'Live',
+  reused: 'Reused',
+  email: 'Email',
+}
+// Semantic colors keyed by outcome/mode (conventions: success=green,
+// error=red, warning=orange, neutral=gray); anything unknown falls back to
+// the theme yellow. Keyed — never positional — so slices stay stable.
+const OUTCOME_COLORS: Record<string, string> = {
+  admitted: C.green,
+  not_found: C.gray,
+  error: C.red,
+  missing: C.orange,
+}
+const MODE_COLORS: Record<string, string> = {
+  live: C.primary, // the default path — theme yellow
+  mock: C.purple,
+  trusted: C.blue,
+  reused: C.teal,
+  email: C.blue,
 }
 const outcomeData = computed(() => ({
   labels: (stats.value?.breakdowns.outcome ?? []).map((b) => PRETTY[b.key] ?? b.key),
   datasets: [
-    { data: (stats.value?.breakdowns.outcome ?? []).map((b) => b.count), backgroundColor: PALETTE },
+    {
+      data: (stats.value?.breakdowns.outcome ?? []).map((b) => b.count),
+      backgroundColor: (stats.value?.breakdowns.outcome ?? []).map(
+        (b) => OUTCOME_COLORS[b.key] ?? DEFAULT_INFO,
+      ),
+    },
   ],
 }))
 const modeData = computed(() => ({
@@ -134,7 +161,9 @@ const modeData = computed(() => ({
   datasets: [
     {
       data: (stats.value?.breakdowns.mode ?? []).map((b) => b.count),
-      backgroundColor: [C.green, C.primary, C.blue],
+      backgroundColor: (stats.value?.breakdowns.mode ?? []).map(
+        (b) => MODE_COLORS[b.key] ?? DEFAULT_INFO,
+      ),
     },
   ],
 }))
@@ -147,7 +176,7 @@ const doughnutOpts: ChartOptions<'doughnut'> = {
 function horizData(list: { key: string; count: number }[]) {
   return {
     labels: list.map((b) => b.key),
-    datasets: [{ label: 'count', data: list.map((b) => b.count), backgroundColor: C.blue }],
+    datasets: [{ label: 'count', data: list.map((b) => b.count), backgroundColor: DEFAULT_INFO }],
   }
 }
 const horizOpts: ChartOptions<'bar'> = {
