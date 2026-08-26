@@ -15,21 +15,33 @@ const router = useRouter()
 const { setVerified } = useVerifier()
 
 // Site-wide gateway switches (admin panel → Verification): whether the
-// freshman tab exists at all, and whether the email tab mails welcome content
-// or runs an email+code flow. Preview keeps both tabs visible regardless.
+// freshman tab exists at all, and which email flows are enabled (any subset of
+// welcome/code). Preview keeps both tabs + both flows visible regardless.
 const { data: gateways } = await useFetch<{
   freshmanEnabled: boolean
-  emailMode: 'welcome' | 'code'
+  emailModes: ('welcome' | 'code')[]
 }>(() => `/api/pages/${props.slug}/gateways-status`, { watch: [() => props.slug] })
 const showVerifyTab = computed(() => props.preview || (gateways.value?.freshmanEnabled ?? true))
-const emailMode = computed(() =>
-  props.preview ? 'welcome' : (gateways.value?.emailMode ?? 'welcome'),
+const welcomeFlow = computed(() =>
+  props.preview ? true : (gateways.value?.emailModes ?? ['welcome']).includes('welcome'),
 )
+const codeFlow = computed(() =>
+  props.preview ? true : (gateways.value?.emailModes ?? ['welcome']).includes('code'),
+)
+const showEmailTab = computed(() => welcomeFlow.value || codeFlow.value)
+// The in-tab flow selector only makes sense when BOTH flows are on; with one,
+// that flow renders directly.
+const showFlowSwitch = computed(() => welcomeFlow.value && codeFlow.value)
 
 const tab = ref<'verify' | 'email'>('verify')
-// When the freshman tab is switched off, land on the email tab.
+const emailFlow = ref<'welcome' | 'code'>('welcome')
+// Keep tab/flow valid whenever the admin switches change what's available.
 watchEffect(() => {
-  if (!showVerifyTab.value && tab.value === 'verify') tab.value = 'email'
+  if (!showVerifyTab.value && showEmailTab.value && tab.value === 'verify') tab.value = 'email'
+  if (tab.value === 'email') {
+    if (!welcomeFlow.value && emailFlow.value === 'welcome') emailFlow.value = 'code'
+    if (!codeFlow.value && emailFlow.value === 'code') emailFlow.value = 'welcome'
+  }
 })
 
 const name = ref(props.defaultName ?? '')
@@ -165,9 +177,11 @@ async function onVerifyCode(): Promise<void> {
       <CardDescription>{{ t('verify.subheading') }}</CardDescription>
     </CardHeader>
 
-    <!-- Switch (SMTP/POST style) — freshman tab hidden when disabled site-wide -->
-    <div v-if="showVerifyTab" class="mx-6 mt-6 flex gap-1 rounded-md border p-1">
+    <!-- Switch (SMTP/POST style) — freshman tab hidden when disabled site-wide,
+         email tab hidden when no email mode is on. -->
+    <div v-if="showVerifyTab || showEmailTab" class="mx-6 mt-6 flex gap-1 rounded-md border p-1">
       <button
+        v-if="showVerifyTab"
         class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors"
         :class="
           tab === 'verify'
@@ -180,6 +194,7 @@ async function onVerifyCode(): Promise<void> {
         {{ t('verify.tabVerify') }}
       </button>
       <button
+        v-if="showEmailTab"
         class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors"
         :class="
           tab === 'email'
@@ -193,7 +208,41 @@ async function onVerifyCode(): Promise<void> {
       </button>
     </div>
 
-    <CardContent :class="showVerifyTab ? 'pt-6' : 'pt-6 px-6 pb-6'">
+    <CardContent :class="showVerifyTab || showEmailTab ? 'pt-6' : 'pt-6 px-6 pb-6'">
+      <!-- In-tab flow selector — ONLY when both email flows are enabled; with a
+           single flow the form renders directly. -->
+      <div
+        v-if="tab === 'email' && showFlowSwitch"
+        class="mb-4 flex gap-1 self-center rounded-md border p-1"
+        style="width: fit-content"
+      >
+        <button
+          type="button"
+          class="flex items-center justify-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors"
+          :class="
+            emailFlow === 'welcome'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-accent'
+          "
+          @click="emailFlow = 'welcome'"
+        >
+          <Icon spec="Send" :size="12" />
+          {{ t('verify.flowWelcome') }}
+        </button>
+        <button
+          type="button"
+          class="flex items-center justify-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors"
+          :class="
+            emailFlow === 'code'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-accent'
+          "
+          @click="emailFlow = 'code'"
+        >
+          <Icon spec="Key" :size="12" />
+          {{ t('verify.flowCode') }}
+        </button>
+      </div>
       <!-- Tab 1: Verify form -->
       <form
         v-if="tab === 'verify' && showVerifyTab"
@@ -240,7 +289,7 @@ async function onVerifyCode(): Promise<void> {
 
       <!-- Tab 2a: Email → mail welcome content (legacy mode) -->
       <form
-        v-else-if="emailMode === 'welcome'"
+        v-else-if="emailFlow === 'welcome'"
         class="flex flex-col gap-4"
         @submit.prevent="onSendEmail"
       >

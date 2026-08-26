@@ -64,11 +64,11 @@ async function inlineEmailImage(
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
 
-  // Welcome-mailing only exists in 'welcome' mode — in 'code' mode the email
-  // tab goes through the code endpoints instead.
+  // Welcome-mailing is a distinct flow the admin enables explicitly; when it's
+  // off, the email tab goes through the code endpoints instead.
   const settings = await getVerificationSettings()
-  if (settings.emailMode === 'code')
-    throw createError({ statusCode: 403, statusMessage: 'Email verification uses code mode' })
+  if (!settings.emailModes.includes('welcome'))
+    throw createError({ statusCode: 403, statusMessage: 'Welcome-email flow is disabled' })
 
   const body = await readBody<{ email?: unknown; locale?: unknown }>(event)
   const email = String(body?.email ?? '')

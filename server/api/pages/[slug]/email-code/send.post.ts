@@ -11,8 +11,8 @@ import { getVerificationSettings } from '#server/utils/verification'
  */
 export default defineEventHandler(async (event) => {
   const settings = await getVerificationSettings()
-  if (settings.emailMode !== 'code')
-    throw createError({ statusCode: 403, statusMessage: 'Code mode is not enabled' })
+  if (!settings.emailModes.includes('code'))
+    throw createError({ statusCode: 403, statusMessage: 'Code flow is not enabled' })
 
   const body = await readBody<{ email?: unknown; session?: unknown }>(event)
   const email = String(body?.email ?? '')
