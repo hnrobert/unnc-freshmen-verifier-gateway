@@ -4,30 +4,43 @@
  * must re-verify after closing it. Also carries the portal-returned admission
  * details so the welcome page can show them.
  *
+ * The refs live in `useState` — NOT plain module refs. Module refs are shared
+ * across every SSR request on the server, so one visitor's verify would mark
+ * every later visitor verified during their render (a real cross-request
+ * leak). useState is per-request on the server AND transfers to the client in
+ * the payload, which also means an SSR fast-path (trust-cookie redirect)
+ * hydrates as verified instead of bouncing back to the form.
+ *
  * NOTE: this is a UX gate for a static site, not an access-control boundary —
  * the welcome content is necessarily present in the bundle. See README.
  */
-import { computed, ref } from 'vue'
 import type { AdmissionResult } from '#shared/types'
 
 const VERIFIED_KEY = 'unnc-vg.verified'
 const DETAILS_KEY = 'unnc-vg.details'
 
+// Restore the tab-session state on the client (no-op on the server, where
+// useState starts fresh each request).
 const hasStorage = typeof sessionStorage !== 'undefined'
-const verified = ref(hasStorage && sessionStorage.getItem(VERIFIED_KEY) === '1')
-const admission = ref<AdmissionResult | null>(null)
-
-// Restore admission details on first load if already verified this session.
-if (verified.value && hasStorage) {
-  try {
-    const raw = sessionStorage.getItem(DETAILS_KEY)
-    if (raw) admission.value = JSON.parse(raw) as AdmissionResult
-  } catch {
-    /* ignore malformed cache */
-  }
-}
 
 export function useVerifier() {
+  const verified = useState<boolean>('unnc-vg.verified-state', () => {
+    try {
+      return hasStorage && sessionStorage.getItem(VERIFIED_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const admission = useState<AdmissionResult | null>('unnc-vg.admission-state', () => {
+    try {
+      if (!hasStorage || sessionStorage.getItem(VERIFIED_KEY) !== '1') return null
+      const raw = sessionStorage.getItem(DETAILS_KEY)
+      return raw ? (JSON.parse(raw) as AdmissionResult) : null
+    } catch {
+      return null
+    }
+  })
+
   const isVerified = computed(() => verified.value)
 
   function setVerified(value: boolean, details?: AdmissionResult): void {
@@ -43,7 +56,7 @@ export function useVerifier() {
         sessionStorage.removeItem(DETAILS_KEY)
       }
     } catch {
-      /* sessionStorage may be unavailable (private mode); fall back to in-memory. */
+      /* sessionStorage may be unavailable (private mode); in-memory state still holds. */
     }
   }
 
