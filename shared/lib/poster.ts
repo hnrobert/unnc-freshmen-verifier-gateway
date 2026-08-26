@@ -5,17 +5,17 @@ import type { SiteConfig } from '../types'
  * by BOTH the server-rendered poster endpoints (sharp) and the client-side
  * canvas renderer, so the two produce the same layout. Pure functions only.
  */
-export const POSTER_W = 1200
-export const POSTER_H = 630
+export const POSTER_W = 1080
+export const POSTER_H = 1440
 export const POSTER_THEMES = ['page', 'dark', 'light', 'primary'] as const
 export type PosterTheme = (typeof POSTER_THEMES)[number]
 
-/** QR card geometry — centered below the title (Microsoft-Forms layout: title
- * up top, big centered QR, no URL text baked into the image). */
-export const POSTER_QR_CARD = 216
-export const POSTER_QR_TOP = 340
+/** QR card geometry — Microsoft-Forms portrait card: title in the upper third,
+ * one large centered QR below, no URL text baked into the image. */
+export const POSTER_QR_CARD = 600
+export const POSTER_QR_TOP = 640
 /** Vertical center of the title zone; lines are stacked around it. */
-export const POSTER_TITLE_CENTER = 170
+export const POSTER_TITLE_CENTER = 340
 
 export function isPosterTheme(v: string): v is PosterTheme {
   return (POSTER_THEMES as readonly string[]).includes(v)

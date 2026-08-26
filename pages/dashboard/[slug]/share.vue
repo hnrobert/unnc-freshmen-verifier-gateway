@@ -150,22 +150,23 @@ function drawPoster(): void {
     ctx.fillRect(0, 0, POSTER_W, POSTER_H)
   }
 
-  // Title (wrapped, ≤2 lines) centered above the QR — no URL baked in
-  // (Microsoft-Forms layout).
+  // Title (wrapped, ≤3 lines) centered in the upper third — no URL baked in
+  // (Microsoft-Forms portrait layout).
   ctx.textAlign = 'center'
   ctx.fillStyle = palette.text
-  ctx.font = `700 54px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`
-  const lines = wrapTitle(effectiveTitle.value, 54, 920, 2)
-  const startY = POSTER_TITLE_CENTER + 27 - ((lines.length - 1) * 66) / 2
-  lines.forEach((l, i) => ctx.fillText(l, POSTER_W / 2, startY + i * 66))
+  ctx.font = `700 60px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`
+  const lines = wrapTitle(effectiveTitle.value, 60, 880, 3)
+  const startY = POSTER_TITLE_CENTER + 30 - ((lines.length - 1) * 74) / 2
+  lines.forEach((l, i) => ctx.fillText(l, POSTER_W / 2, startY + i * 74))
 
-  // QR card (horizontally centered, white rounded card)
+  // QR card (large, horizontally centered, white rounded card)
   const cardX = (POSTER_W - POSTER_QR_CARD) / 2
   const cardY = POSTER_QR_TOP
   ctx.fillStyle = '#ffffff'
-  roundRect(ctx, cardX, cardY, POSTER_QR_CARD, POSTER_QR_CARD, 16)
+  roundRect(ctx, cardX, cardY, POSTER_QR_CARD, POSTER_QR_CARD, 28)
   ctx.fill()
-  if (qrImage.value) ctx.drawImage(qrImage.value, cardX + 16, cardY + 16, 184, 184)
+  if (qrImage.value)
+    ctx.drawImage(qrImage.value, cardX + 44, cardY + 44, POSTER_QR_CARD - 88, POSTER_QR_CARD - 88)
 }
 
 function roundRect(
@@ -223,7 +224,7 @@ const posterUrl = computed(
 )
 const iframeSnippet = computed(
   () =>
-    `<iframe src="${publicUrl.value.replace(/\/[^/]*$/, '')}/api/pages/${slug.value}/poster${posterQuery.value}" width="640" height="400" style="border:0;border-radius:12px" loading="lazy" title="${effectiveTitle.value.replace(/"/g, '&quot;')}"></iframe>`,
+    `<iframe src="${publicUrl.value.replace(/\/[^/]*$/, '')}/api/pages/${slug.value}/poster${posterQuery.value}" width="480" height="680" style="border:0;border-radius:12px" loading="lazy" title="${effectiveTitle.value.replace(/"/g, '&quot;')}"></iframe>`,
 )
 
 async function copyText(text: string, what: string): Promise<void> {
@@ -328,8 +329,8 @@ async function savePosterTitle(): Promise<void> {
           </div>
 
           <!-- Canvas preview (client-rendered, same layout as the server poster) -->
-          <div class="mx-auto max-w-lg overflow-hidden rounded-lg border bg-muted/40">
-            <canvas ref="canvasEl" class="block w-full" :style="{ aspectRatio: '1200 / 630' }" />
+          <div class="mx-auto max-w-[22rem] overflow-hidden rounded-lg border bg-muted/40">
+            <canvas ref="canvasEl" class="block w-full" :style="{ aspectRatio: '1080 / 1440' }" />
           </div>
 
           <div class="flex flex-wrap gap-2">

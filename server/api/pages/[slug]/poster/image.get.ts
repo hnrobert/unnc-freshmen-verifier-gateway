@@ -77,23 +77,27 @@ export default defineEventHandler(async (event) => {
   const scrim = hasPhotoBg
     ? `<rect width="${POSTER_W}" height="${POSTER_H}" fill="rgba(10,10,10,0.5)"/>`
     : ''
-  const fontSize = 54
-  const lines = wrapTitle(title, fontSize, 920, 2)
-  const startY = POSTER_TITLE_CENTER + fontSize / 2 - ((lines.length - 1) * 66) / 2
+  const fontSize = 60
+  const lineHeight = 74
+  const lines = wrapTitle(title, fontSize, 880, 3)
+  const startY = POSTER_TITLE_CENTER + fontSize / 2 - ((lines.length - 1) * lineHeight) / 2
   const titleTspans = lines
-    .map((l, i) => `<tspan x="${POSTER_W / 2}" y="${startY + i * 66}">${escapeXml(l)}</tspan>`)
+    .map(
+      (l, i) => `<tspan x="${POSTER_W / 2}" y="${startY + i * lineHeight}">${escapeXml(l)}</tspan>`,
+    )
     .join('')
   const qrLeft = (POSTER_W - POSTER_QR_CARD) / 2
+  const qrPad = 44
   const overlay = Buffer.from(
     `<svg width="${POSTER_W}" height="${POSTER_H}" xmlns="http://www.w3.org/2000/svg">${scrim}
 <text text-anchor="middle" font-family="-apple-system,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif" font-size="${fontSize}" font-weight="700" fill="${palette.text}">${titleTspans}</text>
-<rect x="${qrLeft}" y="${POSTER_QR_TOP}" width="${POSTER_QR_CARD}" height="${POSTER_QR_CARD}" rx="16" fill="#ffffff"/>
+<rect x="${qrLeft}" y="${POSTER_QR_TOP}" width="${POSTER_QR_CARD}" height="${POSTER_QR_CARD}" rx="28" fill="#ffffff"/>
 </svg>`,
   )
 
-  // --- QR (small, inside the white card's safe area) -------------------------
+  // --- QR (large, inside the white card's safe area) ---------------------------
   const qrPng = await QRCode.toBuffer(publicUrl, {
-    width: 360,
+    width: 900,
     margin: 1,
     color: { dark: '#1c1917', light: '#ffffff' },
   })
@@ -101,9 +105,12 @@ export default defineEventHandler(async (event) => {
   const piped = canvas!.composite([
     { input: overlay, gravity: 'center' },
     {
-      input: await sharp(qrPng).resize(184).png().toBuffer(),
-      left: (POSTER_W - POSTER_QR_CARD) / 2 + 16,
-      top: POSTER_QR_TOP + 16,
+      input: await sharp(qrPng)
+        .resize(POSTER_QR_CARD - 2 * qrPad)
+        .png()
+        .toBuffer(),
+      left: qrLeft + qrPad,
+      top: POSTER_QR_TOP + qrPad,
     },
   ])
   // Photo backgrounds compress far better as JPEG (~5× smaller than PNG);
