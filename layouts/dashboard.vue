@@ -47,8 +47,7 @@ function toggleTheme() {
 // header so the breadcrumb + tabs span the main column and stay pinned.
 const RESERVED_SEGS = new Set(['', 'admin', 'pages', 'settings', 'new'])
 const pathParts = computed(() => route.path.split('/'))
-// Admin page view = /dashboard/admin/pages/<slug>/… (renamed from
-// admin/organizations during the org→page rename).
+// Admin page view = /dashboard/admin/pages/<slug>/…
 const isAdminPage = computed(() => pathParts.value[2] === 'admin' && pathParts.value[3] === 'pages')
 const pageSlug = computed(() => {
   if (isAdminPage.value) return pathParts.value[4] ?? ''
@@ -56,7 +55,7 @@ const pageSlug = computed(() => {
   return RESERVED_SEGS.has(seg) ? '' : seg
 })
 // Base path for the current page's tab links.
-const orgBase = computed(() => {
+const pageBase = computed(() => {
   const s = pageSlug.value
   if (!s) return ''
   return isAdminPage.value ? `/dashboard/admin/pages/${s}` : `/dashboard/${s}`
@@ -76,7 +75,7 @@ const currentPage = computed(() => {
   return undefined
 })
 const pageTabs = computed(() => {
-  const base = orgBase.value
+  const base = pageBase.value
   const page = currentPage.value
   if (!base || !page) return []
   const canEdit = ['owner', 'manager', 'editor', 'superadmin'].includes(page.role)

@@ -39,7 +39,7 @@ export class User {
   role!: string
 
   /**
-   * Per-user cap on the number of organizations this account can create.
+   * Per-user cap on the number of pages this account can create.
    * `null` = fall back to the default admin limit (see DEFAULT_ADMIN_PAGE_LIMIT).
    * Superadmins are always unlimited regardless of this value. Configured by a
    * superadmin from the Users panel.

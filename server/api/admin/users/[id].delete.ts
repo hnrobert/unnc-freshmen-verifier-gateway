@@ -11,7 +11,7 @@ import { Page } from '#server/entities/page.entity'
  *
  * Side effects, all in one transaction:
  *  - Ownership of any pages they owned is reassigned to the acting superadmin
- *    (`organizations.owner_id` is non-nullable, so we can't just orphan them).
+ *    (`pages.owner_id` is non-nullable, so we can't just orphan them).
  *  - Personal artifacts are removed: sessions, passkeys, per-user mail config,
  *    and their active page memberships.
  *  - Page analytics + verified-identity records (`page_events`,

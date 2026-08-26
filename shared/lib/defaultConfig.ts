@@ -1,5 +1,5 @@
 /**
- * Default per-page SiteConfig — the seed/template used when a new organization is
+ * Default per-page SiteConfig — the seed/template used when a new page is
  * created (see server/db/seed.ts + POST /api/pages). Page owners then customize
  * their own copy via the dashboard editor. The `messages` block is fed verbatim
  * into vue-i18n; keys (e.g. `verify.nameLabel`) are exactly what templates use.

@@ -352,8 +352,8 @@ function deepMerge(
 
 const messages = structuredClone(dashboardMessages) as Record<Locale, Record<string, unknown>>
 for (const loc of defaultConfig.locales) {
-  const orgDefaults = escapeI18nMessages(defaultConfig.messages[loc]) as Record<string, unknown>
-  messages[loc] = deepMerge(messages[loc] ?? {}, orgDefaults)
+  const pageDefaults = escapeI18nMessages(defaultConfig.messages[loc]) as Record<string, unknown>
+  messages[loc] = deepMerge(messages[loc] ?? {}, pageDefaults)
 }
 
 export default defineNuxtPlugin((nuxtApp) => {

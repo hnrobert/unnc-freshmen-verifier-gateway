@@ -21,7 +21,7 @@ export type ReminderSlot = '-3d' | '-2d' | '-1d' | 'day-of'
 export const REMINDER_SLOTS: readonly ReminderSlot[] = ['-3d', '-2d', '-1d', 'day-of']
 
 /**
- * Default maximum number of organizations a regular admin (`role: 'admin'`) may
+ * Default maximum number of pages a regular admin (`role: 'admin'`) may
  * create. A superadmin can raise (or lower) this per-user via the Users panel
  * (`User.pageLimit`); `null` on the user falls back to this default. Superadmins
  * themselves are always unlimited.

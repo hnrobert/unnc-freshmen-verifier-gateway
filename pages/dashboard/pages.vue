@@ -3,13 +3,13 @@ import { buttonVariants } from '~/components/ui/button'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
-interface OrgItem {
+interface PageItem {
   id: number
   slug: string
   name: string
   role: string
 }
-const { data, pending } = await useFetch<{ pages: OrgItem[] }>('/api/pages')
+const { data, pending } = await useFetch<{ pages: PageItem[] }>('/api/pages')
 
 // Split the viewer's pages into the two relationships: pages they own vs. pages
 // they were invited to as a collaborator. `/api/pages` returns the real role
