@@ -382,6 +382,12 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           :messages="msgs"
           path="welcome.title"
         />
+        <LocaleField
+          :label="t('editor.welcomeHome')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="welcome.home"
+        />
         <div v-if="config.locales.includes('zh')" class="grid gap-1.5">
           <Label>body <span class="text-xs text-muted-foreground">zh</span> — Markdown</Label>
           <MarkdownEditor
@@ -402,14 +408,7 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
     </template>
 
     <template v-if="mode === 'advanced'">
-      <!-- Welcome extras
-        <section class="space-y-3">
-          <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ t('editor.welcomeExtra') }}</h4>
-          <LocaleField :label="t('editor.welcomeImageAlt')" :locales="config.locales" :messages="msgs" path="welcome.imageAlt" />
-          <LocaleField :label="t('editor.welcomeBack')" :locales="config.locales" :messages="msgs" path="welcome.back" />
-        </section>
-
-        <!-- Verify -->
+      <!-- Verify -->
       <section class="space-y-3">
         <h4 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           {{ t('editor.verifyPage') }}
