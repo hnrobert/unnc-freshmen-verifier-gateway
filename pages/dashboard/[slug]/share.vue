@@ -186,8 +186,12 @@ function roundRect(
   ctx.closePath()
 }
 
-// Redraw whenever any input changes (canvas exists client-side only).
+// Redraw whenever any input changes (canvas exists client-side only). The
+// deps must be read synchronously HERE: drawPoster runs inside a rAF callback,
+// outside the effect's tracking scope — without this line changing the theme/
+// title/background would never re-render.
 watchEffect(() => {
+  void [posterTheme.value, effectiveTitle.value, bgImage.value, qrImage.value]
   if (import.meta.client && canvasEl.value) {
     rendering.value = true
     requestAnimationFrame(() => {
@@ -329,7 +333,7 @@ async function savePosterTitle(): Promise<void> {
           </div>
 
           <!-- Canvas preview (client-rendered, same layout as the server poster) -->
-          <div class="mx-auto max-w-[22rem] overflow-hidden rounded-lg border bg-muted/40">
+          <div class="mx-auto max-w-88 overflow-hidden rounded-lg border bg-muted/40">
             <canvas ref="canvasEl" class="block w-full" :style="{ aspectRatio: '1080 / 1440' }" />
           </div>
 
