@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import type { IconRef } from '#shared/types'
 import { verify, type VerifyReason } from '~/lib/verify'
 
 const props = defineProps<{
@@ -28,20 +29,21 @@ const welcomeFlow = computed(() =>
 const codeFlow = computed(() =>
   props.preview ? true : (gateways.value?.emailModes ?? ['welcome']).includes('code'),
 )
-const showEmailTab = computed(() => welcomeFlow.value || codeFlow.value)
-// The in-tab flow selector only makes sense when BOTH flows are on; with one,
-// that flow renders directly.
-const showFlowSwitch = computed(() => welcomeFlow.value && codeFlow.value)
 
-const tab = ref<'verify' | 'email'>('verify')
-const emailFlow = ref<'welcome' | 'code'>('welcome')
-// Keep tab/flow valid whenever the admin switches change what's available.
+const tab = ref<'verify' | 'welcome' | 'code'>('verify')
+// The columns of the top switch — one per enabled flow, in fixed order.
+const availableFlows = computed(() => {
+  const flows: { key: 'verify' | 'welcome' | 'code'; icon: IconRef; label: string }[] = []
+  if (showVerifyTab.value)
+    flows.push({ key: 'verify', icon: config.value.icons.nameField, label: 'verify.tabVerify' })
+  if (welcomeFlow.value) flows.push({ key: 'welcome', icon: 'Mail', label: 'verify.tabEmail' })
+  if (codeFlow.value) flows.push({ key: 'code', icon: 'Key', label: 'verify.tabCode' })
+  return flows
+})
+// Keep the active flow valid whenever the admin switches change what's on.
 watchEffect(() => {
-  if (!showVerifyTab.value && showEmailTab.value && tab.value === 'verify') tab.value = 'email'
-  if (tab.value === 'email') {
-    if (!welcomeFlow.value && emailFlow.value === 'welcome') emailFlow.value = 'code'
-    if (!codeFlow.value && emailFlow.value === 'code') emailFlow.value = 'welcome'
-  }
+  const keys = availableFlows.value.map((f) => f.key)
+  if (!keys.includes(tab.value)) tab.value = keys[0] ?? 'verify'
 })
 
 const name = ref(props.defaultName ?? '')
@@ -177,73 +179,28 @@ async function onVerifyCode(): Promise<void> {
       <CardDescription>{{ t('verify.subheading') }}</CardDescription>
     </CardHeader>
 
-    <!-- Switch (SMTP/POST style) — freshman tab hidden when disabled site-wide,
-         email tab hidden when no email mode is on. -->
-    <div v-if="showVerifyTab || showEmailTab" class="mx-6 mt-6 flex gap-1 rounded-md border p-1">
+    <!-- Flow switch (SMTP/POST style): one column per ENABLED flow — with all
+         three on it's 新生 / 邮箱 / 验证码 side by side; fewer flows shrink it,
+         and a single flow renders with no switch at all. -->
+    <div v-if="availableFlows.length > 1" class="mx-6 mt-6 flex gap-1 rounded-md border p-1">
       <button
-        v-if="showVerifyTab"
-        class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors"
+        v-for="f in availableFlows"
+        :key="f.key"
+        class="flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1.5 text-sm font-medium transition-colors"
         :class="
-          tab === 'verify'
+          tab === f.key
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:bg-accent'
         "
-        @click="tab = 'verify'"
+        @click="tab = f.key"
       >
-        <Icon :spec="config.icons.nameField" :size="14" />
-        {{ t('verify.tabVerify') }}
-      </button>
-      <button
-        v-if="showEmailTab"
-        class="flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors"
-        :class="
-          tab === 'email'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:bg-accent'
-        "
-        @click="tab = 'email'"
-      >
-        <Icon spec="Mail" :size="14" />
-        {{ t('verify.tabEmail') }}
+        <Icon :spec="f.icon" :size="14" />
+        {{ t(f.label) }}
       </button>
     </div>
 
-    <CardContent :class="showVerifyTab || showEmailTab ? 'pt-6' : 'pt-6 px-6 pb-6'">
-      <!-- In-tab flow selector — ONLY when both email flows are enabled; with a
-           single flow the form renders directly. -->
-      <div
-        v-if="tab === 'email' && showFlowSwitch"
-        class="mb-4 flex gap-1 self-center rounded-md border p-1"
-        style="width: fit-content"
-      >
-        <button
-          type="button"
-          class="flex items-center justify-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors"
-          :class="
-            emailFlow === 'welcome'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-accent'
-          "
-          @click="emailFlow = 'welcome'"
-        >
-          <Icon spec="Send" :size="12" />
-          {{ t('verify.flowWelcome') }}
-        </button>
-        <button
-          type="button"
-          class="flex items-center justify-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors"
-          :class="
-            emailFlow === 'code'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-accent'
-          "
-          @click="emailFlow = 'code'"
-        >
-          <Icon spec="Key" :size="12" />
-          {{ t('verify.flowCode') }}
-        </button>
-      </div>
-      <!-- Tab 1: Verify form -->
+    <CardContent :class="availableFlows.length > 1 ? 'pt-6' : 'pt-6 px-6 pb-6'">
+      <!-- Flow 1: Freshman (name + ID) -->
       <form
         v-if="tab === 'verify' && showVerifyTab"
         class="flex flex-col gap-4"
@@ -288,11 +245,7 @@ async function onVerifyCode(): Promise<void> {
       </form>
 
       <!-- Tab 2a: Email → mail welcome content (legacy mode) -->
-      <form
-        v-else-if="emailFlow === 'welcome'"
-        class="flex flex-col gap-4"
-        @submit.prevent="onSendEmail"
-      >
+      <form v-else-if="tab === 'welcome'" class="flex flex-col gap-4" @submit.prevent="onSendEmail">
         <div class="flex flex-col gap-2">
           <Label for="vg-email">
             <Icon spec="Mail" :size="16" />
