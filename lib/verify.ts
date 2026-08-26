@@ -5,6 +5,8 @@ const ID_PATTERN = /^\d{17}[\dX]$/
 export interface VerifyInput {
   name: string
   idNumber: string
+  /** Issue the device-bound "trust this browser" cookie on success (default true). */
+  trust?: boolean
 }
 
 export type VerifyReason =
@@ -65,7 +67,7 @@ export async function verify(
   try {
     const result = await $fetch<AdmissionResult>(`/api/pages/${slug}/check`, {
       method: 'POST',
-      body: { username: input.name, userid: input.idNumber },
+      body: { username: input.name, userid: input.idNumber, trust: input.trust !== false },
     })
     return mapResult(result)
   } catch (e: unknown) {

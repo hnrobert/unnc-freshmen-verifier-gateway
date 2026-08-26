@@ -201,6 +201,34 @@ function autoDetectTz(): void {
   if (tz) draft.value.tz = tz
 }
 
+// --- This browser's visitor trust (independent card, immediate action) ---
+interface TrustState {
+  trusted: boolean
+  name?: string
+  trustedUntil?: string
+  slideWindowDays?: number | null
+}
+const { data: trustState, refresh: refreshTrust } = await useFetch<TrustState>('/api/auth/me/trust')
+const revoking = ref(false)
+const trustUntilLabel = computed(() => {
+  const iso = trustState.value?.trustedUntil
+  if (!iso) return ''
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString()
+})
+async function revokeTrust(): Promise<void> {
+  revoking.value = true
+  try {
+    await $fetch('/api/auth/me/trust', { method: 'DELETE' })
+    toast.success('Trust revoked for this browser')
+    await refreshTrust()
+  } catch (e) {
+    toast.error(messageFromError(e, 'Could not revoke'))
+  } finally {
+    revoking.value = false
+  }
+}
+
 // --- Passkeys (independent of the draft above) ---
 type PasskeyInfo = Awaited<ReturnType<typeof listPasskeys>>[number]
 const passkeys = ref<PasskeyInfo[]>([])
@@ -382,6 +410,44 @@ onMounted(() => {
             :disabled="saving"
           />
         </div>
+      </CardContent>
+    </Card>
+
+    <!-- This browser's visitor trust -->
+    <Card>
+      <CardHeader>
+        <CardTitle class="text-base">Trusted browsers</CardTitle>
+        <CardDescription
+          >Verification can trust a browser so you skip re-verifying across pages. Trust is
+          device-bound and renews automatically while you keep visiting — it lapses
+          {{
+            trustState?.slideWindowDays
+              ? `after ${trustState.slideWindowDays} days of inactivity`
+              : 'when unused'
+          }}.</CardDescription
+        >
+      </CardHeader>
+      <CardContent class="space-y-3">
+        <template v-if="trustState?.trusted">
+          <div class="rounded-md border bg-muted/40 p-3 text-sm">
+            <div class="flex items-center justify-between gap-3">
+              <span class="font-medium">{{ trustState.name || 'Verified visitor' }}</span>
+              <span class="text-xs text-muted-foreground">This browser</span>
+            </div>
+            <p class="mt-1 text-xs text-muted-foreground">
+              Trusted until {{ trustUntilLabel }} (auto-extended on each visit)
+            </p>
+          </div>
+          <Button variant="outline" size="sm" :disabled="revoking" @click="revokeTrust">
+            <Icon v-if="revoking" spec="LoaderCircle" :size="16" class="animate-spin" />
+            <Icon v-else spec="ShieldOff" :size="16" />
+            Revoke this browser
+          </Button>
+        </template>
+        <p v-else class="text-sm text-muted-foreground">
+          This browser is not trusted. Complete a verification on any page (with "trust this
+          browser" checked) to enable it.
+        </p>
       </CardContent>
     </Card>
 

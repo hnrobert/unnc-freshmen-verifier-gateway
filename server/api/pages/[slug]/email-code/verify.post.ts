@@ -15,7 +15,15 @@ export default defineEventHandler(async (event) => {
   if (!settings.emailModes.includes('code'))
     throw createError({ statusCode: 403, statusMessage: 'Code flow is not enabled' })
 
-  const body = await readBody<{ email?: unknown; session?: unknown; code?: unknown }>(event)
+  const body = await readBody<{
+    email?: unknown
+    session?: unknown
+    code?: unknown
+    trust?: unknown
+  }>(event)
+  // "Trust this browser" opt-out (default on). When off, the code still
+  // verifies and the welcome page shows — just no 30-day trust cookie.
+  const trustBrowser = body?.trust !== false
   const email = String(body?.email ?? '')
     .trim()
     .toLowerCase()
@@ -38,7 +46,7 @@ export default defineEventHandler(async (event) => {
   const deviceHash = deviceHashFromRequest(event)
   const admission: AdmissionResult = { ok: true, admitted: true, message: 'email', name: prefix }
   const token = signVerifyJwt(prefix, idHash ?? '', deviceHash, admission, EMAIL_TRUST_WINDOW_MS)
-  setVerifyCookie(event, token, EMAIL_TRUST_WINDOW_MS)
+  if (trustBrowser) setVerifyCookie(event, token, EMAIL_TRUST_WINDOW_MS)
 
   void upsertVerifiedIdentity(page.id, prefix, idHash)
   void recordVerify(event, page.id, {

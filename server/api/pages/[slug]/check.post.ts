@@ -27,9 +27,14 @@ export default defineEventHandler(async (event) => {
     userid?: unknown
     id_number?: unknown
     idNumber?: unknown
+    trust?: unknown
   }>(event)
   const username = String(body?.username ?? body?.name ?? '').trim()
   const userid = String(body?.userid ?? body?.id_number ?? body?.idNumber ?? '').trim()
+  // "Trust this browser" opt-out (default on — checkbox on the form). When
+  // off, the verification still runs and the welcome page shows, but no
+  // device-bound trust cookie is issued for this success.
+  const trustBrowser = body?.trust !== false
 
   if (!username || !userid) {
     if (page)
@@ -87,7 +92,7 @@ export default defineEventHandler(async (event) => {
   // Returning members are re-admitted without re-querying the UNNC portal.
   if (page && idHash && (await findVerifiedIdentity(page.id, idHash))) {
     const token = signVerifyJwt(normName, idHash, deviceHash)
-    setVerifyCookie(event, token)
+    if (trustBrowser) setVerifyCookie(event, token)
     void recordVerify(event, page.id, {
       outcome: 'admitted',
       mode: 'reused',
@@ -101,7 +106,7 @@ export default defineEventHandler(async (event) => {
   if (config.gateway.mode === 'mock') {
     const admission: AdmissionResult = { ok: true, admitted: true, message: 'mock', name: username }
     const token = signVerifyJwt(normName, idHash ?? '', deviceHash, admission)
-    setVerifyCookie(event, token)
+    if (trustBrowser) setVerifyCookie(event, token)
     if (page) {
       void upsertVerifiedIdentity(page.id, normName, idHash)
       void recordVerify(event, page.id, {
@@ -130,7 +135,7 @@ export default defineEventHandler(async (event) => {
   // result so a cross-page skip can render the welcome page) + record the identity.
   if (result.ok && result.admitted === true) {
     const token = signVerifyJwt(normName, idHash ?? '', deviceHash, result)
-    setVerifyCookie(event, token)
+    if (trustBrowser) setVerifyCookie(event, token)
     if (page) void upsertVerifiedIdentity(page.id, normName, idHash)
   }
 

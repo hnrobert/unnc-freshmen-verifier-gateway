@@ -49,6 +49,10 @@ watchEffect(() => {
 const name = ref(props.defaultName ?? '')
 const idNumber = ref(props.defaultId ?? '')
 const submitting = ref(false)
+// "Trust this browser" opt-in (default on): when checked, a successful verify
+// issues the device-bound trust cookie (skip re-verifying across pages). The
+// state is shared by both interactive flows; revocable later in Settings.
+const trustBrowser = ref(true)
 
 const reasonKey: Record<VerifyReason, string> = {
   empty_name: 'errors.emptyName',
@@ -77,6 +81,7 @@ async function onSubmit(): Promise<void> {
     const result = await verify(props.slug, config.value.gateway, {
       name: name.value,
       idNumber: idNumber.value,
+      trust: trustBrowser.value,
     })
     if (result.ok) {
       setVerified(true, result.admission)
@@ -158,6 +163,7 @@ async function onVerifyCode(): Promise<void> {
         email: emailAddr.value.trim().toLowerCase(),
         session: codeSession.value,
         code: emailCode.value.trim(),
+        trust: trustBrowser.value,
       },
     })
     // Success walks straight into the welcome page — the server has set the
@@ -239,6 +245,15 @@ async function onVerifyCode(): Promise<void> {
           <Icon v-else :spec="config.icons.submit" :size="18" />
           {{ submitting ? t('verify.submitting') : t('verify.submit') }}
         </Button>
+        <label class="flex items-center justify-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            class="size-4 shrink-0"
+            style="accent-color: var(--primary)"
+            v-model="trustBrowser"
+          />
+          <span class="text-muted-foreground">{{ t('verify.trustLabel') }}</span>
+        </label>
         <p class="text-center text-xs leading-relaxed text-muted-foreground">
           {{ t('verify.hint') }}
         </p>
@@ -331,6 +346,15 @@ async function onVerifyCode(): Promise<void> {
           <Icon v-else :spec="config.icons.submit" :size="18" />
           {{ t('verify.codeSubmit') }}
         </Button>
+        <label v-if="codeSent" class="flex items-center justify-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            class="size-4 shrink-0"
+            style="accent-color: var(--primary)"
+            v-model="trustBrowser"
+          />
+          <span class="text-muted-foreground">{{ t('verify.trustLabel') }}</span>
+        </label>
         <p class="text-center text-xs leading-relaxed text-muted-foreground">
           {{ t('verify.codeHint') }}
         </p>

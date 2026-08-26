@@ -89,14 +89,41 @@ export function signVerifyJwt(
   )
 }
 
-export function verifyVerifyJwt(event: H3Event): VerifyTrustPayload | null {
+export function verifyVerifyJwt(event: H3Event): (VerifyTrustPayload & { iat?: number }) | null {
   const token = getCookie(event, VERIFY_COOKIE)
   if (!token) return null
   try {
-    return jwt.verify(token, getSecret()) as VerifyTrustPayload
+    return jwt.verify(token, getSecret()) as VerifyTrustPayload & { iat?: number }
   } catch {
     return null
   }
+}
+
+/**
+ * Sliding-renewal: while the trust cookie is still VALID, every request
+ * re-issues it with a fresh full window — so the trust lives as long as the
+ * browser keeps visiting within one TTL of its last visit, and lapses only
+ * after a gap longer than that. The original TTL is inferred from the token
+ * (trustedUntil − issued-at), so 7-day freshman grants and 30-day email grants
+ * both slide by their own window. No-op when there is no cookie / it's expired
+ * (an expired token must NOT be resurrectable).
+ */
+export function refreshVerifyCookie(event: H3Event): void {
+  const payload = verifyVerifyJwt(event)
+  if (!payload?.iat || !payload.trustedUntil) return
+  const ttlMs = new Date(payload.trustedUntil).getTime() - payload.iat * 1000
+  if (!(ttlMs > 0)) return
+  // Already at a full window (just issued)? Skip the re-sign.
+  const now = Date.now()
+  if (new Date(payload.trustedUntil).getTime() - now > ttlMs - 60_000) return
+  const token = signVerifyJwt(
+    payload.name,
+    payload.idHash,
+    payload.deviceHash,
+    payload.admission,
+    ttlMs,
+  )
+  setVerifyCookie(event, token, ttlMs)
 }
 
 export function setVerifyCookie(
