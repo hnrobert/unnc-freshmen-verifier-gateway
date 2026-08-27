@@ -13,7 +13,7 @@ const props = defineProps<{ slug: string }>()
 const router = useRouter()
 const route = useRoute()
 
-// Identity + role come from /access (works for every viewer incl. a superadmin
+// Identity + role come from /access (works for every viewer including a superadmin
 // on a page they don't own — the /api/pages list only covers owned/shared).
 const { data: access, refresh: refreshAccess } = await useFetch<{
   role: string | null
