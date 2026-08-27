@@ -1,5 +1,6 @@
 import type { AdmissionResult } from '#shared/types'
 import { EMAIL_TRUST_WINDOW_MS, setVerifyCookie, signVerifyJwt } from '#server/utils/jwt'
+import { recordTrustGrant } from '#server/utils/trustGrants'
 import { getVerificationSettings } from '#server/utils/verification'
 
 /**
@@ -46,7 +47,16 @@ export default defineEventHandler(async (event) => {
   const deviceHash = deviceHashFromRequest(event)
   const admission: AdmissionResult = { ok: true, admitted: true, message: 'email', name: prefix }
   const token = signVerifyJwt(prefix, idHash ?? '', deviceHash, admission, EMAIL_TRUST_WINDOW_MS)
-  if (trustBrowser) setVerifyCookie(event, token, EMAIL_TRUST_WINDOW_MS)
+  if (trustBrowser) {
+    setVerifyCookie(event, token, EMAIL_TRUST_WINDOW_MS)
+    void recordTrustGrant({
+      deviceHash,
+      name: prefix,
+      userId: event.context.user?.id ?? null,
+      userAgent: getRequestHeader(event, 'user-agent') ?? null,
+      trustedUntil: new Date(Date.now() + EMAIL_TRUST_WINDOW_MS),
+    })
+  }
 
   void upsertVerifiedIdentity(page.id, prefix, idHash)
   void recordVerify(event, page.id, {

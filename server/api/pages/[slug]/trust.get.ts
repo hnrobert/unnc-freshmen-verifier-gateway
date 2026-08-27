@@ -1,5 +1,6 @@
 import type { AdmissionResult } from '#shared/types'
 import { clearVerifyCookie, verifyVerifyJwt } from '#server/utils/jwt'
+import { isDeviceTrustRevoked } from '#server/utils/trustGrants'
 
 /**
  * Cross-page "skip verification" check. A visitor who already verified (in any
@@ -22,9 +23,12 @@ export default defineEventHandler(async (event) => {
   const hasClaims = !!trust?.idHash && !!trust?.deviceHash
   const notExpired = trust ? new Date(trust.trustedUntil) > new Date() : false
   const deviceMatches = trust ? trust.deviceHash === deviceHashFromRequest(event) : false
+  // A grant revoked from Settings (any of the user's devices) invalidates the
+  // cookie everywhere — the device must re-verify.
+  const revoked = trust?.deviceHash ? await isDeviceTrustRevoked(trust.deviceHash) : false
 
-  if (!page || !trust || !hasClaims || !notExpired) {
-    if (trust && !hasClaims) clearVerifyCookie(event) // purge old plaintext-idNumber token
+  if (!page || !trust || !hasClaims || !notExpired || revoked) {
+    if (trust && (!hasClaims || revoked)) clearVerifyCookie(event) // purge stale/revoked token
     return { trusted: false } satisfies { trusted: false }
   }
 

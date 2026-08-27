@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken'
 import type { H3Event } from 'h3'
 import type { AdmissionResult } from '#shared/types'
 import { isSecureRequest } from './request'
+import { isDeviceTrustRevoked, recordTrustGrant } from './trustGrants'
 
 const TRUST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 /** Email-code verification grants a longer trust window (admin-chosen flow). */
@@ -105,17 +106,35 @@ export function verifyVerifyJwt(event: H3Event): (VerifyTrustPayload & { iat?: n
  * browser keeps visiting within one TTL of its last visit, and lapses only
  * after a gap longer than that. The original TTL is inferred from the token
  * (trustedUntil − issued-at), so 7-day freshman grants and 30-day email grants
- * both slide by their own window. No-op when there is no cookie / it's expired
+ * both slide by their own window. A grant revoked from Settings stops the
+ * renewal and purges the cookie. No-op when there is no cookie / it's expired
  * (an expired token must NOT be resurrectable).
  */
-export function refreshVerifyCookie(event: H3Event): void {
+export async function refreshVerifyCookie(event: H3Event): Promise<void> {
   const payload = verifyVerifyJwt(event)
   if (!payload?.iat || !payload.trustedUntil) return
+  // Revoked from Settings on ANY device row → the cookie is inert; purge it.
+  if (await isDeviceTrustRevoked(payload.deviceHash)) {
+    clearVerifyCookie(event)
+    return
+  }
   const ttlMs = new Date(payload.trustedUntil).getTime() - payload.iat * 1000
   if (!(ttlMs > 0)) return
-  // Already at a full window (just issued)? Skip the re-sign.
+  // Already at a full window (just issued)? Skip the re-sign (but still touch
+  // the registry so Settings shows the fresh visit time).
   const now = Date.now()
-  if (new Date(payload.trustedUntil).getTime() - now > ttlMs - 60_000) return
+  const until = new Date(payload.trustedUntil).getTime()
+  if (until - now > ttlMs - 60_000) {
+    void recordTrustGrant({
+      deviceHash: payload.deviceHash,
+      name: payload.name,
+      userId: null, // renewal adopts no new account
+      userAgent: getRequestHeader(event, 'user-agent') ?? null,
+      trustedUntil: new Date(until),
+    })
+    return
+  }
+  const newUntil = new Date(now + ttlMs)
   const token = signVerifyJwt(
     payload.name,
     payload.idHash,
@@ -124,6 +143,13 @@ export function refreshVerifyCookie(event: H3Event): void {
     ttlMs,
   )
   setVerifyCookie(event, token, ttlMs)
+  void recordTrustGrant({
+    deviceHash: payload.deviceHash,
+    name: payload.name,
+    userId: null,
+    userAgent: getRequestHeader(event, 'user-agent') ?? null,
+    trustedUntil: newUntil,
+  })
 }
 
 export function setVerifyCookie(

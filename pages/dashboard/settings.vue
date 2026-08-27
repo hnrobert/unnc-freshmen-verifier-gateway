@@ -201,31 +201,34 @@ function autoDetectTz(): void {
   if (tz) draft.value.tz = tz
 }
 
-// --- This browser's visitor trust (independent card, immediate action) ---
-interface TrustState {
-  trusted: boolean
-  name?: string
-  trustedUntil?: string
-  slideWindowDays?: number | null
+// --- Trusted browsers (all of the user's devices; revoke per entry) ---
+interface TrustDevice {
+  id: number
+  name: string
+  device: string
+  current: boolean
+  trustedUntil: string
+  lastRefreshedAt: string
+  revoked: boolean
 }
-const { data: trustState, refresh: refreshTrust } = await useFetch<TrustState>('/api/auth/me/trust')
-const revoking = ref(false)
-const trustUntilLabel = computed(() => {
-  const iso = trustState.value?.trustedUntil
-  if (!iso) return ''
+const { data: trustData, refresh: refreshTrust } = await useFetch<{ devices: TrustDevice[] }>(
+  '/api/auth/me/trust',
+)
+const revokingId = ref<number | null>(null)
+const fmtDate = (iso: string) => {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleString()
-})
-async function revokeTrust(): Promise<void> {
-  revoking.value = true
+}
+async function revokeDevice(id: number): Promise<void> {
+  revokingId.value = id
   try {
-    await $fetch('/api/auth/me/trust', { method: 'DELETE' })
-    toast.success('Trust revoked for this browser')
+    await $fetch(`/api/auth/me/trust/${id}`, { method: 'DELETE' })
+    toast.success('Trusted browser revoked')
     await refreshTrust()
   } catch (e) {
     toast.error(messageFromError(e, 'Could not revoke'))
   } finally {
-    revoking.value = false
+    revokingId.value = null
   }
 }
 
@@ -277,7 +280,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-md space-y-8 pb-24">
+  <div class="mx-auto w-full max-w-3xl space-y-8 pb-24">
     <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Settings</h1>
 
     <!-- Notifications -->
@@ -413,41 +416,66 @@ onMounted(() => {
       </CardContent>
     </Card>
 
-    <!-- This browser's visitor trust -->
+    <!-- Trusted browsers (per-device list, revoke per entry) -->
     <Card>
       <CardHeader>
         <CardTitle class="text-base">Trusted browsers</CardTitle>
         <CardDescription
-          >Verification can trust a browser so you skip re-verifying across pages. Trust is
-          device-bound and renews automatically while you keep visiting — it lapses
-          {{
-            trustState?.slideWindowDays
-              ? `after ${trustState.slideWindowDays} days of inactivity`
-              : 'when unused'
-          }}.</CardDescription
+          >Browsers that earned verification trust while you were signed in. Trust is device-bound
+          and renews automatically while the browser keeps visiting — revoking signs that device out
+          everywhere; re-verifying on it re-earns trust.</CardDescription
         >
       </CardHeader>
-      <CardContent class="space-y-3">
-        <template v-if="trustState?.trusted">
-          <div class="rounded-md border bg-muted/40 p-3 text-sm">
-            <div class="flex items-center justify-between gap-3">
-              <span class="font-medium">{{ trustState.name || 'Verified visitor' }}</span>
-              <span class="text-xs text-muted-foreground">This browser</span>
+      <CardContent class="flex flex-col gap-2">
+        <p v-if="!trustData?.devices.length" class="text-sm text-muted-foreground">
+          No trusted browsers yet. Complete a verification on any page (signed in, with "trust this
+          browser" checked) to list it here.
+        </p>
+        <div
+          v-for="d in trustData?.devices ?? []"
+          :key="d.id"
+          class="flex items-center justify-between gap-3 rounded-md border p-3"
+          :class="d.revoked ? 'opacity-60' : d.current ? 'border-primary/40 bg-primary/5' : ''"
+        >
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+              <span class="font-medium">{{ d.name }}</span>
+              <span class="text-xs text-muted-foreground">{{ d.device }}</span>
+              <span
+                v-if="d.current"
+                class="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary-foreground"
+                >this browser</span
+              >
+              <span
+                v-if="d.revoked"
+                class="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                >revoked</span
+              >
             </div>
             <p class="mt-1 text-xs text-muted-foreground">
-              Trusted until {{ trustUntilLabel }} (auto-extended on each visit)
+              {{
+                d.revoked
+                  ? `Revoked · last visit ${fmtDate(d.lastRefreshedAt)}`
+                  : `Trusted until ${fmtDate(d.trustedUntil)} · last visit ${fmtDate(d.lastRefreshedAt)}`
+              }}
             </p>
           </div>
-          <Button variant="outline" size="sm" :disabled="revoking" @click="revokeTrust">
-            <Icon v-if="revoking" spec="LoaderCircle" :size="16" class="animate-spin" />
-            <Icon v-else spec="ShieldOff" :size="16" />
-            Revoke this browser
+          <Button
+            v-if="!d.revoked"
+            variant="outline"
+            size="sm"
+            class="shrink-0"
+            :disabled="revokingId === d.id"
+            @click="revokeDevice(d.id)"
+          >
+            <Icon
+              :spec="revokingId === d.id ? 'LoaderCircle' : 'ShieldOff'"
+              :size="16"
+              :class="revokingId === d.id ? 'animate-spin' : ''"
+            />
+            Revoke
           </Button>
-        </template>
-        <p v-else class="text-sm text-muted-foreground">
-          This browser is not trusted. Complete a verification on any page (with "trust this
-          browser" checked) to enable it.
-        </p>
+        </div>
       </CardContent>
     </Card>
 

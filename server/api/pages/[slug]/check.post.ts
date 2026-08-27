@@ -1,6 +1,7 @@
 import type { AdmissionResult } from '#shared/types'
 import { queryAdmission } from '#server/utils/admission'
-import { setVerifyCookie, signVerifyJwt, verifyVerifyJwt } from '#server/utils/jwt'
+import { verifyVerifyJwt } from '#server/utils/jwt'
+import { issueTrust } from '#server/utils/trust'
 
 function normalizeName(s: string): string {
   return s.trim().replace(/\s+/g, ' ')
@@ -91,8 +92,14 @@ export default defineEventHandler(async (event) => {
   // --- Per-page "already used" fast-path: name + ID hash verified here before ---
   // Returning members are re-admitted without re-querying the UNNC portal.
   if (page && idHash && (await findVerifiedIdentity(page.id, idHash))) {
-    const token = signVerifyJwt(normName, idHash, deviceHash)
-    if (trustBrowser) setVerifyCookie(event, token)
+    await issueTrust(event, {
+      name: normName,
+      idHash,
+      deviceHash,
+      ttlMs: 7 * 24 * 60 * 60 * 1000,
+      trustBrowser,
+      userId: event.context.user?.id ?? null,
+    })
     void recordVerify(event, page.id, {
       outcome: 'admitted',
       mode: 'reused',
@@ -105,8 +112,15 @@ export default defineEventHandler(async (event) => {
   // --- Mock mode ---
   if (config.gateway.mode === 'mock') {
     const admission: AdmissionResult = { ok: true, admitted: true, message: 'mock', name: username }
-    const token = signVerifyJwt(normName, idHash ?? '', deviceHash, admission)
-    if (trustBrowser) setVerifyCookie(event, token)
+    await issueTrust(event, {
+      name: normName,
+      idHash: idHash ?? '',
+      deviceHash,
+      admission,
+      ttlMs: 7 * 24 * 60 * 60 * 1000,
+      trustBrowser,
+      userId: event.context.user?.id ?? null,
+    })
     if (page) {
       void upsertVerifiedIdentity(page.id, normName, idHash)
       void recordVerify(event, page.id, {
@@ -134,8 +148,15 @@ export default defineEventHandler(async (event) => {
   // On successful admission: bind a device-bound verify JWT (carries the cached
   // result so a cross-page skip can render the welcome page) + record the identity.
   if (result.ok && result.admitted === true) {
-    const token = signVerifyJwt(normName, idHash ?? '', deviceHash, result)
-    if (trustBrowser) setVerifyCookie(event, token)
+    await issueTrust(event, {
+      name: normName,
+      idHash: idHash ?? '',
+      deviceHash,
+      admission: result,
+      ttlMs: 7 * 24 * 60 * 60 * 1000,
+      trustBrowser,
+      userId: event.context.user?.id ?? null,
+    })
     if (page) void upsertVerifiedIdentity(page.id, normName, idHash)
   }
 

@@ -1,23 +1,53 @@
-import { verifyVerifyJwt } from '#server/utils/jwt'
+import { listUserTrustGrants } from '#server/utils/trustGrants'
 
 /**
- * The CURRENT browser's visitor-trust state (vg_verify): who it's bound to,
- * when it lapses, and how long a revisit still slides the window. The trust
- * is anonymous/device-bound — there is no account-level list of browsers, so
- * this reads the caller's own cookie only.
+ * The caller's trusted browsers — every trust grant earned while THIS account
+ * was signed in (freshman/email verifies on those devices). Each entry carries
+ * the verified name, a device label parsed from the User-Agent snapshot,
+ * expiry, last-visit time, revoked state, and whether it is the calling
+ * browser (device-hash match).
  */
-export default defineEventHandler((event) => {
-  const payload = verifyVerifyJwt(event)
-  if (!payload) return { trusted: false as const }
-
-  const until = new Date(payload.trustedUntil)
-  // Original TTL from the token (trustedUntil − issued-at) drives the slide.
-  const ttlMs = payload.iat ? until.getTime() - payload.iat * 1000 : 0
+export default defineEventHandler(async (event) => {
+  const me = requireAuth(event)
+  const grants = await listUserTrustGrants(me.id)
+  const currentHash = deviceHashFromRequest(event)
   return {
-    trusted: true as const,
-    name: payload.name,
-    trustedUntil: until.toISOString(),
-    // A revisit within this window renews the trust to a full window again.
-    slideWindowDays: ttlMs > 0 ? Math.round(ttlMs / 86_400_000) : null,
+    devices: grants.map((g) => ({
+      id: g.id,
+      name: g.name,
+      device: deviceLabel(g.userAgent),
+      current: g.deviceHash === currentHash,
+      trustedUntil: g.trustedUntil.toISOString(),
+      lastRefreshedAt: g.lastRefreshedAt.toISOString(),
+      revoked: !!g.revokedAt,
+    })),
   }
 })
+
+/** Compact "Chrome · macOS" style label from a UA snapshot. */
+function deviceLabel(ua: string | null): string {
+  if (!ua) return 'Unknown device'
+  const browser = /Edg\//.test(ua)
+    ? 'Edge'
+    : /OPR\//.test(ua)
+      ? 'Opera'
+      : /Firefox\//.test(ua)
+        ? 'Firefox'
+        : /Chrome\//.test(ua)
+          ? 'Chrome'
+          : /Safari\//.test(ua)
+            ? 'Safari'
+            : null
+  const os = /Windows/.test(ua)
+    ? 'Windows'
+    : /Mac OS X/.test(ua)
+      ? 'macOS'
+      : /Android/.test(ua)
+        ? 'Android'
+        : /iPhone|iPad/.test(ua)
+          ? 'iOS'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : null
+  return [browser, os].filter(Boolean).join(' · ') || 'Unknown device'
+}

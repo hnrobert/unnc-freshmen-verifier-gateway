@@ -89,6 +89,7 @@ ${render(upQueries)}
 
 const DOWN: string[] = [
 ${render(downQueries)}
+]
 `
   writeFileSync(file, content)
   console.log(
