@@ -2,19 +2,26 @@
 import { useI18n } from 'vue-i18n'
 import type { Locale } from '#shared/types'
 
-const { config } = useOrgConfig()
-// useScope: 'global' → same reactive locale ref that applyOrgI18n/setLocale write,
+const { config } = usePageConfig()
+// useScope: 'global' → same reactive locale ref that applyPageI18n/setLocale write,
 // so the active button always reflects the real locale.
 const { locale } = useI18n({ useScope: 'global' })
-const { setLocale } = useOrgI18n()
+const { setLocale } = usePageI18n()
 
 const options = computed(() =>
-  config.value.locales.map((value) => ({ value, label: value === 'zh' ? '中' : value.toUpperCase() })),
+  config.value.locales.map((value) => ({
+    value,
+    label: value === 'zh' ? '中' : value.toUpperCase(),
+  })),
 )
 </script>
 
 <template>
-  <div class="inline-flex items-center gap-1 rounded-md border p-0.5" role="group" aria-label="language">
+  <div
+    class="inline-flex items-center gap-1 rounded-md border p-0.5"
+    role="group"
+    aria-label="language"
+  >
     <!-- <Icon :spec="config.icons.toggleLanguage" :size="15" class="ml-1.5 mr-1 text-muted-foreground" /> -->
     <button
       v-for="opt in options"
@@ -22,7 +29,9 @@ const options = computed(() =>
       type="button"
       :class="[
         'rounded-sm px-2 py-1 text-xs font-medium transition-colors',
-        locale === opt.value ? 'bg-primary text-primary-foreground' : 'text-foreground/70 hover:text-foreground',
+        locale === opt.value
+          ? 'bg-primary text-primary-foreground'
+          : 'text-foreground/70 hover:text-foreground',
       ]"
       :aria-pressed="locale === opt.value"
       @click="setLocale(opt.value as Locale)"

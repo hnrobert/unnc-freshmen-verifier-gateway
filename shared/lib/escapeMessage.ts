@@ -5,7 +5,7 @@
  * compiled message renders the original character unchanged (round-trips
  * exactly for `@`, `{`, `}`, `|`).
  *
- * Org messages are user-editable text (labels, hints, welcome markdown) that may
+ * Page messages are user-editable text (labels, hints, welcome markdown) that may
  * contain emails (`@`), braces, or pipes. vue-i18n compiles every merged
  * message on `$t()`, and an unescaped `@` (e.g. inside an email address) makes
  * its tokenizer throw a SyntaxError (code 10, parseLinked) at render time →

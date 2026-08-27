@@ -1,11 +1,11 @@
 /**
- * Default per-org SiteConfig — the seed/template used when a new organization is
- * created (see server/db/seed.ts + POST /api/orgs). Org owners then customize
+ * Default per-page SiteConfig — the seed/template used when a new page is
+ * created (see server/db/seed.ts + POST /api/pages). Page owners then customize
  * their own copy via the dashboard editor. The `messages` block is fed verbatim
  * into vue-i18n; keys (e.g. `verify.nameLabel`) are exactly what templates use.
  *
- * Images use `img:<key>` (stored as base64 in the `org_images` table, served at
- * `/api/orgs/:slug/img-:key`). Set `gateway.mode: 'mock'` to preview the UI
+ * Images use `img:<key>` (stored as base64 in the `page_images` table, served at
+ * `/api/pages/:slug/img-:key`). Set `gateway.mode: 'mock'` to preview the UI
  * without the portal. The portal is always queried server-side (no CORS).
  */
 import type { SiteConfig } from '../types'
@@ -23,7 +23,7 @@ const config: SiteConfig = {
     requestTimeoutMs: 20000,
   },
 
-  // Every icon on every page. Use any lucide-vue-next name, or
+  // Every icon on every page. Use any @lucide/vue (lucide) name, or
   // { img: '/path.svg' } for a custom image (great for a school crest).
   icons: {
     brand: 'GraduationCap',
@@ -51,13 +51,8 @@ const config: SiteConfig = {
     imageRadius: '0.5rem',
     watermark: false,
     // Auto-detected from the uploaded QR image (OCR); manually editable. 'YYYY-MM-DD'.
+    // Reminder schedules are per-user (Notification preferences), not page-level.
     expiresAt: undefined,
-    // Which reminder slots are on; empty = off.
-    reminders: [],
-    // Time-of-day (HH:MM) when slots fire.
-    reminderTime: '12:00',
-    // IANA timezone the schedule runs in. '' = use the server's local timezone.
-    reminderTz: '',
   },
 
   // Optional full-page background (upload via the editor → img:background).
@@ -82,8 +77,12 @@ const config: SiteConfig = {
         submit: '立即查询',
         submitting: '正在查询…',
         hint: '不是新生？可以选择右上方的邮箱验证，我们可以把欢迎页内容发送到你的 UNNC 邮箱。',
-        tabVerify: '新生验证',
-        tabEmail: '邮箱验证',
+        tabVerify: '新生',
+        trustLabel: '信任此浏览器（免重复验证）',
+        tabCode: '验证码',
+        flowWelcome: '收欢迎页',
+        flowCode: '验证码',
+        tabEmail: '邮箱',
         emailLabel: 'UNNC 邮箱',
         emailPlaceholder: 'you@nottingham.edu.cn',
         emailInvalid: '仅支持 @nottingham.edu.cn 邮箱',
@@ -91,6 +90,13 @@ const config: SiteConfig = {
         emailSubmitting: '发送中…',
         emailSent: '已发送到你的邮箱',
         emailHint: '输入你的 UNNC 邮箱，我们会把欢迎页内容发送到你的邮箱。',
+        codeLabel: '验证码',
+        codePlaceholder: '6 位验证码',
+        codeSend: '发送验证码',
+        codeSent: '验证码已发送到你的邮箱',
+        codeSubmit: '验证',
+        codeInvalid: '验证码错误或已过期',
+        codeHint: '输入你的 UNNC 邮箱并获取验证码，验证通过后 30 天内无需重复验证。',
       },
       errors: {
         emptyName: '请输入姓名',
@@ -124,7 +130,7 @@ const config: SiteConfig = {
           '',
           '> 如有任何疑问，请联系迎新志愿者，我们会第一时间为你解答。',
         ].join('\n'),
-        back: '再次查询',
+        home: '访问主页',
       },
       theme: { toggle: '切换明暗主题' },
       lang: { label: '语言' },
@@ -139,7 +145,7 @@ const config: SiteConfig = {
         reminderTitleTomorrow: '你的二维码明天过期',
         reminderTitleInDays: '你的二维码 {n} 天后过期',
         reminderBody:
-          '组织 {org} 欢迎页的二维码将于 {date} 过期。请尽快更换最新的二维码图片，以免新生扫码失效。',
+          '验证页 {org} 的二维码将于 {date} 过期。请尽快更换最新的二维码图片，以免新生扫码失效。',
         reminderButton: '更换二维码',
         noReply: '本邮件由系统自动发送，请勿直接回复。',
       },
@@ -162,6 +168,10 @@ const config: SiteConfig = {
         submitting: 'Checking…',
         hint: 'Not a freshman? You can verify via email instead, and we may send the welcome page to your UNNC mailbox.',
         tabVerify: 'Freshman',
+        trustLabel: 'Trust this browser (skip re-verifying)',
+        tabCode: 'Code',
+        flowWelcome: 'Get welcome',
+        flowCode: 'Code',
         tabEmail: 'Email',
         emailLabel: 'UNNC Email',
         emailPlaceholder: 'you@nottingham.edu.cn',
@@ -170,6 +180,14 @@ const config: SiteConfig = {
         emailSubmitting: 'Sending…',
         emailSent: 'Sent to your email',
         emailHint: 'Enter your UNNC email and we will send the welcome page to your inbox.',
+        codeLabel: 'Verification code',
+        codePlaceholder: '6-digit code',
+        codeSend: 'Send code',
+        codeSent: 'Code sent to your email',
+        codeSubmit: 'Verify',
+        codeInvalid: 'Invalid or expired code',
+        codeHint:
+          'Enter your UNNC email and request a code — verifying trusts this browser for 30 days.',
       },
       errors: {
         emptyName: 'Please enter your name',
@@ -202,7 +220,7 @@ const config: SiteConfig = {
           '',
           '> Questions? Reach out to a welcome volunteer and we will help right away.',
         ].join('\n'),
-        back: 'Check another',
+        home: 'Visit homepage',
       },
       theme: { toggle: 'Toggle dark/light theme' },
       lang: { label: 'Language' },

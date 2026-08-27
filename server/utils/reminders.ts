@@ -1,53 +1,46 @@
 /**
- * QR-expiry reminder system: two halves that together make an org's
+ * QR-expiry reminder system: two halves that together make an page's
  * `welcome.expiresAt` actually do something.
  *
  *  • {@link autoEnableRemindersFromImages} — runs once at startup: OCR-scans each
- *    org's welcome image for an expiry date and, when one is found, fills
- *    `expiresAt` and seeds a default `reminders` set (auto-creating the schedule).
+ *    page's welcome image for an expiry date and, when one is found, fills
+ *    `expiresAt` (only when empty — a manual date is never overwritten).
  *  • {@link sendDueReminders} — the scheduler tick (every few minutes):
  *    **per-user** scheduling. Each recipient (owner + active members) is reminded
  *    on their own resolved schedule — slots + time-of-day in their own timezone —
- *    derived through `resolveEffectivePref` (per-org override → account default →
- *    org config → system default of `['-1d']` @ 12:00). Each send is recorded in
- *    `OrgReminderSent` keyed by `(orgId, userId, expiresAt, kind)` so it never
- *    repeats and is race-safe across instances.
+ *    derived through `resolveEffectivePref` (per-page override → account default →
+ *    system default of `['-2d','-1d','day-of']` @ 12:00 server-tz; the page itself
+ *    only supplies the expiry date). Each send is recorded in `PageReminderSent`
+ *    keyed by `(pageId, userId, expiresAt, kind)` so it never repeats and is
+ *    race-safe across instances.
  *
  * Reminder targets are resolved to UTC instants in each user's timezone: when a
  * user sets their tz, their targets fire at that wall-clock regardless of the
  * server's own timezone (e.g. a UTC host fires "12:00 Asia/Shanghai" at 04:00Z);
- * when the user has no tz, the org's `welcome.reminderTz` then the server's local
- * zone is used (see `resolveServerTz`). `qrExpiry.ts` OCR dates remain
- * server-local calendar days. Everything is best-effort: OCR failures, missing
- * mail config, or no opted-in recipients degrade to a silent no-op rather than
- * crashing the scheduler.
+ * when the user has no tz, the server's local zone is used (see
+ * `resolveServerTz`). `qrExpiry.ts` OCR dates remain server-local calendar days.
+ * Everything is best-effort: OCR failures, missing mail config, or no opted-in
+ * recipients degrade to a silent no-op rather than crashing the scheduler.
  */
 import { In } from 'typeorm'
 import { AppDataSource } from './database'
-import { Organization } from '#server/entities/organization.entity'
-import { OrgSetting } from '#server/entities/orgSetting.entity'
-import { OrgImage } from '#server/entities/orgImage.entity'
-import { OrgMember } from '#server/entities/orgMember.entity'
-import { OrgReminderSent } from '#server/entities/orgReminderSent.entity'
+import { Page } from '#server/entities/page.entity'
+import { PageSetting } from '#server/entities/pageSetting.entity'
+import { PageImage } from '#server/entities/pageImage.entity'
+import { PageMember } from '#server/entities/pageMember.entity'
+import { PageReminderSent } from '#server/entities/pageReminderSent.entity'
 import { User } from '#server/entities/user.entity'
-import { UserOrgNotificationPref } from '#server/entities/userOrgNotificationPref.entity'
-import { REMINDER_SLOTS, type Locale, type ReminderSlot, type SiteConfig } from '#shared/types'
+import { UserPageNotificationPref } from '#server/entities/userPageNotificationPref.entity'
+import type { Locale, ReminderSlot, SiteConfig } from '#shared/types'
 import { detectWelcomeExpiry } from './ocr'
 import { toLocalDateStr } from './qrExpiry'
-import { invalidateOrgConfig } from './orgs'
+import { invalidatePageConfig } from './pages'
 import { resolveServerTz } from './serverTz'
 import { renderEmail } from '#server/mail/render'
 import { getMailConfig, sendMailWithConfig } from './mail'
 import { getSiteOrigin } from './siteOrigin'
-import { isValidTz, shiftCalendarDate, zonedDateTimeToUtcMs } from '#shared/lib/reminderTz'
-import {
-  SYSTEM_DEFAULT_SLOTS,
-  SYSTEM_DEFAULT_TIME,
-  isValidReminderTime,
-  resolveEffectivePref,
-  sanitizeSlots,
-  type PrefOrgConfig,
-} from '#shared/lib/reminderPref'
+import { shiftCalendarDate, zonedDateTimeToUtcMs } from '#shared/lib/reminderTz'
+import { resolveEffectivePref } from '#shared/lib/reminderPref'
 
 /** How often the scheduler wakes to check for due reminders. */
 export const REMINDER_TICK_MS = 5 * 60 * 1000
@@ -55,9 +48,7 @@ export const REMINDER_TICK_MS = 5 * 60 * 1000
  * hours of downtime don't cause a miss, bounded so a fresh deploy doesn't emit
  * a burst of long-stale reminders. */
 const SEND_WINDOW_MS = 24 * 60 * 60 * 1000
-/** Default slots enabled by the startup auto-detect (owner can widen in the UI). */
-const DEFAULT_SLOTS: ReminderSlot[] = ['-1d', 'day-of']
-/** Default time-of-day (HH:MM) when `welcome.reminderTime` is unset. */
+/** Default time-of-day (HH:MM) when a user preference doesn't supply one. */
 const DEFAULT_REMINDER_TIME = '12:00'
 
 const MONTHS_EN = [
@@ -92,18 +83,9 @@ function formatExpiryDate(expiresAt: string, locale: Locale): string {
   return locale === 'zh' ? `${y}年${m}月${d}日` : `${MONTHS_EN[m - 1] ?? ''} ${d}, ${y}`
 }
 
-/** Absolute URL to the org's edit page (so the recipient can refresh the QR). */
-function orgUrl(slug: string, base: string): string {
+/** Absolute URL to the page's edit page (so the recipient can refresh the QR). */
+function pageUrl(slug: string, base: string): string {
   return `${base}/dashboard/${slug}/edit`
-}
-
-/** Resolve the configured reminder slots, falling back to the legacy
- * `reminderEnabled` flag for old config rows that predate the `reminders` array. */
-function effectiveReminders(w: SiteConfig['welcome']): ReminderSlot[] {
-  const valid = new Set<ReminderSlot>(REMINDER_SLOTS)
-  const slots = (w?.reminders ?? []).filter((s): s is ReminderSlot => valid.has(s))
-  if (slots.length) return slots
-  return w?.reminderEnabled ? DEFAULT_SLOTS : []
 }
 
 /** The epoch instant a given reminder slot should fire — at `reminderTime`
@@ -124,12 +106,12 @@ function reminderTarget(
 }
 
 /** Build the localized reminder email (subject + themed HTML) for one recipient,
- * using the org's customizable `email.*` text. */
+ * using the page's customizable `email.*` text. */
 function reminderEmail(
   config: SiteConfig,
   locale: Locale,
   slot: ReminderSlot,
-  orgName: string,
+  pageName: string,
   expiresAt: string,
   slug: string,
   base: string,
@@ -143,17 +125,17 @@ function reminderEmail(
         ? emailMsg(config, locale, 'reminderTitleTomorrow')
         : tpl(emailMsg(config, locale, 'reminderTitleInDays'), { n })
   const bodyHtml = `<p>${tpl(emailMsg(config, locale, 'reminderBody'), {
-    org: `<strong>${escapeHtml(orgName)}</strong>`,
+    org: `<strong>${escapeHtml(pageName)}</strong>`,
     date: `<strong>${dateStr}</strong>`,
   })}</p>`
   const html = renderEmail({
     title,
     bodyHtml,
     actionLabel: emailMsg(config, locale, 'reminderButton'),
-    actionUrl: orgUrl(slug, base),
+    actionUrl: pageUrl(slug, base),
     preheader: title,
   })
-  return { subject: `${orgName} · ${title}`, html }
+  return { subject: `${pageName} · ${title}`, html }
 }
 
 // ---------------------------------------------------------------------------
@@ -161,16 +143,17 @@ function reminderEmail(
 // ---------------------------------------------------------------------------
 
 /**
- * For every org, if no expiry schedule is active yet, try to read one from the
- * welcome image via OCR. On success: set `welcome.expiresAt` (only when empty —
- * a manual date is never overwritten) and seed `welcome.reminders` with a default
- * set. Persists the change and invalidates the config cache. Best-effort, never throws.
+ * For every page with no expiry date yet, try to read one from the welcome image
+ * via OCR and set `welcome.expiresAt` (only when empty — a manual date is never
+ * overwritten). Reminder schedules are per-user (each person's Notification
+ * preference), so nothing else is seeded here. Persists the change and
+ * invalidates the config cache. Best-effort, never throws.
  */
 export async function autoEnableRemindersFromImages(): Promise<void> {
   if (!AppDataSource.isInitialized) return
-  const settingRepo = AppDataSource.getRepository(OrgSetting)
-  const orgRepo = AppDataSource.getRepository(Organization)
-  const imgRepo = AppDataSource.getRepository(OrgImage)
+  const settingRepo = AppDataSource.getRepository(PageSetting)
+  const pageRepo = AppDataSource.getRepository(Page)
+  const imgRepo = AppDataSource.getRepository(PageImage)
 
   const settings = await settingRepo.find()
   let enabled = 0
@@ -179,100 +162,56 @@ export async function autoEnableRemindersFromImages(): Promise<void> {
       const config = JSON.parse(s.config) as SiteConfig
       const w = config.welcome
       if (!w) continue
-      let changed = false
-
-      // Activate an existing manually-set date that has no reminder slots yet.
-      if (w.expiresAt && effectiveReminders(w).length === 0) {
-        w.reminders = DEFAULT_SLOTS
-        changed = true
-      }
 
       // No date yet → OCR the welcome image (DB-stored images only: img:<key>).
       if (!w.expiresAt && typeof w.image === 'string' && w.image.startsWith('img:')) {
-        const img = await imgRepo.findOneBy({ orgId: s.orgId, key: w.image.slice(4) })
+        const img = await imgRepo.findOneBy({ pageId: s.pageId, key: w.image.slice(4) })
         if (img) {
           const date = await detectWelcomeExpiry(Buffer.from(img.base64, 'base64'))
           if (date) {
             w.expiresAt = toLocalDateStr(date)
-            w.reminders = DEFAULT_SLOTS
-            changed = true
+            await settingRepo.update(
+              { pageId: s.pageId },
+              { config: JSON.stringify(config), updatedAt: new Date() },
+            )
+            const page = await pageRepo.findOneBy({ id: s.pageId })
+            if (page) invalidatePageConfig(page.slug)
+            enabled++
+            console.log(
+              `[reminders] auto-detected · page=${page?.slug ?? s.pageId} expiresAt=${w.expiresAt}`,
+            )
           }
         }
       }
-
-      if (!changed) continue
-      await settingRepo.update(
-        { orgId: s.orgId },
-        { config: JSON.stringify(config), updatedAt: new Date() },
-      )
-      const org = await orgRepo.findOneBy({ id: s.orgId })
-      if (org) invalidateOrgConfig(org.slug)
-      enabled++
-      console.log(`[reminders] auto-enabled · org=${org?.slug ?? s.orgId} expiresAt=${w.expiresAt}`)
     } catch (e) {
-      console.error(`[reminders] auto-enable failed for org ${s.orgId}:`, e)
+      console.error(`[reminders] auto-detect failed for page ${s.pageId}:`, e)
     }
   }
   if (settings.length)
-    console.log(`[reminders] startup scan done · ${enabled}/${settings.length} org(s) enabled`)
+    console.log(`[reminders] startup scan done · ${enabled}/${settings.length} page(s) dated`)
 }
 
 // ---------------------------------------------------------------------------
 // Part B — scheduler tick
 // ---------------------------------------------------------------------------
 
-/** Extract the org-config tier (the per-user fallback) from a SiteConfig. */
-function orgConfigTier(config: SiteConfig): PrefOrgConfig {
-  const w = config.welcome
-  return {
-    reminders: sanitizeSlots(w?.reminders),
-    reminderTime: w?.reminderTime || null,
-    reminderTz: w?.reminderTz || null,
-  }
-}
-
-/** Conservative skim: could ANY user of this org still have a slot in-window?
- * Checks the union of slots a user might resolve to (system default ∪ org config)
- * at the latest plausible time/timezone. A false "not past" is harmless — the
- * per-user window check inside the loop is authoritative; this only avoids
- * loading users/prefs for orgs that can't possibly fire. */
-function isOrgFullyPast(
-  expiresAt: string,
-  tier: PrefOrgConfig,
-  serverTz: string,
-  now: number,
-): boolean {
-  const skimSlots = new Set<ReminderSlot>([...SYSTEM_DEFAULT_SLOTS, ...tier.reminders])
-  const skimTz = tier.reminderTz && isValidTz(tier.reminderTz) ? tier.reminderTz : serverTz
-  const skimTime =
-    tier.reminderTime && isValidReminderTime(tier.reminderTime)
-      ? tier.reminderTime
-      : SYSTEM_DEFAULT_TIME
-  let latest = -Infinity
-  for (const slot of skimSlots) {
-    const t = reminderTarget(expiresAt, slot, skimTime, skimTz)
-    if (t > latest) latest = t
-  }
-  return latest !== -Infinity && now >= latest + SEND_WINDOW_MS
-}
-
 /**
- * One scheduler tick. Schedules are per-user: for each org with an expiry date,
+ * One scheduler tick. Schedules are per-user: for each page with an expiry date,
  * every recipient (owner + active members) is reminded on their own resolved
  * schedule (slots + time-of-day) in their own timezone. Targets are computed
- * per-user-per-slot and deduped by `(orgId, userId, expiresAt, kind)` — the
- * `OrgReminderSent` row is claimed BEFORE sending so overlapping ticks and
+ * per-user-per-slot and deduped by `(pageId, userId, expiresAt, kind)` — the
+ * `PageReminderSent` row is claimed BEFORE sending so overlapping ticks and
  * multi-instance deploys can't double-send. Six batched queries per tick (no
  * N+1). Best-effort, never throws.
  */
 export async function sendDueReminders(): Promise<void> {
   if (!AppDataSource.isInitialized) return
-  const settingRepo = AppDataSource.getRepository(OrgSetting)
-  const orgRepo = AppDataSource.getRepository(Organization)
-  const memberRepo = AppDataSource.getRepository(OrgMember)
+  const settingRepo = AppDataSource.getRepository(PageSetting)
+  const pageRepo = AppDataSource.getRepository(Page)
+  const memberRepo = AppDataSource.getRepository(PageMember)
   const userRepo = AppDataSource.getRepository(User)
-  const prefRepo = AppDataSource.getRepository(UserOrgNotificationPref)
-  const sentRepo = AppDataSource.getRepository(OrgReminderSent)
+  const prefRepo = AppDataSource.getRepository(UserPageNotificationPref)
+  const sentRepo = AppDataSource.getRepository(PageReminderSent)
 
   const cfg = await getMailConfig()
   if (!cfg) return // mail not configured yet — retry on a later tick
@@ -280,14 +219,14 @@ export async function sendDueReminders(): Promise<void> {
   const now = Date.now()
   const serverTz = resolveServerTz()
 
-  // A. Enumerate candidate orgs (those with an expiry date), reading the raw
-  //    settings JSON directly (bypassing the 60s config cache). Skip orgs whose
-  //    entire schedule is already past.
+  // A. Enumerate candidate pages (those with an expiry date), reading the raw
+  //    settings JSON directly (bypassing the 60s config cache). Schedules are
+  //    per-user, so there is no page-level schedule to skim past — the per-user
+  //    window check inside the loop below is authoritative.
   const settings = await settingRepo.find()
   const candidates: {
-    orgId: number
+    pageId: number
     expiresAt: string
-    tier: PrefOrgConfig
     config: SiteConfig
   }[] = []
   for (const s of settings) {
@@ -295,60 +234,58 @@ export async function sendDueReminders(): Promise<void> {
       const config = JSON.parse(s.config) as SiteConfig
       const expiresAt = config.welcome?.expiresAt
       if (!expiresAt) continue
-      const tier = orgConfigTier(config)
-      if (isOrgFullyPast(expiresAt, tier, serverTz, now)) continue
-      candidates.push({ orgId: s.orgId, expiresAt, tier, config })
+      candidates.push({ pageId: s.pageId, expiresAt, config })
     } catch (e) {
-      console.error(`[reminders] skipping org ${s.orgId} (bad config):`, e)
+      console.error(`[reminders] skipping page ${s.pageId} (bad config):`, e)
     }
   }
   if (!candidates.length) return
 
-  // B–C. Batch-load candidate orgs + their active members.
-  const orgIds = candidates.map((c) => c.orgId)
-  const orgs = await orgRepo.find({ where: { id: In(orgIds) } })
-  const orgById = new Map(orgs.map((o) => [o.id, o]))
-  const members = await memberRepo.find({ where: { orgId: In(orgIds), status: 'active' } })
+  // B–C. Batch-load candidate pages + their active members.
+  const pageIds = candidates.map((c) => c.pageId)
+  const pages = await pageRepo.find({ where: { id: In(pageIds) } })
+  const pageById = new Map(pages.map((o) => [o.id, o]))
+  const members = await memberRepo.find({ where: { pageId: In(pageIds), status: 'active' } })
 
-  // D. Recipient userId set per org = owner ∪ active members (the Set dedupes
+  // D. Recipient userId set per page = owner ∪ active members (the Set dedupes
   //    the impossible owner-also-member case; pending invites have userId null).
-  const usersPerOrg = new Map<number, Set<number>>()
+  const usersPerPage = new Map<number, Set<number>>()
   for (const c of candidates) {
-    const org = orgById.get(c.orgId)
-    if (org) usersPerOrg.set(c.orgId, new Set<number>([org.ownerId]))
+    const page = pageById.get(c.pageId)
+    if (page) usersPerPage.set(c.pageId, new Set<number>([page.ownerId]))
   }
   for (const m of members) {
     if (m.userId == null) continue
-    usersPerOrg.get(m.orgId)?.add(m.userId)
+    usersPerPage.get(m.pageId)?.add(m.userId)
   }
 
   // E. Batch-load every recipient User in one query.
   const allUserIds = new Set<number>()
-  for (const set of usersPerOrg.values()) for (const uid of set) allUserIds.add(uid)
+  for (const set of usersPerPage.values()) for (const uid of set) allUserIds.add(uid)
   const users = allUserIds.size ? await userRepo.find({ where: { id: In([...allUserIds]) } }) : []
   const userById = new Map(users.map((u) => [u.id, u]))
 
-  // F. Batch-load all per-org overrides for candidate orgs.
-  const prefRows = await prefRepo.find({ where: { orgId: In(orgIds) } })
-  const prefByOrgUser = new Map<string, UserOrgNotificationPref>()
-  for (const p of prefRows) prefByOrgUser.set(`${p.orgId}:${p.userId}`, p)
+  // F. Batch-load all per-page overrides for candidate pages.
+  const prefRows = await prefRepo.find({ where: { pageId: In(pageIds) } })
+  const prefByPageUser = new Map<string, UserPageNotificationPref>()
+  for (const p of prefRows) prefByPageUser.set(`${p.pageId}:${p.userId}`, p)
 
   // G. Batch-load relevant sent rows for a dedupe pre-check.
   const distinctExpiry = [...new Set(candidates.map((c) => c.expiresAt))]
   const sentRows = await sentRepo.find({
-    where: { orgId: In(orgIds), expiresAt: In(distinctExpiry) },
+    where: { pageId: In(pageIds), expiresAt: In(distinctExpiry) },
   })
   const sentKeys = new Set<string>()
   for (const r of sentRows) {
     if (r.userId == null) continue // legacy row (table truncated at cutover)
-    sentKeys.add(`${r.orgId}:${r.userId}:${r.expiresAt}:${r.kind}`)
+    sentKeys.add(`${r.pageId}:${r.userId}:${r.expiresAt}:${r.kind}`)
   }
 
-  // H. Per-org → per-user → per-slot send loop.
+  // H. Per-page → per-user → per-slot send loop.
   for (const c of candidates) {
-    const org = orgById.get(c.orgId)
-    const userIds = usersPerOrg.get(c.orgId)
-    if (!org || !userIds || !userIds.size) continue
+    const page = pageById.get(c.pageId)
+    const userIds = usersPerPage.get(c.pageId)
+    if (!page || !userIds || !userIds.size) continue
 
     for (const uid of userIds) {
       const user = userById.get(uid)
@@ -360,8 +297,7 @@ export async function sendDueReminders(): Promise<void> {
           reminderTime: user.reminderTime,
           tz: user.tz,
         },
-        orgOverride: prefByOrgUser.get(`${c.orgId}:${uid}`) ?? null,
-        orgConfig: c.tier,
+        pageOverride: prefByPageUser.get(`${c.pageId}:${uid}`) ?? null,
         serverTz,
       })
       if (!pref.enabled || pref.slots.length === 0) continue
@@ -372,13 +308,13 @@ export async function sendDueReminders(): Promise<void> {
         const target = reminderTarget(c.expiresAt, slot, pref.time, pref.tz) // per-user tz/time
         if (now < target || now >= target + SEND_WINDOW_MS) continue // not yet / too late
 
-        const dedupeKey = `${c.orgId}:${uid}:${c.expiresAt}:${slot}`
+        const dedupeKey = `${c.pageId}:${uid}:${c.expiresAt}:${slot}`
         if (sentKeys.has(dedupeKey)) continue
 
         // Claim the dedupe row first → race-safe across ticks / instances.
         try {
           await sentRepo.insert({
-            orgId: c.orgId,
+            pageId: c.pageId,
             userId: uid,
             expiresAt: c.expiresAt,
             kind: slot,
@@ -392,16 +328,16 @@ export async function sendDueReminders(): Promise<void> {
           c.config,
           locale,
           slot,
-          org.name,
+          page.name,
           c.expiresAt,
-          org.slug,
+          page.slug,
           base,
         )
         try {
           await sendMailWithConfig(cfg, { to: user.email, subject, body: html, html: true })
         } catch (e) {
           // Row already claimed → this slot won't retry. Acceptable for a nudge.
-          console.error(`[reminders] send failed · org=${org.slug} user=${uid} slot=${slot}:`, e)
+          console.error(`[reminders] send failed · page=${page.slug} user=${uid} slot=${slot}:`, e)
         }
       }
     }

@@ -1,0 +1,58 @@
+import type { AdmissionResult } from '#shared/types'
+import { clearVerifyCookie, verifyVerifyJwt } from '#server/utils/jwt'
+import { isDeviceTrustRevoked } from '#server/utils/trustGrants'
+
+/**
+ * Cross-page "skip verification" check. A visitor who already verified (in any
+ * page, on this browser) carries a device-bound `vg_verify` JWT; if it is still
+ * valid AND the request's device fingerprint matches the one bound into the
+ * token, the caller can jump straight to this page's welcome page without
+ * filling the form or re-querying the portal.
+ *
+ * Returns `{ trusted: false }` (never throws / 4xx) so the verify page degrades
+ * gracefully to showing the form. A token that fails the device check is purged
+ * so the visitor re-verifies cleanly.
+ */
+export default defineEventHandler(async (event) => {
+  const slug = getRouterParam(event, 'slug') as string
+  const page = await getPageBySlug(slug)
+
+  const trust = verifyVerifyJwt(event)
+
+  // Must be a new-format token (idHash + deviceHash claims) and not expired.
+  const hasClaims = !!trust?.idHash && !!trust?.deviceHash
+  const notExpired = trust ? new Date(trust.trustedUntil) > new Date() : false
+  const deviceMatches = trust ? trust.deviceHash === deviceHashFromRequest(event) : false
+  // A grant revoked from Settings (any of the user's devices) invalidates the
+  // cookie everywhere — the device must re-verify.
+  const revoked = trust?.deviceHash ? await isDeviceTrustRevoked(trust.deviceHash) : false
+
+  if (!page || !trust || !hasClaims || !notExpired || revoked) {
+    if (trust && (!hasClaims || revoked)) clearVerifyCookie(event) // purge stale/revoked token
+    return { trusted: false } satisfies { trusted: false }
+  }
+
+  if (!deviceMatches) {
+    // Issued on another browser/device — drop it so they re-verify here.
+    clearVerifyCookie(event)
+    return { trusted: false } satisfies { trusted: false }
+  }
+
+  // Trusted device + identity: record this page's verify (so it shows in stats and
+  // dedupes future form submits) and hand back the cached admission so the
+  // welcome page renders without a portal call.
+  const admission: AdmissionResult = trust.admission ?? {
+    ok: true,
+    admitted: true,
+    message: 'trusted',
+    name: trust.name,
+  }
+  void upsertVerifiedIdentity(page.id, trust.name, trust.idHash)
+  void recordVerify(event, page.id, {
+    outcome: 'admitted',
+    mode: 'trusted',
+    name: trust.name,
+    idHash: trust.idHash,
+  })
+  return { trusted: true, admission } satisfies { trusted: true; admission: AdmissionResult }
+})

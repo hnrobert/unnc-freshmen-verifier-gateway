@@ -12,10 +12,10 @@
 | --------------- | -------------------------------------------------------------------------------------------------- |
 | Framework       | Nuxt 4 (SSR + Nitro server)                                                                        |
 | Database        | SQLite via better-sqlite3                                                                          |
-| ORM             | TypeORM (entities, `synchronize: true`)                                                            |
+| ORM             | TypeORM (entities + migrations, auto-run on boot)                                                  |
 | Auth            | argon2id (`@noble/hashes`), revocable sessions, JWT (`jsonwebtoken`), passkeys (`@simplewebauthn`) |
 | UI              | Tailwind CSS v4, shadcn-vue, reka-ui, lucide-vue-next                                              |
-| i18n            | vue-i18n (per-org messages)                                                                        |
+| i18n            | vue-i18n (per-page messages)                                                                       |
 | Charts          | Chart.js + vue-chartjs                                                                             |
 | OCR             | tesseract.js (offline, local traineddata)                                                          |
 | Images          | sharp (resize, watermark, format conversion)                                                       |
@@ -32,8 +32,8 @@ Node **≥ 24** required.
 **Nuxt 4 flat layout** (`srcDir: '.'`) — pages, components, layouts at the
 project root (not under `app/`).
 
-- **SSR** — each org's public page (`/<slug>`) is server-rendered with the
-  org's config applied (theme vars, i18n, favicon) on first paint.
+- **SSR** — each public page (`/<slug>`) is server-rendered with the
+  page's config applied (theme vars, i18n, favicon) on first paint.
 - **Nitro server** — API routes under `server/api/`, auto-imported utils under
   `server/utils/`, entities under `server/entities/`.
 - **Shared code** — `shared/` dir auto-aliased to `#shared` (types, default
@@ -47,28 +47,43 @@ project root (not under `app/`).
 
 ## Database
 
-Schema is defined by **TypeORM entities** in `server/entities/`. On boot,
-`initDataSource()` runs `AppDataSource.initialize()` with `synchronize: true` —
-TypeORM auto-creates/updates tables/columns from entities (additive: never drops
-or alters existing data). No migration system.
+Schema is defined by **TypeORM entities** in `server/entities/` and changed
+through **migrations** in `server/migrations/` (`synchronize: false`). On boot,
+`initDataSource()` applies pending migrations automatically (dev and prod
+alike) — a `pnpm migration:generate` output takes effect on the next start.
+Entity changes without a new, barrel-registered migration are rejected at
+commit time (`.husky/commit-msg` → `pnpm migration:check`). A journal bootstrap
+(`bootstrapMigrationJournal` in `database.ts`) drops the stale journal of the
+abandoned first migration system and baselines pre-migration databases — see
+[DATABASE-NAMING.md](DATABASE-NAMING.md) and
+[server/migrations/README.md](../server/migrations/README.md).
 
-**14 entity tables:**
+**16 entity tables** (renamed from `org_*` to `page_*` by migration
+`1760000000001-OrgToPageRename`; index/constraint names keep their legacy
+spelling):
 
-| Table                | Purpose                                                     |
-| -------------------- | ----------------------------------------------------------- |
-| `users`              | Accounts (email, password hash, role, locale, notifyExpiry) |
-| `sessions`           | Revocable server-side sessions (30-day TTL)                 |
-| `organizations`      | Org metadata (slug, name, ownerId)                          |
-| `org_settings`       | Per-org JSON config (`SiteConfig`)                          |
-| `org_images`         | Base64-encoded uploaded images (keyed by org + name)        |
-| `org_members`        | Org memberships (userId, role, invite status/token)         |
-| `org_events`         | Raw analytics event log (90-day retention)                  |
-| `org_daily_stats`    | Permanent daily rollup per metric                           |
-| `org_reminder_sents` | Idempotency tracking for QR-expiry reminder emails          |
-| `passkeys`           | WebAuthn credentials                                        |
-| `mail_configs`       | Site-wide SMTP/POST mail configuration                      |
-| `app_settings`       | Generic key/value store (whitelist, origin tally)           |
-| `verifications`      | Legacy/unused (leftover from earlier design)                |
+| Table                          | Purpose                                                                |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `users`                        | Accounts (email, password hash, role, locale, notifyExpiry, pageLimit) |
+| `sessions`                     | Revocable server-side sessions (30-day TTL)                            |
+| `pages`                        | Page metadata (slug, name, ownerId)                                    |
+| `page_settings`                | Per-page JSON config (`SiteConfig`)                                    |
+| `page_images`                  | Base64-encoded uploaded images (keyed by page + name)                  |
+| `page_members`                 | Page memberships (userId, role, invite status/token)                   |
+| `page_events`                  | Raw analytics event log (90-day retention)                             |
+| `page_daily_stats`             | Permanent daily rollup per metric                                      |
+| `page_reminder_sents`          | Idempotency tracking for QR-expiry reminder emails                     |
+| `page_redirects`               | Old-slug → new-slug redirects after renames                            |
+| `page_verified_identities`     | Cross-page trust: verified name+ID (hashed)                            |
+| `user_page_notification_prefs` | Per-user per-page reminder overrides                                   |
+| `audit_events`                 | Admin audit log                                                        |
+| `passkeys`                     | WebAuthn credentials                                                   |
+| `mail_configs`                 | Site-wide SMTP/POST mail configuration                                 |
+| `app_settings`                 | Generic key/value store (whitelist, limits, origin tally)              |
+
+`migrations` is TypeORM's journal (managed by the runner). Older databases may
+also carry a `verifications` table from an earlier design — no entity maps to
+it.
 
 ---
 
@@ -87,7 +102,7 @@ or alters existing data). No migration system.
 4. **JWT trust cookies**:
    - `vg_jwt` — issued to logged-in users (7-day window).
    - `vg_verify` — issued to anonymous visitors after successful portal admission
-     (name+ID-based, cross-org trust bypass).
+     (name+ID-based, cross-page trust bypass).
 
 ### Password hashing
 
@@ -129,33 +144,33 @@ Near-limit warnings surface as toasts (per-target >5/day; per-account ≥20/day)
 ### Roles
 
 - **Site-level**: `superadmin` (first account) / `admin`.
-- **Org-level**: `viewer` < `editor` < `manager` < `owner`. Superadmins bypass all.
-- Enforced by `requireOrgRole` (`server/utils/members.ts`).
+- **Page-level**: `viewer` < `editor` < `manager` < `owner`. Superadmins bypass all.
+- Enforced by `requirePageRole` (`server/utils/members.ts`).
 
 ---
 
-## Org configuration
+## Page configuration
 
-Each org's entire configuration is a JSON `SiteConfig` stored in
+Each page's entire configuration is a JSON `SiteConfig` stored in
 `org_settings.config`. It includes:
 
 - `messages` — per-locale i18n strings (brand, verify, errors, admission,
   welcome, theme, lang, footer, email).
 - `icons` — lucide names or `{ img: 'img:<key>' }` for uploaded images.
-- `welcome` — image ref, max width/radius, watermark toggle, expiry date,
-  reminder slots + time.
+- `welcome` — image ref, max width/radius, watermark toggle, QR expiry date
+  (reminder _schedules_ are per-user — see "Per-user reminder preferences").
 - `theme` — primary color (hex), border radius.
 - `background` — optional full-page image + overlay opacity.
 - `gateway` — mode (live/mock), portal URL, captcha/timeout settings.
 
 ### Config loading & caching
 
-`loadOrgConfig(slug)` (`server/utils/orgs.ts`):
+`loadPageConfig(slug)` (`server/utils/pages.ts`):
 
 1. Reads raw JSON from `org_settings`.
 2. Applies defaults (`applyDefaults` fills empty strings).
 3. Resolves `img:<key>` references → `data:` URLs (cached in-process).
-4. Caches result (60s TTL). `invalidateOrgConfig(slug)` clears on save.
+4. Caches result (60s TTL). `invalidatePageConfig(slug)` clears on save.
 
 ### Image resolution
 
@@ -166,15 +181,15 @@ endpoints resolve individual refs (e.g., welcome image for OCR/email).
 ### i18n merge
 
 `plugins/i18n.ts` deep-merges `defaultConfig.messages` into the vue-i18n base as
-fallback. Org messages are applied on top by `applyOrgI18n` when the org layout
-loads. Org messages are escaped (`escapeI18nMessages`) so user text with `@{}|`
+fallback. Page messages are applied on top by `applyPageI18n` when the page layout
+loads. Page messages are escaped (`escapeI18nMessages`) so user text with `@{}|`
 doesn't break vue-i18n's parser.
 
 ---
 
 ## Verification pipeline
 
-`POST /api/orgs/<slug>/check` — runs the ported `AdmissionClient`
+`POST /api/pages/<slug>/check` — runs the ported `AdmissionClient`
 (`shared/lib/admissionCore.ts`) server-side:
 
 1. **Trust bypass** — if the `vg_verify` cookie matches name+ID, skip the portal.
@@ -197,7 +212,7 @@ portal UI changes can break it silently. Use mock mode for reliable testing.
 - **`org_events`** — raw event log: type (view/verify), outcome, visitor meta
   (locale, region, device, browser, OS, referer, IP hash). Retained 90 days,
   then pruned.
-- **`org_daily_stats`** — permanent daily rollup per org per metric.
+- **`org_daily_stats`** — permanent daily rollup per page per metric.
 
 ### Privacy
 
@@ -209,9 +224,9 @@ portal UI changes can break it silently. Use mock mode for reliable testing.
 
 ### Dashboard
 
-- `/dashboard` — user's own orgs: aggregate KPIs, trend chart, per-org sparkline
+- `/dashboard` — user's own pages: aggregate KPIs, trend chart, per-page sparkline
   cards.
-- `/dashboard/admin` — superadmin: site-wide analytics across all orgs.
+- `/dashboard/admin` — superadmin: site-wide analytics across all pages.
 - Charts: Chart.js/vue-chartjs in `<ClientOnly>`, registered in
   `plugins/chartjs.client.ts`.
 - Reusable `StatsOverview` component (`components/dashboard/`) parameterized by
@@ -234,12 +249,12 @@ portal UI changes can break it silently. Use mock mode for reliable testing.
 `content` includes title, bodyHtml (raw, caller-supplied), optional action
 button, preheader.
 
-### Per-org text
+### Per-page text
 
-Org-scoped emails (invitation, reminder, welcome-content footer) read their
+Page-scoped emails (invitation, reminder, welcome-content footer) read their
 text from `config.messages.<locale>.email.*` via `emailMsg(config, locale, key)`
 (`server/utils/emailText.ts`), with fallbacks:
-org(locale) → org(en) → default(locale) → default(en).
+page(locale) → page(en) → default(locale) → default(en).
 
 Token replacement via `tpl(str, { org, role, date, n })` — `{org}` is wrapped in
 an `<a>` (invite) or `<strong>` (reminder) by the endpoint.
@@ -250,7 +265,7 @@ an `<a>` (invite) or `<strong>` (reminder) by the endpoint.
 
 - **SMTP** — nodemailer createTransport (host, port, SSL/STARTTLS, auth).
 - **POST webhook** — HTTP POST with schema-specific payload (smtogo or
-  powerautomate), bearer token auth.
+  custom_example), bearer token auth.
 
 ### Disclaimer hiding
 
@@ -289,7 +304,7 @@ All dates interpreted in server-local timezone. Year inferred for past dates
 
 ### On upload
 
-`POST /api/orgs/<slug>/images` — after saving the image, if `key === 'welcome'`,
+`POST /api/pages/<slug>/images` — after saving the image, if `key === 'welcome'`,
 runs `detectWelcomeExpiry(buffer)` → `toLocalDateStr(date)`. Returns `expiresAt`
 in the response; the editor toasts the result and auto-fills the date field.
 
@@ -298,22 +313,33 @@ in the response; the editor toasts the result and auto-fills the date field.
 `server/plugins/02.reminders.ts` — on boot:
 
 1. **Startup scan** (`autoEnableRemindersFromImages`): OCR-detects expiry dates
-   from orgs with welcome images but no schedule; seeds default slots `[-1d,
-'day-of']`.
+   from pages with a welcome image but no `expiresAt` yet (manual dates are
+   never overwritten). Schedules are **not** set here — they are per-user.
 2. **Periodic tick** (`sendDueReminders`, every 5 min + 30s after boot): for
-   each org with `expiresAt` + active `reminders` slots:
-   - Compute target time (slot day at `reminderTime`, server-local).
+   each page with `expiresAt`, every recipient (owner + active members) is
+   reminded on **their own** resolved schedule:
+   - Compute target time (slot day at the recipient's time, in the recipient's
+     timezone — `resolveEffectivePref`, see below).
    - Send window: `[target, target + 24h)`.
-   - Check `OrgReminderSent(orgId, expiresAt, slot)` for idempotency.
-   - Recipients: **owner always** + active members with `notifyExpiry = true`.
+   - Check `PageReminderSent(pageId, userId, expiresAt, slot)` for idempotency
+     (row is claimed before sending → race-safe).
+   - Recipients: owner + active members; each filtered by their own preference.
    - Per-recipient localization via `User.locale`.
 
-### Configurable reminder schedule
+### Per-user reminder preferences
 
-- **Slots**: `-3d` / `-2d` / `-1d` / `day-of` (multi-select in editor).
-- **Time**: `welcome.reminderTime` (HH:MM, default 12:00).
-- **Server clock**: displayed live in the editor (fetches `/api/server-time`,
-  ticks client-side via offset).
+Schedules live on the **user**, not the page (the page only supplies
+`welcome.expiresAt`). Resolved by `resolveEffectivePref`
+(`shared/lib/reminderPref.ts`), tiers highest-first:
+
+1. **Per-page override** — `UserPageNotificationPref` (the page's Notifications
+   tab; any `null` field falls through, `[]` slots = explicitly off).
+2. **Account default** — `User.{notifyExpiry, reminderSlots, reminderTime, tz}`
+   (account Settings page).
+3. **System default** — `['-2d','-1d','day-of']` @ 12:00, server timezone.
+
+Timezone chain: `user.tz` → server tz. The QR-expiry _date_ stays page-level
+(`welcome.expiresAt`, editor-set / OCR-detected).
 
 ---
 
@@ -322,9 +348,9 @@ in the response; the editor toasts the result and auto-fills the date field.
 ### Structure
 
 - `/dashboard/admin` — **Admin Dashboard**: site-wide analytics overview.
-- `/dashboard/admin/organizations` — **All Organizations**: org cards grouped by
+- `/dashboard/admin/pages` — **All Pages**: page cards grouped by
   owner.
-- `/dashboard/admin/organizations/<slug>` — **full org dashboard** (cloned route,
+- `/dashboard/admin/pages/<slug>` — **full page dashboard** (cloned route,
   see below).
 - `/dashboard/admin/users` — user management.
 - `/dashboard/admin/registration` — email whitelist.
@@ -332,18 +358,18 @@ in the response; the editor toasts the result and auto-fills the date field.
 
 ### Route cloning
 
-The org dashboard route subtree (`/dashboard/:slug` + children edit/advanced/
-members/share/preview) is cloned to `/dashboard/admin/organizations/:slug` via
+The page dashboard route subtree (`/dashboard/:slug` + children edit/advanced/
+members/share/preview) is cloned to `/dashboard/admin/pages/:slug` via
 a `pages:extend` hook in `nuxt.config.ts`. The clone reuses the same Vue
 components (no duplication) and injects the `superadmin` middleware. The layout's
-org-tab logic detects the admin path and generates correct tab links.
+page-tab logic detects the admin path and generates correct tab links.
 
 ### Dashboard scoping
 
-`listAccessibleOrgs(userId)` returns owned ∪ shared memberships (no superadmin
-special-casing — superadmins see their own orgs like anyone else on the
-dashboard). The admin "All Organizations" view uses a separate `/api/admin/orgs`
-(superadmin-only) that lists every org with owner info.
+`listAccessiblePages(userId)` returns owned ∪ shared memberships (no superadmin
+special-casing — superadmins see their own pages like anyone else on the
+dashboard). The admin "All Pages" view uses a separate `/api/admin/pages`
+(superadmin-only) that lists every page with owner info.
 
 ### Site origin detection
 
@@ -370,31 +396,31 @@ URL for background-email links (reminders). Tally persisted in `app_settings`
 |         | `GET /api/auth/passkey/login-options`    | public     | passkey-login ceremony                                    |
 |         | `POST /api/auth/passkey/login-verify`    | public     | verify → create session                                   |
 |         | `DELETE /api/auth/passkey/<id>`          | session    | remove own passkey                                        |
-| Orgs    | `GET /api/orgs`                          | session    | accessible orgs (owned ∪ shared)                          |
-|         | `POST /api/orgs`                         | session    | create org                                                |
-|         | `POST /api/orgs/validate`                | session    | slug + config validation                                  |
-|         | `GET /api/orgs/<slug>/config`            | —          | resolved public config (SSR)                              |
-|         | `GET /api/orgs/<slug>/config?edit`       | viewer+    | raw config for editor                                     |
-|         | `PUT /api/orgs/<slug>/config`            | editor+    | save edited config                                        |
-|         | `DELETE /api/orgs/<slug>`                | owner/SA   | cascade-deletes everything                                |
-|         | `POST /api/orgs/<slug>/check`            | —          | run verification                                          |
-|         | `POST /api/orgs/<slug>/track`            | —          | public page-view beacon                                   |
-|         | `POST /api/orgs/<slug>/images`           | editor+    | upload image → `img:<key>` (OCR on welcome)               |
-|         | `GET /api/orgs/<slug>/welcome-image`     | —          | welcome image (optionally watermarked)                    |
-|         | `POST /api/orgs/<slug>/email-page`       | —          | email welcome content to @nottingham.edu.cn               |
-|         | `GET /api/orgs/<slug>/stats`             | viewer+    | totals + daily series + breakdowns                        |
-|         | `GET /api/orgs/<slug>/access`            | viewer+    | caller's role on this org                                 |
-| Sharing | `GET /api/orgs/<slug>/members`           | manager+   | list members + owner                                      |
-|         | `POST /api/orgs/<slug>/members`          | manager+   | invite by email → link                                    |
-|         | `PATCH /api/orgs/<slug>/members/<id>`    | manager+   | change role                                               |
-|         | `DELETE /api/orgs/<slug>/members/<id>`   | manager+   | remove (or self-leave)                                    |
-|         | `POST /api/orgs/<slug>/transfer`         | owner+     | transfer ownership                                        |
-|         | `GET /api/orgs/<slug>/invitation`        | session    | pending invite for user's email                           |
-| Stats   | `GET /api/stats/overview`                | session    | cross-org dashboard data                                  |
+| Pages   | `GET /api/pages`                         | session    | accessible pages (owned ∪ shared)                         |
+|         | `POST /api/pages`                        | session    | create page                                               |
+|         | `POST /api/pages/validate`               | session    | slug + config validation                                  |
+|         | `GET /api/pages/<slug>/config`           | —          | resolved public config (SSR)                              |
+|         | `GET /api/pages/<slug>/config?edit`      | viewer+    | raw config for editor                                     |
+|         | `PUT /api/pages/<slug>/config`           | editor+    | save edited config                                        |
+|         | `DELETE /api/pages/<slug>`               | owner/SA   | cascade-deletes everything                                |
+|         | `POST /api/pages/<slug>/check`           | —          | run verification                                          |
+|         | `POST /api/pages/<slug>/track`           | —          | public page-view beacon                                   |
+|         | `POST /api/pages/<slug>/images`          | editor+    | upload image → `img:<key>` (OCR on welcome)               |
+|         | `GET /api/pages/<slug>/welcome-image`    | —          | welcome image (optionally watermarked)                    |
+|         | `POST /api/pages/<slug>/email-page`      | —          | email welcome content to @nottingham.edu.cn               |
+|         | `GET /api/pages/<slug>/stats`            | viewer+    | totals + daily series + breakdowns                        |
+|         | `GET /api/pages/<slug>/access`           | viewer+    | caller's role on this page                                |
+| Sharing | `GET /api/pages/<slug>/members`          | manager+   | list members + owner                                      |
+|         | `POST /api/pages/<slug>/members`         | manager+   | invite by email → link                                    |
+|         | `PATCH /api/pages/<slug>/members/<id>`   | manager+   | change role                                               |
+|         | `DELETE /api/pages/<slug>/members/<id>`  | manager+   | remove (or self-leave)                                    |
+|         | `POST /api/pages/<slug>/transfer`        | owner+     | transfer ownership                                        |
+|         | `GET /api/pages/<slug>/invitation`       | session    | pending invite for user's email                           |
+| Stats   | `GET /api/stats/overview`                | session    | cross-page dashboard data                                 |
 | Admin   | `GET /api/admin/users`                   | superadmin |                                                           |
 |         | `PATCH /api/admin/users/<id>`            | superadmin | set role                                                  |
 |         | `DELETE /api/admin/users/<id>`           | superadmin | delete user                                               |
-|         | `GET /api/admin/orgs`                    | superadmin | all orgs + owner info                                     |
+|         | `GET /api/admin/pages`                   | superadmin | all pages + owner info                                    |
 |         | `GET /api/admin/stats/overview`          | superadmin | site-wide analytics                                       |
 |         | `GET /api/admin/registration`            | superadmin | email-whitelist config                                    |
 |         | `PUT /api/admin/registration`            | superadmin | update whitelist                                          |
@@ -416,30 +442,31 @@ URL for background-email links (reminders). Tally persisted in `app_settings`
 ├── components/
 │   ├── admin/                # ConfigEditor · IconPicker · ImageUploader · ImagePreview · LocaleField
 │   ├── dashboard/            # StatsOverview (reusable KPI + chart)
-│   ├── public/               # BrandMark · Icon · VerifyForm · WelcomeContent · OrgLinkActions
+│   ├── public/               # BrandMark · Icon · VerifyForm · WelcomeContent · PageLinkActions
 │   └── ui/                   # shadcn-vue: button · card · input · label · breadcrumb
-├── composables/              # useAuth · useBreadcrumbs · useOrgConfig · useOrgDraft · useOrgI18n · useVerifier
+├── composables/              # useAuth · useBreadcrumbs · usePageConfig · usePageDraft · usePageI18n · useVerifier
 ├── docs/ARCHITECTURE.md      # this file
 ├── email/template.html       # HTML email template (site-themed, dark mode)
-├── layouts/                  # auth · dashboard · default (per-org)
+├── layouts/                  # auth · dashboard · default (per-page)
 ├── lib/                      # verify · icon · iconAllowlist · markdown · utils
 ├── middleware/               # auth · guest · superadmin · preview-guard · welcome-gate
 ├── pages/
-│   ├── [slug]/{index,welcome,invitations}.vue     # PUBLIC per-org gateway
+│   ├── [slug]/{index,welcome,invitations}.vue     # PUBLIC per-page gateway
 │   ├── [slug]/preview/{index,welcome}.vue          # auth+ownership-gated preview
 │   ├── dashboard/[slug]/{index,edit,advanced,members,share,preview}.vue
-│   ├── dashboard/admin/{index,organizations,users,registration,mail}.vue
-│   ├── dashboard/{index,new,orgs,settings}.vue
+│   ├── dashboard/admin/{index,pages,users,registration,mail}.vue
+│   ├── dashboard/{index,new,pages,settings}.vue
 │   ├── index.vue · login.vue · register.vue
 ├── plugins/                  # i18n · auth · chartjs.client · 01.db · 02.reminders · 03.site-origin
 ├── public/favicon.svg
 ├── server/
-│   ├── api/                  # auth · orgs · admin · mail · stats · invites · icon.svg · server-time
-│   ├── entities/             # 14 TypeORM entities
+│   ├── api/                  # auth · pages · admin · mail · stats · invites · icon.svg · timezones
+│   ├── entities/             # 16 TypeORM entities (barrel in index.ts)
+│   ├── migrations/          # Init + OrgToPageRename + README (barrel in index.ts)
 │   ├── mail/render.ts        # HTML email renderer
-│   ├── middleware/           # session · origin (tally visitor origins)
-│   ├── plugins/              # 01.db (init) · 02.reminders (scheduler) · 03.site-origin (tally flush)
-│   └── utils/                # database · auth · jwt · members · orgs · config · admission · stats · ocr · qrExpiry · reminders · emailText · emailLimit · siteOrigin · mail · registration · request · watermark · png
+│   ├── middleware/           # session · origin (tally visitor origins) · page-slug-redirect
+│   ├── plugins/              # 01.db (init) · 02.reminders (scheduler) · 03.site-origin (tally flush) · 03.reminders-migration
+│   └── utils/                # database · auth · jwt · members · pages · config · admission · stats · ocr · qrExpiry · reminders · emailText · emailLimit · siteOrigin · mail · registration · request · watermark · png
 ├── shared/                   # app↔server code (#shared alias)
 │   ├── types.ts
 │   └── lib/                  # admissionCore · applyDefaults · defaultConfig · escapeMessage · validateConfig
@@ -458,7 +485,7 @@ URL for background-email links (reminders). Tally persisted in `app_settings`
 - **Welcome gate is UX-only**: the `/<slug>/welcome` route is gated client-side
   by a `sessionStorage` flag, not a security boundary.
 - **Verify trust is convenience, not identity**: the `vg_verify` cookie lets a
-  verified name+ID skip the portal across orgs.
+  verified name+ID skip the portal across pages.
 - **`verifications` table** is legacy/unused (leftover from an earlier design).
 - **Rate limits are in-memory** (single-instance only); multi-instance deploys
   need a shared store (Redis).

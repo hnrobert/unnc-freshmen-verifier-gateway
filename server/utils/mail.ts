@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import nodemailer from 'nodemailer'
+import { EmailPoster, PRESETS, type FieldMap } from 'email-poster'
 import { AppDataSource } from './database'
 import { MailConfig } from '#server/entities/mailConfig.entity'
 
@@ -32,6 +33,10 @@ export interface MailConfigInput {
   postUrl?: string
   postSchema?: string
   postAuthToken?: string
+  /** email-poster FieldMap JSON (logical field → downstream key). '' = derive from post_schema. */
+  postFieldMap?: string
+  /** email-poster PostSchema[] JSON — the editor's post-schemas library. '' = never stored. */
+  postSchemas?: string
 }
 
 /**
@@ -85,6 +90,8 @@ export function mailConfigToClient(c: MailConfig | null) {
     provider: c.provider,
     postUrl: c.postUrl,
     postSchema: c.postSchema,
+    postFieldMap: c.postFieldMap,
+    postSchemas: c.postSchemas,
     hasPostAuthToken: !!c.postAuthToken,
   }
 }
@@ -112,24 +119,75 @@ function validate(c: MailConfig, input: SendMailInput): void {
   }
 }
 
-/** Send via HTTP POST webhook (provider 'post'). Two payload schemas:
- *  smtogo:           { from, to, subject, html }
- *  powerautomate:    { email, content, subject } */
+/**
+ * Resolve the effective email-poster FieldMap for a config. The stored
+ * `post_field_map` JSON is authoritative when present; otherwise migrate from
+ * the legacy `post_schema` discriminator ('powerautomate' → custom_example,
+ * i.e. {email, subject, content}; otherwise smtogo's {from, to, subject, html}).
+ * Malformed JSON falls back to the migration path so a corrupt row never blocks
+ * sending.
+ */
+function resolveFieldMapFromConfig(c: MailConfig): FieldMap {
+  const raw = c.postFieldMap?.trim()
+  if (raw) {
+    try {
+      return JSON.parse(raw) as FieldMap
+    } catch {
+      // fall through to legacy migration
+    }
+  }
+  return c.postSchema === 'powerautomate' ? PRESETS.custom_example : PRESETS.smtogo
+}
+
+/**
+ * Send via an HTTP POST webhook through email-poster. The field map is fully
+ * editable from the admin UI; the two legacy shapes (smtogo / Custom Example)
+ * are the presets / migration defaults, so payloads are byte-identical to the
+ * previous hand-rolled implementation.
+ *
+ * Wire-compat is deliberately pinned — do NOT relax without auditing all call
+ * sites: `retry.maxAttempts: 1` (legacy was a single fetch with no retry) and
+ * `parseMessageId: false` (legacy synthesized `<post-<hex>@webhook>` without
+ * reading the response body). Both reproduce the old on-the-wire behavior.
+ */
 async function sendViaPost(c: MailConfig, input: SendMailInput): Promise<string> {
   if (!c.postUrl) throw new Error('POST webhook URL is not configured')
   validate(c, input)
-  const payload =
-    c.postSchema === 'powerautomate'
-      ? { email: input.to, subject: input.subject, content: input.body }
-      : { from: fromAddress(c), to: input.to, subject: input.subject, html: input.body }
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (c.postAuthToken) headers.Authorization = `Bearer ${c.postAuthToken}`
-  const res = await fetch(c.postUrl, { method: 'POST', headers, body: JSON.stringify(payload) })
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new Error(`Webhook returned ${res.status}${detail ? ': ' + detail.slice(0, 200) : ''}`)
+  const poster = new EmailPoster({
+    postUrl: c.postUrl,
+    preset: 'none',
+    fields: resolveFieldMapFromConfig(c),
+    fromAddress: fromAddress(c),
+    headers: c.postAuthToken ? { Authorization: `Bearer ${c.postAuthToken}` } : {},
+    // Legacy parity: one attempt (no retry), always-synthesized message id.
+    retry: { maxAttempts: 1 },
+    recipients: { serialize: 'comma' },
+    parseMessageId: false,
+    // The library's own caps default to maxLenBody 50 000 — welcome emails
+    // embed a base64 image and run into hundreds of KB, so the default rejects
+    // them with "Validation failed". Pass the admin-configured limits, with a
+    // deliberately huge body ceiling: the hand-rolled implementation this
+    // replaced had no body cap, and our own validate() doesn't check body
+    // length either (per-product decision).
+    limits: {
+      maxLenRecipientEmail: c.maxLenRecipientEmail,
+      maxLenSubject: c.maxLenSubject,
+      maxLenBody: 100_000_000,
+    },
+  })
+  try {
+    const { messageId } = await poster.send({
+      to: input.to,
+      subject: input.subject,
+      body: input.body,
+      type: input.html ? 'html' : 'text',
+    })
+    return messageId
+  } catch (e) {
+    // email-poster already formats HTTP failures as "Webhook returned <status>:
+    // <detail>"; surface that message verbatim, fall back for non-Error throws.
+    throw new Error(e instanceof Error ? e.message : 'Webhook send failed')
   }
-  return `<post-${randomBytes(8).toString('hex')}@webhook>`
 }
 
 /** Send using an explicit config (bypasses the DB lookup). Returns the message id. */

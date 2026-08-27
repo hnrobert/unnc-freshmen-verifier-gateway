@@ -5,9 +5,8 @@ import type { AdmissionResult, Locale } from '#shared/types'
 const props = defineProps<{ stubAdmission?: AdmissionResult }>()
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
-const { config } = useOrgConfig()
+const { config } = usePageConfig()
 const { t, locale } = useI18n()
-const router = useRouter()
 const { reset, admission } = useVerifier()
 
 // Raw markdown body for the active locale (avoid vue-i18n `{` interpolation).
@@ -16,7 +15,7 @@ const body = computed(() => {
     { welcome?: { body?: string } } | undefined
   return messages?.welcome?.body ?? ''
 })
-// The welcome image is lazy-loaded AFTER first paint. loadOrgConfig keeps it as
+// The welcome image is lazy-loaded AFTER first paint. loadPageConfig keeps it as
 // `img:<key>` (un-inlined) so it never blocks SSR or bloats the payload; this
 // component fetches it via /welcome-image once on the client. Both the plain and
 // watermarked cases share that endpoint — watermark just appends ?name=<visitor>.
@@ -44,7 +43,7 @@ watchEffect(async () => {
   imgError.value = false
   try {
     const qs = watermarkEnabled.value && name ? `?name=${encodeURIComponent(name)}` : ''
-    imgSrc.value = await $fetch<string>(`/api/orgs/${slug.value}/welcome-image${qs}`, {
+    imgSrc.value = await $fetch<string>(`/api/pages/${slug.value}/welcome-image${qs}`, {
       responseType: 'text',
     })
   } catch {
@@ -67,13 +66,6 @@ const details = computed(() => {
     rows.push({ label: t('admission.detail'), value: a.detail })
   return rows.length ? rows : null
 })
-
-function goBack(): void {
-  if (props.stubAdmission) return // preview — no navigation
-  reset()
-  const isPreview = useRoute().path.includes('/preview/')
-  void router.push(isPreview ? `/${slug.value}/preview` : `/${slug.value}`)
-}
 </script>
 
 <template>
@@ -133,9 +125,13 @@ function goBack(): void {
       <MarkdownView :source="body" />
     </div>
 
-    <Button v-if="!props.stubAdmission" variant="outline" class="mt-8" @click="goBack">
-      <Icon :spec="config.icons.back" :size="16" />
-      {{ t('welcome.back') }}
-    </Button>
+    <!-- Link to the site homepage (replaces the old "check another" back button). -->
+    <a
+      href="/"
+      class="mt-8 inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors hover:bg-accent"
+    >
+      <Icon spec="Home" :size="16" />
+      {{ t('welcome.home') }}
+    </a>
   </div>
 </template>

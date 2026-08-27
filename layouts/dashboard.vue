@@ -35,52 +35,51 @@ watch(
   },
 )
 
-// Dashboard theme toggle (standalone — no org config needed)
+// Dashboard theme toggle (standalone — no page config needed)
 const mode = useColorMode({ storageKey: 'vg.theme' })
 function toggleTheme() {
   mode.value = mode.value === 'dark' ? 'light' : 'dark'
 }
 
-// Org tab bar (Home / Edit / Advanced / Collaborators / Share) for an org's dashboard
+// Page tab bar (Home / Edit / Advanced / Collaborators / Share) for an page's dashboard
 // area. Works under both /dashboard/<slug> and the admin-scoped
-// /dashboard/admin/organizations/<slug>. Rendered in the sticky full-width
+// /dashboard/admin/pages/<slug>. Rendered in the sticky full-width
 // header so the breadcrumb + tabs span the main column and stay pinned.
-const RESERVED_SEGS = new Set(['', 'admin', 'orgs', 'settings', 'new'])
+const RESERVED_SEGS = new Set(['', 'admin', 'pages', 'settings', 'new'])
 const pathParts = computed(() => route.path.split('/'))
-const isAdminOrg = computed(
-  () => pathParts.value[2] === 'admin' && pathParts.value[3] === 'organizations',
-)
-const orgSlug = computed(() => {
-  if (isAdminOrg.value) return pathParts.value[4] ?? ''
+// Admin page view = /dashboard/admin/pages/<slug>/…
+const isAdminPage = computed(() => pathParts.value[2] === 'admin' && pathParts.value[3] === 'pages')
+const pageSlug = computed(() => {
+  if (isAdminPage.value) return pathParts.value[4] ?? ''
   const seg = pathParts.value[2] ?? ''
   return RESERVED_SEGS.has(seg) ? '' : seg
 })
-// Base path for the current org's tab links.
-const orgBase = computed(() => {
-  const s = orgSlug.value
+// Base path for the current page's tab links.
+const pageBase = computed(() => {
+  const s = pageSlug.value
   if (!s) return ''
-  return isAdminOrg.value ? `/dashboard/admin/organizations/${s}` : `/dashboard/${s}`
+  return isAdminPage.value ? `/dashboard/admin/pages/${s}` : `/dashboard/${s}`
 })
-const { data: orgList } = useFetch<{ orgs: { slug: string; name: string; role: string }[] }>(
-  '/api/orgs',
-  { default: () => ({ orgs: [] }), key: 'orgs-list' },
+const { data: pageList } = useFetch<{ pages: { slug: string; name: string; role: string }[] }>(
+  '/api/pages',
+  { default: () => ({ pages: [] }), key: 'pages-list' },
 )
-const currentOrg = computed(() => {
-  const s = orgSlug.value
+const currentPage = computed(() => {
+  const s = pageSlug.value
   if (!s) return undefined
-  const found = orgList.value?.orgs.find((o) => o.slug === s)
+  const found = pageList.value?.pages.find((o) => o.slug === s)
   if (found) return found
-  // Admin view of an org the superadmin doesn't own — synthesize full-access so
-  // the tab bar + permissions render (the APIs gate via getOrgAccess themselves).
-  if (isAdminOrg.value) return { slug: s, name: s, role: 'superadmin' }
+  // Admin view of an page the superadmin doesn't own — synthesize full-access so
+  // the tab bar + permissions render (the APIs gate via getPageAccess themselves).
+  if (isAdminPage.value) return { slug: s, name: s, role: 'superadmin' }
   return undefined
 })
-const orgTabs = computed(() => {
-  const base = orgBase.value
-  const org = currentOrg.value
-  if (!base || !org) return []
-  const canEdit = ['owner', 'manager', 'editor', 'superadmin'].includes(org.role)
-  const canManage = ['owner', 'manager', 'superadmin'].includes(org.role)
+const pageTabs = computed(() => {
+  const base = pageBase.value
+  const page = currentPage.value
+  if (!base || !page) return []
+  const canEdit = ['owner', 'manager', 'editor', 'superadmin'].includes(page.role)
+  const canManage = ['owner', 'manager', 'superadmin'].includes(page.role)
   return [
     { label: 'Home', icon: 'Home', to: base, exact: true, show: true },
     { label: 'Edit', icon: 'Pencil', to: `${base}/edit`, exact: false, show: canEdit },
@@ -109,9 +108,9 @@ const orgTabs = computed(() => {
     { label: 'Preview', icon: 'Eye', to: `${base}/preview`, exact: false, show: true },
   ]
 })
-// Visible org tabs only (for the mobile sidebar list — the top tab bar uses
+// Visible page tabs only (for the mobile sidebar list — the top tab bar uses
 // v-show on each item instead).
-const orgNavTabs = computed(() => orgTabs.value.filter((t) => t.show))
+const pageNavTabs = computed(() => pageTabs.value.filter((t) => t.show))
 function tabActive(to: string, exact: boolean) {
   return exact ? route.path === to : route.path.startsWith(to)
 }
@@ -167,16 +166,16 @@ function tabActive(to: string, exact: boolean) {
           Dashboard
         </NuxtLink>
         <NuxtLink
-          to="/dashboard/orgs"
+          to="/dashboard/pages"
           class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
           :class="
-            route.path === '/dashboard/orgs'
+            route.path === '/dashboard/pages'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-accent hover:text-foreground'
           "
         >
-          <Icon spec="Building2" :size="16" />
-          Organizations
+          <Icon spec="FileText" :size="16" />
+          Pages
         </NuxtLink>
 
         <!-- Settings (user account: email / password / passkeys / mail) -->
@@ -193,17 +192,17 @@ function tabActive(to: string, exact: boolean) {
           Settings
         </NuxtLink>
 
-        <!-- Current-org sub-navigation (mobile only — desktop shows the top tab
+        <!-- Current-page sub-navigation (mobile only — desktop shows the top tab
      bar). Placed at the bottom so the main site nav stays above it. -->
-        <div v-if="orgNavTabs.length" class="space-y-1 pt-2 lg:hidden">
+        <div v-if="pageNavTabs.length" class="space-y-1 pt-2 lg:hidden">
           <div
             class="flex items-center gap-2 px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/60"
           >
-            <Icon spec="Building2" :size="14" />
-            <span class="truncate">{{ currentOrg?.name ?? orgSlug }}</span>
+            <Icon spec="FileText" :size="14" />
+            <span class="truncate">{{ currentPage?.name ?? pageSlug }}</span>
           </div>
           <NuxtLink
-            v-for="tab in orgNavTabs"
+            v-for="tab in pageNavTabs"
             :key="tab.to"
             :to="tab.to"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
@@ -218,7 +217,7 @@ function tabActive(to: string, exact: boolean) {
           </NuxtLink>
         </div>
 
-        <!-- Superadmin section (site-wide: orgs / users / registration) -->
+        <!-- Superadmin section (site-wide: pages / users / registration) -->
         <template v-if="isSuperAdmin">
           <div
             class="px-3 pt-4 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60"
@@ -250,17 +249,17 @@ function tabActive(to: string, exact: boolean) {
             All Users
           </NuxtLink>
           <NuxtLink
-            to="/dashboard/admin/organizations"
+            to="/dashboard/admin/pages"
             class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
             :class="
-              route.path === '/dashboard/admin/organizations' ||
-              route.path.startsWith('/dashboard/admin/organizations/')
+              route.path === '/dashboard/admin/pages' ||
+              route.path.startsWith('/dashboard/admin/pages/')
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             "
           >
-            <Icon spec="Building2" :size="16" />
-            All Organizations
+            <Icon spec="FileText" :size="16" />
+            All Pages
           </NuxtLink>
           <NuxtLink
             to="/dashboard/admin/registration"
@@ -273,6 +272,18 @@ function tabActive(to: string, exact: boolean) {
           >
             <Icon spec="UserCheck" :size="16" />
             Registration
+          </NuxtLink>
+          <NuxtLink
+            to="/dashboard/admin/verification"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:translate-x-0.5"
+            :class="
+              route.path === '/dashboard/admin/verification'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            "
+          >
+            <Icon spec="ShieldCheck" :size="16" />
+            Verification
           </NuxtLink>
           <NuxtLink
             to="/dashboard/admin/mail"
@@ -356,7 +367,7 @@ function tabActive(to: string, exact: boolean) {
 
       <main class="flex-1">
         <!-- Sticky full-width breadcrumb (top-14 on mobile to sit under the mobile
-             top bar, top-0 on desktop). Only the breadcrumb is pinned; the org
+             top bar, top-0 on desktop). Only the breadcrumb is pinned; the page
              tabs below scroll normally with the page. -->
         <div
           v-if="trail.length"
@@ -387,12 +398,12 @@ function tabActive(to: string, exact: boolean) {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
-        <!-- Org tabs (desktop only — full-width, taller, no horizontal scroll).
-             On mobile these move into the slide-out sidebar (see orgNavTabs). -->
-        <nav v-if="orgTabs.length" class="hidden border-b px-4 sm:px-6 lg:flex lg:px-8">
+        <!-- Page tabs (desktop only — full-width, taller, no horizontal scroll).
+             On mobile these move into the slide-out sidebar (see pageNavTabs). -->
+        <nav v-if="pageTabs.length" class="hidden border-b px-4 sm:px-6 lg:flex lg:px-8">
           <div class="flex flex-1 gap-1 flex-nowrap overflow-hidden">
             <NuxtLink
-              v-for="tab in orgTabs"
+              v-for="tab in pageTabs"
               v-show="tab.show"
               :key="tab.to"
               :to="tab.to"

@@ -16,14 +16,14 @@ const slugHint = computed(() => {
 async function onSubmit() {
   loading.value = true
   try {
-    const res = await $fetch<{ org: { slug: string } }>('/api/orgs', {
+    const res = await $fetch<{ page: { slug: string } }>('/api/pages', {
       method: 'POST',
       body: { slug: slug.value.trim().toLowerCase(), name: name.value.trim() },
     })
-    await refreshNuxtData('orgs-list')
-    await navigateTo(`/dashboard/${res.org.slug}/edit`)
+    await refreshNuxtData('pages-list')
+    await navigateTo(`/dashboard/${res.page.slug}/edit`)
   } catch (e) {
-    toast.error(messageFromError(e, 'Could not create organization'))
+    toast.error(messageFromError(e, 'Could not create page'))
   } finally {
     loading.value = false
   }
@@ -32,7 +32,7 @@ async function onSubmit() {
 
 <template>
   <div class="max-w-md">
-    <h1 class="text-2xl font-semibold tracking-tight">New organization</h1>
+    <h1 class="text-2xl font-semibold tracking-tight">New page</h1>
     <p class="mt-1 text-sm text-muted-foreground">
       Choose a slug — your gateway lives at <code>/&lt;slug&gt;</code>.
     </p>
@@ -41,7 +41,7 @@ async function onSubmit() {
       <CardContent>
         <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
           <div class="flex flex-col gap-2">
-            <Label for="name">Organization name</Label>
+            <Label for="name">Page name</Label>
             <Input
               id="name"
               v-model="name"

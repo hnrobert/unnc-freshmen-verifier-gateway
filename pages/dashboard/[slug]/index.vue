@@ -42,7 +42,7 @@ const {
   data: stats,
   pending,
   error,
-} = await useFetch<StatsResult>(() => `/api/orgs/${slug.value}/stats?range=${range.value}`, {
+} = await useFetch<StatsResult>(() => `/api/pages/${slug.value}/stats?range=${range.value}`, {
   watch: [slug, range],
 })
 
@@ -57,8 +57,12 @@ const C = {
   red: '#ef4444',
   purple: '#a855f7',
   gray: '#94a3b8',
+  orange: '#f97316',
+  teal: '#14b8a6',
 }
-const PALETTE = [C.primary, C.blue, C.green, C.red, C.purple, C.gray, '#f97316', '#14b8a6']
+// Default info color = the site theme yellow; semantic series only deviate by
+// convention (success green / error red / warning orange / neutral gray).
+const DEFAULT_INFO = C.primary
 
 const lineData = computed(() => ({
   labels: stats.value?.daily.days ?? [],
@@ -95,8 +99,8 @@ const barData = computed(() => ({
   labels: stats.value?.daily.days ?? [],
   datasets: [
     { label: 'Admitted', data: stats.value?.daily.admitted ?? [], backgroundColor: C.green },
-    { label: 'Not found', data: stats.value?.daily.notFound ?? [], backgroundColor: C.red },
-    { label: 'Error', data: stats.value?.daily.error ?? [], backgroundColor: C.purple },
+    { label: 'Not found', data: stats.value?.daily.notFound ?? [], backgroundColor: C.gray },
+    { label: 'Error', data: stats.value?.daily.error ?? [], backgroundColor: C.red },
   ],
 }))
 const barOpts: ChartOptions<'bar'> = {
@@ -122,11 +126,34 @@ const PRETTY: Record<string, string> = {
   mock: 'Mock',
   trusted: 'Trusted',
   live: 'Live',
+  reused: 'Reused',
+  email: 'Email',
+}
+// Semantic colors keyed by outcome/mode (conventions: success=green,
+// error=red, warning=orange, neutral=gray); anything unknown falls back to
+// the theme yellow. Keyed — never positional — so slices stay stable.
+const OUTCOME_COLORS: Record<string, string> = {
+  admitted: C.green,
+  not_found: C.gray,
+  error: C.red,
+  missing: C.orange,
+}
+const MODE_COLORS: Record<string, string> = {
+  live: C.primary, // the default path — theme yellow
+  mock: C.purple,
+  trusted: C.blue,
+  reused: C.teal,
+  email: C.blue,
 }
 const outcomeData = computed(() => ({
   labels: (stats.value?.breakdowns.outcome ?? []).map((b) => PRETTY[b.key] ?? b.key),
   datasets: [
-    { data: (stats.value?.breakdowns.outcome ?? []).map((b) => b.count), backgroundColor: PALETTE },
+    {
+      data: (stats.value?.breakdowns.outcome ?? []).map((b) => b.count),
+      backgroundColor: (stats.value?.breakdowns.outcome ?? []).map(
+        (b) => OUTCOME_COLORS[b.key] ?? DEFAULT_INFO,
+      ),
+    },
   ],
 }))
 const modeData = computed(() => ({
@@ -134,7 +161,9 @@ const modeData = computed(() => ({
   datasets: [
     {
       data: (stats.value?.breakdowns.mode ?? []).map((b) => b.count),
-      backgroundColor: [C.green, C.primary, C.blue],
+      backgroundColor: (stats.value?.breakdowns.mode ?? []).map(
+        (b) => MODE_COLORS[b.key] ?? DEFAULT_INFO,
+      ),
     },
   ],
 }))
@@ -147,7 +176,7 @@ const doughnutOpts: ChartOptions<'doughnut'> = {
 function horizData(list: { key: string; count: number }[]) {
   return {
     labels: list.map((b) => b.key),
-    datasets: [{ label: 'count', data: list.map((b) => b.count), backgroundColor: C.blue }],
+    datasets: [{ label: 'count', data: list.map((b) => b.count), backgroundColor: DEFAULT_INFO }],
   }
 }
 const horizOpts: ChartOptions<'bar'> = {
@@ -163,24 +192,24 @@ const horizOpts: ChartOptions<'bar'> = {
 
 const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)}%`)
 
-// --- Danger zone: owner-only org deletion (moved off the orgs-list card) ---
-const { data: orgsData } = useFetch<{ orgs: { slug: string; name: string; role: string }[] }>(
-  '/api/orgs',
+// --- Danger zone: owner-only page deletion (moved off the pages-list card) ---
+const { data: pagesData } = useFetch<{ pages: { slug: string; name: string; role: string }[] }>(
+  '/api/pages',
 )
-const currentOrg = computed(() => orgsData.value?.orgs.find((o) => o.slug === slug.value))
-const orgName = computed(() => currentOrg.value?.name ?? slug.value)
-const isOwner = computed(() => ['owner', 'superadmin'].includes(currentOrg.value?.role ?? ''))
+const currentPage = computed(() => pagesData.value?.pages.find((o) => o.slug === slug.value))
+const pageName = computed(() => currentPage.value?.name ?? slug.value)
+const isOwner = computed(() => ['owner', 'superadmin'].includes(currentPage.value?.role ?? ''))
 const canEdit = computed(() =>
-  ['owner', 'manager', 'editor', 'superadmin'].includes(currentOrg.value?.role ?? ''),
+  ['owner', 'manager', 'editor', 'superadmin'].includes(currentPage.value?.role ?? ''),
 )
 const deleting = ref(false)
 async function onDelete() {
-  if (!confirm(`Delete organization "${slug.value}"? This cannot be undone.`)) return
+  if (!confirm(`Delete page "${slug.value}"? This cannot be undone.`)) return
   deleting.value = true
   try {
-    await $fetch(`/api/orgs/${slug.value}`, { method: 'DELETE' })
-    toast.success('Organization deleted')
-    await navigateTo('/dashboard/orgs')
+    await $fetch(`/api/pages/${slug.value}`, { method: 'DELETE' })
+    toast.success('Page deleted')
+    await navigateTo('/dashboard/pages')
   } catch (e) {
     toast.error(messageFromError(e, 'Delete failed'))
   } finally {
@@ -194,8 +223,8 @@ async function onDelete() {
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <div class="flex flex-wrap items-center gap-2">
-          <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">{{ orgName }}</h1>
-          <span v-if="currentOrg" class="text-sm text-muted-foreground">{{
+          <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">{{ pageName }}</h1>
+          <span v-if="currentPage" class="text-sm text-muted-foreground">{{
             isOwner ? 'Owner' : 'Collaborator'
           }}</span>
         </div>
@@ -217,7 +246,7 @@ async function onDelete() {
             {{ r === 'all' ? 'All' : `${r}d` }}
           </button>
         </div>
-        <!-- Prominent entry to the org's settings (config editor) -->
+        <!-- Prominent entry to the page's settings (config editor) -->
         <Button v-if="canEdit" @click="navigateTo(`/dashboard/${slug}/edit`)">
           <Icon spec="Settings" :size="16" />
           Configure
@@ -347,13 +376,13 @@ async function onDelete() {
       <CardHeader>
         <CardTitle class="text-base text-destructive">Danger zone</CardTitle>
         <CardDescription
-          >Deleting an organization permanently removes its config, collaborators, and
+          >Deleting a page permanently removes its config, collaborators, and
           statistics.</CardDescription
         >
       </CardHeader>
       <CardContent>
         <Button variant="destructive" :disabled="deleting" @click="onDelete">
-          {{ deleting ? 'Deleting…' : 'Delete this organization' }}
+          {{ deleting ? 'Deleting…' : 'Delete this page' }}
         </Button>
       </CardContent>
     </Card>

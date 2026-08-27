@@ -6,15 +6,17 @@
  *
  * The model is user-centric: each person has an account-level default
  * (`User.{notifyExpiry, reminderSlots, reminderTime, tz}`) and may override it
- * per org (`UserOrgNotificationPref`). When neither is set, the org's own config
- * (`welcome.{reminders, reminderTime, reminderTz}`) is the fallback, and finally
- * a system default. See {@link resolveEffectivePref} for the exact tier chain.
+ * per page (`UserPageNotificationPref`). When neither is set, a system default
+ * applies: `['-2d', '-1d', 'day-of']` at 12:00 in the server's timezone. The
+ * page has no say in the schedule — only `welcome.expiresAt` (the date itself)
+ * is page-level. See {@link resolveEffectivePref} for the exact tier chain.
  */
 import { REMINDER_SLOTS, type ReminderSlot } from '../types'
 import { isValidTz } from './reminderTz'
 
-/** System-wide fallback schedule when nothing is configured anywhere. */
-export const SYSTEM_DEFAULT_SLOTS: ReminderSlot[] = ['-1d']
+/** System-wide fallback schedule when nothing is configured anywhere:
+ * 2 days before, 1 day before, and on the day — at noon, server timezone. */
+export const SYSTEM_DEFAULT_SLOTS: ReminderSlot[] = ['-2d', '-1d', 'day-of']
 export const SYSTEM_DEFAULT_TIME = '12:00'
 
 const HH_MM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -45,33 +47,25 @@ export interface PrefUserInput {
 }
 
 /**
- * Per-org override (stored on `UserOrgNotificationPref`). `null` row = inherit
+ * Per-page override (stored on `UserPageNotificationPref`). `null` row = inherit
  * the account default. Within a row, any `null` field inherits downwards; `[]`
  * slots is an explicit "no reminders".
  */
-export interface PrefOrgOverride {
+export interface PrefPageOverride {
   notifyExpiry: boolean | null
   reminderSlots: ReminderSlot[] | null
   reminderTime: string | null
 }
 
-/** The org's own config tier (`welcome.*`). `reminders: []` = "not configured". */
-export interface PrefOrgConfig {
-  reminders: ReminderSlot[]
-  reminderTime: string | null
-  reminderTz: string | null
-}
-
 export interface ResolvePrefInput {
   user: PrefUserInput
-  orgOverride: PrefOrgOverride | null
-  orgConfig: PrefOrgConfig
+  pageOverride: PrefPageOverride | null
   /** Valid IANA zone — passed in so the resolver stays pure. */
   serverTz: string
 }
 
 export interface EffectiveReminderPref {
-  /** Master on/off resolved (per-org override wins over account master). */
+  /** Master on/off resolved (per-page override wins over account master). */
   enabled: boolean
   /** Sanitized slots; `[]` means "no timed reminders". */
   slots: ReminderSlot[]
@@ -87,45 +81,38 @@ function firstValidTime(...candidates: (string | null | undefined)[]): string {
 }
 
 /**
- * Resolve the effective reminder preference for one user in one org.
+ * Resolve the effective reminder preference for one user in one page.
  *
  * Tiers (highest priority wins; `null` = inherit / fall through):
- *   1. per-org override — `orgOverride`
+ *   1. per-page override — `pageOverride`
  *   2. account default — `user`
- *   3. org config — `orgConfig` (`reminders: []` here means "not configured",
- *      so it falls through, unlike `[]` at tiers 1–2 which is an explicit "off")
- *   4. system default — `SYSTEM_DEFAULT_SLOTS` @ `SYSTEM_DEFAULT_TIME`
+ *   3. system default — `SYSTEM_DEFAULT_SLOTS` @ `SYSTEM_DEFAULT_TIME`
  *
  * Timezone is its own chain (the override has no tz by design):
- * `user.tz` → `orgConfig.reminderTz` → `serverTz`.
+ * `user.tz` → `serverTz`.
  */
 export function resolveEffectivePref(input: ResolvePrefInput): EffectiveReminderPref {
-  const { user, orgOverride, orgConfig, serverTz } = input
+  const { user, pageOverride, serverTz } = input
 
-  // Master on/off: per-org override (when explicitly set) beats the account master.
+  // Master on/off: per-page override (when explicitly set) beats the account master.
   const enabled =
-    orgOverride && orgOverride.notifyExpiry !== null ? orgOverride.notifyExpiry : user.notifyExpiry
+    pageOverride && pageOverride.notifyExpiry !== null
+      ? pageOverride.notifyExpiry
+      : user.notifyExpiry
 
-  // Slots: override → user → org-config (only if non-empty) → system default.
+  // Slots: override → user → system default.
   const slots: ReminderSlot[] =
-    orgOverride && orgOverride.reminderSlots !== null
-      ? sanitizeSlots(orgOverride.reminderSlots)
+    pageOverride && pageOverride.reminderSlots !== null
+      ? sanitizeSlots(pageOverride.reminderSlots)
       : user.reminderSlots !== null
         ? sanitizeSlots(user.reminderSlots)
-        : orgConfig.reminders.length > 0
-          ? sanitizeSlots(orgConfig.reminders)
-          : SYSTEM_DEFAULT_SLOTS.slice()
+        : SYSTEM_DEFAULT_SLOTS.slice()
 
-  // Time-of-day: override → user → org-config → system default (each must be valid).
-  const time = firstValidTime(orgOverride?.reminderTime, user.reminderTime, orgConfig.reminderTime)
+  // Time-of-day: override → user → system default (each must be valid).
+  const time = firstValidTime(pageOverride?.reminderTime, user.reminderTime)
 
-  // Timezone: user → org-config → server.
-  const tz =
-    user.tz && isValidTz(user.tz)
-      ? user.tz
-      : orgConfig.reminderTz && isValidTz(orgConfig.reminderTz)
-        ? orgConfig.reminderTz
-        : serverTz
+  // Timezone: user → server.
+  const tz = user.tz && isValidTz(user.tz) ? user.tz : serverTz
 
   return { enabled, slots, time, tz }
 }

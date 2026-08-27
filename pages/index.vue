@@ -18,18 +18,18 @@ import {
   ShieldCheck,
   Sun,
   Users,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import { SITE_REPO_URL, SITE_TITLE } from '#shared/lib/site'
 
-// The root `/` has no org, so the org-scoped default layout, BrandMark and
-// LanguageToggle (which all read `useOrgConfig()`) can't be reused. This page is
+// The root `/` has no page, so the page-scoped default layout, BrandMark and
+// LanguageToggle (which all read `usePageConfig()`) can't be reused. This page is
 // self-contained: it applies the site's default theme vars directly and ships
 // its own minimal header + locale/theme toggles.
 definePageMeta({ layout: false })
 
 const { t, locale } = useI18n()
 
-// Persisted locale (shared with org pages, which use the same `vg.locale`
+// Persisted locale (shared with page pages, which use the same `vg.locale`
 // cookie) so a language choice survives cross-page navigation.
 const localeCookie = useCookie<string>('vg.locale', {
   maxAge: 60 * 60 * 24 * 365,
@@ -56,7 +56,7 @@ watch(locale, (v) => {
 
 const mode = useColorMode({ storageKey: 'vg.theme' })
 
-// lucide-vue-next v1 deprecated its brand icons, so render the GitHub mark as a
+// @lucide/vue (lucide) ships no brand icons, so render the GitHub mark as a
 // small inline SVG (currentColor, scales with `size`).
 const GithubMark = defineComponent({
   name: 'GithubMark',

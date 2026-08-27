@@ -6,7 +6,7 @@ const slug = computed(() => route.params.slug as string)
 const { user } = useAuth()
 
 const { data: access } = await useFetch<{ role: string | null; rank: number }>(
-  () => `/api/orgs/${slug.value}/access`,
+  () => `/api/pages/${slug.value}/access`,
 )
 const {
   data: membersData,
@@ -22,11 +22,11 @@ const {
     createdAt: string
     acceptedAt: string | null
   }[]
-}>(() => `/api/orgs/${slug.value}/members`)
+}>(() => `/api/pages/${slug.value}/members`)
 
 // Gate on rank (from /access) so superadmin (rank 999) and owner (4) are treated
 // as owner-equivalent — the first registered user is a superadmin who also owns
-// orgs, and string-matching role === 'owner' missed them.
+// pages, and string-matching role === 'owner' missed them.
 const isOwner = computed(() => (access.value?.rank ?? 0) >= 4) // owner or superadmin
 const canManage = computed(() => (access.value?.rank ?? 0) >= 3) // manager+ (incl. owner, superadmin)
 const myMemberId = computed(
@@ -45,7 +45,7 @@ async function onInvite() {
   lastInvite.value = null
   try {
     const res = await $fetch<{ inviteUrl: string; warning?: string }>(
-      `/api/orgs/${slug.value}/members`,
+      `/api/pages/${slug.value}/members`,
       {
         method: 'POST',
         body: { email: inviteEmail.value.trim().toLowerCase(), role: inviteRole.value },
@@ -65,7 +65,10 @@ async function onInvite() {
 
 async function onRoleChange(memberId: number, role: string) {
   try {
-    await $fetch(`/api/orgs/${slug.value}/members/${memberId}`, { method: 'PATCH', body: { role } })
+    await $fetch(`/api/pages/${slug.value}/members/${memberId}`, {
+      method: 'PATCH',
+      body: { role },
+    })
     toast.success('Role updated')
     await refresh()
   } catch (e) {
@@ -77,7 +80,7 @@ async function onRoleChange(memberId: number, role: string) {
 async function onRemove(memberId: number) {
   if (!confirm('Remove this collaborator?')) return
   try {
-    await $fetch(`/api/orgs/${slug.value}/members/${memberId}`, { method: 'DELETE' })
+    await $fetch(`/api/pages/${slug.value}/members/${memberId}`, { method: 'DELETE' })
     toast.success('Collaborator removed')
     await refresh()
   } catch (e) {
@@ -88,7 +91,7 @@ async function onRemove(memberId: number) {
 async function onTransfer(memberId: number) {
   if (!confirm('Transfer ownership to this collaborator? You will become a manager.')) return
   try {
-    await $fetch(`/api/orgs/${slug.value}/transfer`, { method: 'POST', body: { memberId } })
+    await $fetch(`/api/pages/${slug.value}/transfer`, { method: 'POST', body: { memberId } })
     toast.success('Ownership transferred')
     await refresh()
   } catch (e) {
@@ -98,10 +101,10 @@ async function onTransfer(memberId: number) {
 
 async function onLeave() {
   if (myMemberId.value === null) return
-  if (!confirm('Leave this organization?')) return
+  if (!confirm('Leave this page?')) return
   try {
-    await $fetch(`/api/orgs/${slug.value}/members/${myMemberId.value}`, { method: 'DELETE' })
-    toast.success('You left the organization')
+    await $fetch(`/api/pages/${slug.value}/members/${myMemberId.value}`, { method: 'DELETE' })
+    toast.success('You left the page')
     await navigateTo('/dashboard')
   } catch (e) {
     toast.error(messageFromError(e, 'Leave failed'))
@@ -121,7 +124,7 @@ async function copyUrl(url: string) {
 <template>
   <div class="max-w-3xl space-y-8">
     <div v-if="myMemberId !== null" class="flex justify-end">
-      <Button variant="outline" size="sm" @click="onLeave">Leave org</Button>
+      <Button variant="outline" size="sm" @click="onLeave">Leave page</Button>
     </div>
 
     <!-- Owner -->

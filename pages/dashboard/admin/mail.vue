@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PRESETS, type FieldMap } from 'email-poster/pure'
 definePageMeta({ layout: 'dashboard', middleware: ['auth', 'superadmin'] })
 
 interface MailConfigView {
@@ -17,6 +18,8 @@ interface MailConfigView {
   maxLenBody: number
   postUrl: string
   postSchema: string
+  postFieldMap: string
+  postSchemas: string
   hasPostAuthToken: boolean
 }
 const { user: authUser } = useAuth()
@@ -38,6 +41,8 @@ const DEFAULT_MAIL: MailConfigView = {
   maxLenBody: 50000,
   postUrl: '',
   postSchema: 'smtogo',
+  postFieldMap: '',
+  postSchemas: '',
   hasPostAuthToken: false,
 }
 const mail = ref<MailConfigView>({ ...DEFAULT_MAIL })
@@ -57,6 +62,25 @@ const mailSaving = ref(false)
 const mailSaved = ref(false)
 const mailTesting = ref(false)
 const testRecipient = ref(authUser.value?.email ?? '')
+/**
+ * Effective FieldMap for the POST webhook: the stored JSON when present, else
+ * migrated from the legacy `postSchema` ('powerautomate' → custom_example, else
+ * smtogo). Read-only — the editor is no longer embedded, so this only decides
+ * whether the sender-email field applies (a `from` key in the map).
+ */
+const fieldMap = computed<FieldMap>(() => {
+  const raw = mail.value.postFieldMap.trim()
+  if (raw) {
+    try {
+      return JSON.parse(raw) as FieldMap
+    } catch {
+      // fall through to legacy migration
+    }
+  }
+  return mail.value.postSchema === 'powerautomate' ? PRESETS.custom_example : PRESETS.smtogo
+})
+/** The webhook payload includes a `from` key (smtogo-like) — sender email applies. */
+const needsFrom = computed(() => !!fieldMap.value.from)
 const mailDirty = computed(
   () =>
     JSON.stringify(mail.value) !== JSON.stringify(mailOriginal.value) ||
@@ -125,8 +149,8 @@ async function onSendTest() {
         <CardHeader>
           <CardTitle class="text-base">Outgoing mail</CardTitle>
           <CardDescription>
-            Site-wide mail configuration. Choose SMTP (direct) or POST (webhook to a smtogo / Power
-            Automate endpoint).
+            Site-wide mail configuration. Choose SMTP (direct) or POST (webhook to a smtogo / Custom
+            Example endpoint).
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
@@ -243,40 +267,21 @@ async function onSendTest() {
                 :disabled="mailSaving"
               />
             </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-              <div class="flex flex-col gap-2">
-                <Label for="mail-post-schema">Payload schema</Label>
-                <select
-                  id="mail-post-schema"
-                  v-model="mail.postSchema"
-                  class="h-9 rounded-md border bg-transparent px-2 text-sm"
-                  :disabled="mailSaving"
-                >
-                  <option value="smtogo">smtogo ({ from, to, subject, html })</option>
-                  <option value="powerautomate">
-                    Power Automate ({ email, content, subject })
-                  </option>
-                </select>
-              </div>
-              <div class="flex flex-col gap-2">
-                <Label for="mail-post-token">Bearer token (optional)</Label>
-                <Input
-                  id="mail-post-token"
-                  v-model="postAuthToken"
-                  type="password"
-                  :placeholder="mail.hasPostAuthToken ? '(unchanged)' : ''"
-                  autocomplete="new-password"
-                  :disabled="mailSaving"
-                />
-              </div>
+            <div class="flex flex-col gap-2">
+              <Label for="mail-post-token">Bearer token (optional)</Label>
+              <Input
+                id="mail-post-token"
+                v-model="postAuthToken"
+                type="password"
+                :placeholder="mail.hasPostAuthToken ? '(unchanged)' : ''"
+                autocomplete="new-password"
+                :disabled="mailSaving"
+              />
             </div>
           </template>
 
-          <!-- Sender email (SMTP auth + From; smtogo POST uses 'from'. Not needed for Power Automate.) -->
-          <div
-            v-if="mail.provider === 'smtp' || mail.postSchema === 'smtogo'"
-            class="grid gap-4 sm:grid-cols-2"
-          >
+          <!-- Sender email (SMTP always; POST only when the field map has a `from` key). -->
+          <div v-if="mail.provider === 'smtp' || needsFrom" class="grid gap-4 sm:grid-cols-2">
             <div class="flex flex-col gap-2">
               <Label for="mail-from">Sender email</Label>
               <Input

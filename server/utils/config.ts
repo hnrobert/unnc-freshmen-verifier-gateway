@@ -1,17 +1,17 @@
 import type { IconRef, SiteConfig } from '#shared/types'
 import { AppDataSource } from './database'
-import { OrgImage } from '#server/entities/orgImage.entity'
+import { PageImage } from '#server/entities/pageImage.entity'
 
-/** In-process cache: orgId+key → data URL (avoids re-fetching on every request). */
+/** In-process cache: pageId+key → data URL (avoids re-fetching on every request). */
 const dataUrlCache = new Map<string, string>()
 
-/** Look up an org image by orgId + key, return as a `data:` URL (or null). */
-async function toDataUrl(orgId: number, key: string): Promise<string | null> {
-  const cacheKey = `${orgId}:${key}`
+/** Look up an page image by pageId + key, return as a `data:` URL (or null). */
+async function toDataUrl(pageId: number, key: string): Promise<string | null> {
+  const cacheKey = `${pageId}:${key}`
   const cached = dataUrlCache.get(cacheKey)
   if (cached) return cached
 
-  const img = await AppDataSource.getRepository(OrgImage).findOne({ where: { orgId, key } })
+  const img = await AppDataSource.getRepository(PageImage).findOne({ where: { pageId, key } })
   if (!img) return null
 
   const url = `data:${img.mime};base64,${img.base64}`
@@ -25,33 +25,33 @@ async function toDataUrl(orgId: number, key: string): Promise<string | null> {
  * `img:<key>` → cached data URL; `data:`/`http:` → passthrough; else null. */
 export async function resolveImgRef(
   ref: string | undefined,
-  orgId: number,
+  pageId: number,
 ): Promise<string | null> {
   if (!ref) return null
-  if (ref.startsWith('img:')) return toDataUrl(orgId, ref.slice(4))
+  if (ref.startsWith('img:')) return toDataUrl(pageId, ref.slice(4))
   if (ref.startsWith('data:') || ref.startsWith('http')) return ref
   return null
 }
 
 /** Resolve an `img:<key>` ref by fetching the base64 from DB → data URL. */
-async function resolveRef(ref: IconRef | undefined, orgId: number): Promise<IconRef | undefined> {
+async function resolveRef(ref: IconRef | undefined, pageId: number): Promise<IconRef | undefined> {
   if (!ref) return ref
   if (typeof ref === 'string') {
     if (!ref.startsWith('img:')) return ref
-    const url = await toDataUrl(orgId, ref.slice(4))
+    const url = await toDataUrl(pageId, ref.slice(4))
     return url ?? ref
   }
   if (ref.img && ref.img.startsWith('img:')) {
-    const url = await toDataUrl(orgId, ref.img.slice(4))
+    const url = await toDataUrl(pageId, ref.img.slice(4))
     return url ? { ...ref, img: url } : ref
   }
   return ref
 }
 
-/** Invalidate the data URL cache for an org (call after image uploads). */
-export function invalidateImageCache(orgId: number): void {
+/** Invalidate the data URL cache for an page (call after image uploads). */
+export function invalidateImageCache(pageId: number): void {
   for (const key of dataUrlCache.keys()) {
-    if (key.startsWith(`${orgId}:`)) dataUrlCache.delete(key)
+    if (key.startsWith(`${pageId}:`)) dataUrlCache.delete(key)
   }
 }
 
@@ -62,21 +62,21 @@ export function invalidateImageCache(orgId: number): void {
 export async function resolveImageRefs(
   config: SiteConfig,
   slug: string,
-  orgId: number,
+  pageId: number,
 ): Promise<SiteConfig> {
   const icons = { ...config.icons }
   for (const key of Object.keys(icons) as (keyof typeof icons)[]) {
-    icons[key] = (await resolveRef(icons[key], orgId)) as IconRef
+    icons[key] = (await resolveRef(icons[key], pageId)) as IconRef
   }
 
   // NOTE: welcome.image is intentionally left unresolved (kept as `img:<key>`).
-  // The welcome page lazy-loads it via /api/orgs/<slug>/welcome-image after
+  // The welcome page lazy-loads it via /api/pages/<slug>/welcome-image after
   // first paint, so a large poster image never blocks SSR or bloats the
   // config/hydration payload. Endpoints that need its bytes call resolveImgRef.
 
   const background = { ...config.background }
   if (background.image?.startsWith('img:')) {
-    const url = await toDataUrl(orgId, background.image.slice(4))
+    const url = await toDataUrl(pageId, background.image.slice(4))
     if (url) background.image = url
   }
 

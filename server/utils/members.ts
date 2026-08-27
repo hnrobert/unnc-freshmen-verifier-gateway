@@ -1,8 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
-import { Organization } from '#server/entities/organization.entity'
-import { OrgMember } from '#server/entities/orgMember.entity'
+import { Page } from '#server/entities/page.entity'
+import { PageMember } from '#server/entities/pageMember.entity'
 import { isSecureRequest } from './request'
 import type { SessionUser } from './auth'
 
@@ -21,82 +21,82 @@ export const RANK: Record<EffectiveRole, number> = {
 export const MEMBER_ROLES: MemberRole[] = ['viewer', 'editor', 'manager']
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
-export interface OrgAccess {
-  org: Organization
+export interface PageAccess {
+  page: Page
   rank: number
   role: EffectiveRole | null
 }
 
 /**
- * Resolve the caller's access to an org by slug. Returns null only if the org
- * itself doesn't exist; otherwise returns an OrgAccess with rank 0 / role null
+ * Resolve the caller's access to an page by slug. Returns null only if the page
+ * itself doesn't exist; otherwise returns an PageAccess with rank 0 / role null
  * when the caller has no access (so callers can distinguish 404 from 403).
  */
-export async function getOrgAccess(event: H3Event, slug: string): Promise<OrgAccess | null> {
-  const org = await AppDataSource.getRepository(Organization).findOne({ where: { slug } })
-  if (!org) return null
+export async function getPageAccess(event: H3Event, slug: string): Promise<PageAccess | null> {
+  const page = await AppDataSource.getRepository(Page).findOne({ where: { slug } })
+  if (!page) return null
 
   const user = event.context.user as SessionUser | undefined
-  if (!user) return { org, rank: 0, role: null }
-  if (user.role === 'superadmin') return { org, rank: RANK.superadmin, role: 'superadmin' }
-  if (org.ownerId === user.id) return { org, rank: RANK.owner, role: 'owner' }
+  if (!user) return { page, rank: 0, role: null }
+  if (user.role === 'superadmin') return { page, rank: RANK.superadmin, role: 'superadmin' }
+  if (page.ownerId === user.id) return { page, rank: RANK.owner, role: 'owner' }
 
-  const member = await AppDataSource.getRepository(OrgMember).findOne({
-    where: { orgId: org.id, userId: user.id, status: 'active' },
+  const member = await AppDataSource.getRepository(PageMember).findOne({
+    where: { pageId: page.id, userId: user.id, status: 'active' },
   })
   if (
     member &&
     (member.role === 'viewer' || member.role === 'editor' || member.role === 'manager')
   ) {
-    return { org, rank: RANK[member.role], role: member.role }
+    return { page, rank: RANK[member.role], role: member.role }
   }
-  return { org, rank: 0, role: null }
+  return { page, rank: 0, role: null }
 }
 
-/** Throw 404 if the org is missing, 403 if the caller's rank is below `minRank`. */
-export async function requireOrgRole(
+/** Throw 404 if the page is missing, 403 if the caller's rank is below `minRank`. */
+export async function requirePageRole(
   event: H3Event,
   slug: string,
   minRank: number,
-): Promise<OrgAccess> {
-  const access = await getOrgAccess(event, slug)
-  if (!access) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
+): Promise<PageAccess> {
+  const access = await getPageAccess(event, slug)
+  if (!access) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
   if (access.rank < minRank) throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   return access
 }
 
-/** Owner-or-superadmin gate (used for delete + transfer). Returns the org. */
-export async function requireOrgOwnership(event: H3Event, slug: string): Promise<Organization> {
-  const access = await requireOrgRole(event, slug, RANK.owner)
-  return access.org
+/** Owner-or-superadmin gate (used for delete + transfer). Returns the page. */
+export async function requirePageOwnership(event: H3Event, slug: string): Promise<Page> {
+  const access = await requirePageRole(event, slug, RANK.owner)
+  return access.page
 }
 
-/** All orgs a user can access (owned + actively shared), each tagged with role. */
-export async function listAccessibleOrgs(
+/** All pages a user can access (owned + actively shared), each tagged with role. */
+export async function listAccessiblePages(
   userId: number,
-): Promise<{ org: Organization; role: EffectiveRole }[]> {
-  const orgRepo = AppDataSource.getRepository(Organization)
-  const memberRepo = AppDataSource.getRepository(OrgMember)
+): Promise<{ page: Page; role: EffectiveRole }[]> {
+  const pageRepo = AppDataSource.getRepository(Page)
+  const memberRepo = AppDataSource.getRepository(PageMember)
 
-  // Lists the orgs to show on a user's dashboard / Organizations page: those
+  // Lists the pages to show on a user's dashboard / Pages page: those
   // they own ∪ active memberships. Superadmins are NOT special-cased here (they
-  // see their own orgs like anyone else) — the site-wide "all orgs" view is the
-  // admin panel. Superadmins can still *access* any org via getOrgAccess.
+  // see their own pages like anyone else) — the site-wide "all pages" view is the
+  // admin panel. Superadmins can still *access* any page via getPageAccess.
   const [owned, memberships] = await Promise.all([
-    orgRepo.find({ where: { ownerId: userId } }),
+    pageRepo.find({ where: { ownerId: userId } }),
     memberRepo.find({ where: { userId, status: 'active' } }),
   ])
 
-  const out: { org: Organization; role: EffectiveRole }[] = owned.map((o) => ({
-    org: o,
+  const out: { page: Page; role: EffectiveRole }[] = owned.map((o) => ({
+    page: o,
     role: 'owner',
   }))
   const ownedIds = new Set(owned.map((o) => o.id))
   for (const m of memberships) {
-    if (ownedIds.has(m.orgId)) continue
-    const org = await orgRepo.findOne({ where: { id: m.orgId } })
-    if (org && (m.role === 'viewer' || m.role === 'editor' || m.role === 'manager')) {
-      out.push({ org, role: m.role })
+    if (ownedIds.has(m.pageId)) continue
+    const page = await pageRepo.findOne({ where: { id: m.pageId } })
+    if (page && (m.role === 'viewer' || m.role === 'editor' || m.role === 'manager')) {
+      out.push({ page, role: m.role })
     }
   }
   return out
@@ -120,8 +120,8 @@ export function buildInviteUrl(event: H3Event, slug: string): string {
  * Claim an invite: the logged-in user's email must match the invited email.
  * Activates the membership, clears the token. Throws 404/410/403 on problems.
  */
-export async function claimInvite(token: string, user: SessionUser): Promise<OrgMember> {
-  const repo = AppDataSource.getRepository(OrgMember)
+export async function claimInvite(token: string, user: SessionUser): Promise<PageMember> {
+  const repo = AppDataSource.getRepository(PageMember)
   const member = await repo.findOne({ where: { inviteToken: token } })
   if (!member) throw createError({ statusCode: 404, statusMessage: 'Invitation not found' })
   if (member.status === 'active')
@@ -144,7 +144,7 @@ export async function claimInvite(token: string, user: SessionUser): Promise<Org
 
 /** Decline (delete) a pending invite. Validates email match + not-yet-active. */
 export async function declineInvite(token: string, user: SessionUser): Promise<void> {
-  const repo = AppDataSource.getRepository(OrgMember)
+  const repo = AppDataSource.getRepository(PageMember)
   const member = await repo.findOne({ where: { inviteToken: token } })
   if (!member) throw createError({ statusCode: 404, statusMessage: 'Invitation not found' })
   if (member.status === 'active')

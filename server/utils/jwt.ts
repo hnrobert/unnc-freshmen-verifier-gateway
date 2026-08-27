@@ -2,8 +2,11 @@ import jwt from 'jsonwebtoken'
 import type { H3Event } from 'h3'
 import type { AdmissionResult } from '#shared/types'
 import { isSecureRequest } from './request'
+import { isDeviceTrustRevoked, recordTrustGrant } from './trustGrants'
 
 const TRUST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+/** Email-code verification grants a longer trust window (admin-chosen flow). */
+export const EMAIL_TRUST_WINDOW_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 const LOGIN_COOKIE = 'vg_jwt' // issued on website login (userId-based)
 const VERIFY_COOKIE = 'vg_verify' // issued on successful portal check (name+ID-based)
 
@@ -56,14 +59,14 @@ export function clearTrustCookie(event: H3Event): void {
 // Privacy: the payload carries only the salted SHA-256 `idHash` (never the raw
 // ID number) plus a `deviceHash` binding the token to the browser that earned
 // it. `admission` is cached so a trusted visitor can be fast-tracked to another
-// org's welcome page without re-querying the portal.
+// page's welcome page without re-querying the portal.
 
 export interface VerifyTrustPayload {
   name: string
   idHash: string
   deviceHash: string
   trustedUntil: string
-  /** Cached portal result so a cross-org skip can render the welcome page. */
+  /** Cached portal result so a cross-page skip can render the welcome page. */
   admission?: AdmissionResult
 }
 
@@ -76,31 +79,89 @@ export function signVerifyJwt(
   idHash: string,
   deviceHash: string,
   admission?: AdmissionResult,
+  /** Trust-window override (defaults to 7d); the email-code flow passes 30d. */
+  ttlMs: number = TRUST_WINDOW_MS,
 ): string {
-  const trustedUntil = new Date(Date.now() + TRUST_WINDOW_MS).toISOString()
+  const trustedUntil = new Date(Date.now() + ttlMs).toISOString()
   return jwt.sign(
     { name, idHash, deviceHash, trustedUntil, admission } satisfies VerifyTrustPayload,
     getSecret(),
-    { expiresIn: `${TRUST_WINDOW_MS / 1000}s` },
+    { expiresIn: `${ttlMs / 1000}s` },
   )
 }
 
-export function verifyVerifyJwt(event: H3Event): VerifyTrustPayload | null {
+export function verifyVerifyJwt(event: H3Event): (VerifyTrustPayload & { iat?: number }) | null {
   const token = getCookie(event, VERIFY_COOKIE)
   if (!token) return null
   try {
-    return jwt.verify(token, getSecret()) as VerifyTrustPayload
+    return jwt.verify(token, getSecret()) as VerifyTrustPayload & { iat?: number }
   } catch {
     return null
   }
 }
 
-export function setVerifyCookie(event: H3Event, token: string): void {
+/**
+ * Sliding-renewal: while the trust cookie is still VALID, every request
+ * re-issues it with a fresh full window — so the trust lives as long as the
+ * browser keeps visiting within one TTL of its last visit, and lapses only
+ * after a gap longer than that. The original TTL is inferred from the token
+ * (trustedUntil − issued-at), so 7-day freshman grants and 30-day email grants
+ * both slide by their own window. A grant revoked from Settings stops the
+ * renewal and purges the cookie. No-op when there is no cookie / it's expired
+ * (an expired token must NOT be resurrectable).
+ */
+export async function refreshVerifyCookie(event: H3Event): Promise<void> {
+  const payload = verifyVerifyJwt(event)
+  if (!payload?.iat || !payload.trustedUntil) return
+  // Revoked from Settings on ANY device row → the cookie is inert; purge it.
+  if (await isDeviceTrustRevoked(payload.deviceHash)) {
+    clearVerifyCookie(event)
+    return
+  }
+  const ttlMs = new Date(payload.trustedUntil).getTime() - payload.iat * 1000
+  if (!(ttlMs > 0)) return
+  // Already at a full window (just issued)? Skip the re-sign (but still touch
+  // the registry so Settings shows the fresh visit time).
+  const now = Date.now()
+  const until = new Date(payload.trustedUntil).getTime()
+  if (until - now > ttlMs - 60_000) {
+    void recordTrustGrant({
+      deviceHash: payload.deviceHash,
+      name: payload.name,
+      userId: null, // renewal adopts no new account
+      userAgent: getRequestHeader(event, 'user-agent') ?? null,
+      trustedUntil: new Date(until),
+    })
+    return
+  }
+  const newUntil = new Date(now + ttlMs)
+  const token = signVerifyJwt(
+    payload.name,
+    payload.idHash,
+    payload.deviceHash,
+    payload.admission,
+    ttlMs,
+  )
+  setVerifyCookie(event, token, ttlMs)
+  void recordTrustGrant({
+    deviceHash: payload.deviceHash,
+    name: payload.name,
+    userId: null,
+    userAgent: getRequestHeader(event, 'user-agent') ?? null,
+    trustedUntil: newUntil,
+  })
+}
+
+export function setVerifyCookie(
+  event: H3Event,
+  token: string,
+  ttlMs: number = TRUST_WINDOW_MS,
+): void {
   setCookie(event, VERIFY_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: TRUST_WINDOW_MS / 1000,
+    maxAge: ttlMs / 1000,
     secure: isSecureRequest(event),
   })
 }

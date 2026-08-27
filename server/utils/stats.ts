@@ -2,13 +2,13 @@ import { createHash } from 'node:crypto'
 import { UAParser } from 'ua-parser-js'
 import type { H3Event } from 'h3'
 import { AppDataSource } from './database'
-import { OrgEvent } from '#server/entities/orgEvent.entity'
-import { OrgDailyStat } from '#server/entities/orgDailyStat.entity'
-import { OrgVerifiedIdentity } from '#server/entities/orgVerifiedIdentity.entity'
-import { Organization } from '#server/entities/organization.entity'
+import { PageEvent } from '#server/entities/pageEvent.entity'
+import { PageDailyStat } from '#server/entities/pageDailyStat.entity'
+import { PageVerifiedIdentity } from '#server/entities/pageVerifiedIdentity.entity'
+import { Page } from '#server/entities/page.entity'
 import { AuditEvent } from '#server/entities/auditEvent.entity'
 import { AppSetting } from '#server/entities/appSetting.entity'
-import { listAccessibleOrgs, type EffectiveRole } from './members'
+import { listAccessiblePages, type EffectiveRole } from './members'
 
 const RETENTION_DAYS = 90
 const RANGES = new Set([7, 30, 90, 0]) // 0 == all
@@ -71,13 +71,39 @@ export function parseMeta(event: H3Event): EventMeta {
 
 // --- Writers ---
 
-async function bumpRollup(orgId: number, day: string, metrics: string[]): Promise<void> {
-  for (const metric of metrics) {
-    // SQLite upsert on the unique (org_id, day, metric).
+// The two upserts below must be raw SQL: they are ATOMIC COUNTER increments
+// (`SET count = count + 1` referencing the existing row), which TypeORM's
+// upsert APIs cannot express (they only write fixed values). To keep them from
+// drifting off the physical schema again (the 2026-08 rename outage was
+// exactly such a drift), every table/column identifier is pulled from entity
+// metadata — rename an entity/table and these queries follow automatically.
+function metaSql(entity: Function, props: string[]): { table: string; cols: string[] } {
+  const meta = AppDataSource.getMetadata(entity)
+  return {
+    table: meta.tableName,
+    cols: props.map((p) => meta.findColumnWithPropertyPath(p)!.databaseName),
+  }
+}
+// LAZY: TypeORM builds entity metadata on initialize(), not on `new DataSource`
+// — resolving at module scope crashed cold boots ("No metadata for …") whenever
+// this module loaded before the db plugin ran. Resolved on first write instead
+// (always post-init), then cached.
+function lazyMetaSql(entity: Function, props: string[]) {
+  let cached: { table: string; cols: string[] } | null = null
+  return () => (cached ??= metaSql(entity, props))
+}
+const rollupSql = lazyMetaSql(PageDailyStat, ['pageId', 'day', 'metric', 'count'])
+const identitySql = lazyMetaSql(PageVerifiedIdentity, ['pageId', 'name', 'idHash'])
+
+async function bumpRollup(pageId: number, day: string, metrics: string[]): Promise<void> {
+  const { table, cols } = rollupSql()
+  const [pid, dayC, metric, count] = cols
+  for (const m of metrics) {
+    // SQLite upsert on the unique (page_id, day, metric).
     await AppDataSource.query(
-      `INSERT INTO org_daily_stats (org_id, day, metric, count) VALUES (?, ?, ?, 1)
-       ON CONFLICT (org_id, day, metric) DO UPDATE SET count = count + 1`,
-      [orgId, day, metric],
+      `INSERT INTO ${table} (${pid}, ${dayC}, ${metric}, ${count}) VALUES (?, ?, ?, 1)
+       ON CONFLICT (${pid}, ${dayC}, ${metric}) DO UPDATE SET ${count} = ${count} + 1`,
+      [pageId, day, m],
     )
   }
 }
@@ -95,12 +121,12 @@ function verifyMetrics(outcome: string, mode: string | null): string[] {
 }
 
 /** Record a page view. Fire-and-forget at the call site (never blocks the response). */
-export async function recordView(event: H3Event, orgId: number): Promise<void> {
+export async function recordView(event: H3Event, pageId: number): Promise<void> {
   const meta = parseMeta(event)
   const day = dayKey()
   try {
-    await AppDataSource.getRepository(OrgEvent).save({ orgId, type: 'view', ...meta })
-    await bumpRollup(orgId, day, ['view'])
+    await AppDataSource.getRepository(PageEvent).save({ pageId, type: 'view', ...meta })
+    await bumpRollup(pageId, day, ['view'])
     void pruneOldEvents()
   } catch {
     // best-effort — analytics must never break a page render
@@ -117,14 +143,14 @@ export interface VerifyRecord {
 /** Record a verification attempt. Fire-and-forget at the call site. */
 export async function recordVerify(
   event: H3Event,
-  orgId: number,
+  pageId: number,
   rec: VerifyRecord,
 ): Promise<void> {
   const meta = parseMeta(event)
   const day = dayKey()
   try {
-    await AppDataSource.getRepository(OrgEvent).save({
-      orgId,
+    await AppDataSource.getRepository(PageEvent).save({
+      pageId,
       type: 'verify',
       outcome: rec.outcome,
       mode: rec.mode,
@@ -132,14 +158,14 @@ export async function recordVerify(
       idHash: rec.idHash,
       ...meta,
     })
-    await bumpRollup(orgId, day, verifyMetrics(rec.outcome, rec.mode))
+    await bumpRollup(pageId, day, verifyMetrics(rec.outcome, rec.mode))
     void pruneOldEvents()
     // Mirror every verify attempt into the site-wide audit trail (one funnel for
     // all verify branches). Hoisted — recordAudit is defined further below.
     void recordAudit(event, {
       action: 'verify',
       outcome: rec.outcome,
-      orgId,
+      pageId,
       actorType: 'anonymous',
       name: rec.name,
       detail: { mode: rec.mode, idHash: rec.idHash },
@@ -181,15 +207,18 @@ export function deviceHashFromRequest(event: H3Event): string {
 }
 
 /**
- * Has this name + ID hash already been verified for this org? The "already used"
+ * Has this name + ID hash already been verified for this page? The "already used"
  * check — answers without re-querying the UNNC portal. Best-effort: on any error
  * returns false (fail open: the caller will simply verify again).
  */
-export async function findVerifiedIdentity(orgId: number, idHash: string | null): Promise<boolean> {
+export async function findVerifiedIdentity(
+  pageId: number,
+  idHash: string | null,
+): Promise<boolean> {
   if (!idHash) return false
   try {
-    const row = await AppDataSource.getRepository(OrgVerifiedIdentity).findOne({
-      where: { orgId, idHash },
+    const row = await AppDataSource.getRepository(PageVerifiedIdentity).findOne({
+      where: { pageId, idHash },
     })
     return !!row
   } catch {
@@ -198,20 +227,22 @@ export async function findVerifiedIdentity(orgId: number, idHash: string | null)
 }
 
 /**
- * Record a verified identity for (org, idHash) — idempotent. Best-effort, never
+ * Record a verified identity for (page, idHash) — idempotent. Best-effort, never
  * throws (dedup must not break a verify response). Uses INSERT OR IGNORE so the
- * unique (org_id, id_hash) index makes repeat admits a no-op.
+ * unique (page_id, id_hash) index makes repeat admits a no-op.
  */
 export async function upsertVerifiedIdentity(
-  orgId: number,
+  pageId: number,
   name: string,
   idHash: string | null,
 ): Promise<void> {
   if (!idHash) return
   try {
+    const { table, cols } = identitySql()
+    const [pid, nameC, hashC] = cols
     await AppDataSource.query(
-      'INSERT OR IGNORE INTO org_verified_identities (org_id, name, id_hash) VALUES (?, ?, ?)',
-      [orgId, name, idHash],
+      `INSERT OR IGNORE INTO ${table} (${pid}, ${nameC}, ${hashC}) VALUES (?, ?, ?)`,
+      [pageId, name, idHash],
     )
   } catch {
     // best-effort
@@ -225,7 +256,7 @@ export async function pruneOldEvents(): Promise<void> {
   if (now - lastPruneAt < 24 * 60 * 60 * 1000) return
   lastPruneAt = now
   const cutoff = new Date(now - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
-  await AppDataSource.getRepository(OrgEvent)
+  await AppDataSource.getRepository(PageEvent)
     .createQueryBuilder()
     .delete()
     .where('createdAt < :cutoff', { cutoff })
@@ -237,7 +268,7 @@ export async function pruneOldEvents(): Promise<void> {
 export interface AuditRecord {
   action: string
   outcome?: string | null
-  orgId?: number | null
+  pageId?: number | null
   /** default 'anonymous' */
   actorType?: string | null
   userId?: number | null
@@ -257,7 +288,7 @@ export async function recordAudit(event: H3Event, rec: AuditRecord): Promise<voi
     await AppDataSource.getRepository(AuditEvent).save({
       action: rec.action,
       outcome: rec.outcome ?? null,
-      orgId: rec.orgId ?? null,
+      pageId: rec.pageId ?? null,
       actorType: rec.actorType ?? 'anonymous',
       userId: rec.userId ?? null,
       email: rec.email ?? null,
@@ -325,7 +356,7 @@ export async function pruneOldAuditEvents(): Promise<void> {
 export interface AuditQuery {
   action?: string | null
   outcome?: string | null
-  orgId?: number | null
+  pageId?: number | null
   userId?: number | null
   search?: string | null
   from?: string | null
@@ -337,8 +368,8 @@ export interface AuditQuery {
 export interface AuditRow {
   id: number
   createdAt: string
-  orgId: number | null
-  orgName: string | null
+  pageId: number | null
+  pageName: string | null
   action: string
   outcome: string | null
   actorType: string | null
@@ -350,8 +381,8 @@ export interface AuditRow {
 
 /**
  * Read the site-wide audit trail with filters + pagination (newest first).
- * Powers GET /api/admin/audit. Org names are resolved in a second query so a
- * superadmin sees a human label even for orgs they don't own.
+ * Powers GET /api/admin/audit. Page names are resolved in a second query so a
+ * superadmin sees a human label even for pages they don't own.
  */
 export async function readAudit(q: AuditQuery): Promise<{ events: AuditRow[]; total: number }> {
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500)
@@ -359,7 +390,7 @@ export async function readAudit(q: AuditQuery): Promise<{ events: AuditRow[]; to
   const qb = AppDataSource.getRepository(AuditEvent).createQueryBuilder('a')
   if (q.action) qb.andWhere('a.action = :action', { action: q.action })
   if (q.outcome) qb.andWhere('a.outcome = :outcome', { outcome: q.outcome })
-  if (q.orgId != null) qb.andWhere('a.orgId = :orgId', { orgId: q.orgId })
+  if (q.pageId != null) qb.andWhere('a.pageId = :pageId', { pageId: q.pageId })
   if (q.userId != null) qb.andWhere('a.userId = :userId', { userId: q.userId })
   if (q.from) qb.andWhere('a.createdAt >= :from', { from: q.from })
   if (q.to) qb.andWhere('a.createdAt <= :to', { to: q.to })
@@ -375,14 +406,16 @@ export async function readAudit(q: AuditQuery): Promise<{ events: AuditRow[]; to
     qb.getCount(),
   ])
 
-  const orgIds = Array.from(new Set(rows.map((r) => r.orgId).filter((v): v is number => v != null)))
-  const orgMap = new Map<number, string>()
-  if (orgIds.length) {
-    const orgs = await AppDataSource.getRepository(Organization).find({
-      where: orgIds.map((id) => ({ id })),
+  const pageIds = Array.from(
+    new Set(rows.map((r) => r.pageId).filter((v): v is number => v != null)),
+  )
+  const pageMap = new Map<number, string>()
+  if (pageIds.length) {
+    const pages = await AppDataSource.getRepository(Page).find({
+      where: pageIds.map((id) => ({ id })),
       select: { id: true, name: true },
     })
-    for (const o of orgs) orgMap.set(o.id, o.name)
+    for (const o of pages) pageMap.set(o.id, o.name)
   }
 
   return {
@@ -390,8 +423,8 @@ export async function readAudit(q: AuditQuery): Promise<{ events: AuditRow[]; to
     events: rows.map((r) => ({
       id: r.id,
       createdAt: new Date(r.createdAt).toISOString(),
-      orgId: r.orgId,
-      orgName: (r.orgId != null && orgMap.get(r.orgId)) || null,
+      pageId: r.pageId,
+      pageName: (r.pageId != null && pageMap.get(r.pageId)) || null,
       action: r.action,
       outcome: r.outcome,
       actorType: r.actorType,
@@ -412,7 +445,7 @@ function safeParseDetail(raw: string): Record<string, unknown> | null {
   }
 }
 
-// --- Reader (powers GET /api/orgs/<slug>/stats) ---
+// --- Reader (powers GET /api/pages/<slug>/stats) ---
 
 function rangeDays(value: unknown): number {
   const n = Number(value)
@@ -469,7 +502,7 @@ export interface StatsResult {
   }
 }
 
-export async function readStats(orgId: number, rangeQuery: unknown): Promise<StatsResult> {
+export async function readStats(pageId: number, rangeQuery: unknown): Promise<StatsResult> {
   const range = rangeDays(rangeQuery)
   const now = Date.now()
   const sinceMs = range > 0 ? now - range * 24 * 60 * 60 * 1000 : 0
@@ -477,8 +510,8 @@ export async function readStats(orgId: number, rangeQuery: unknown): Promise<Sta
   const startDay = sinceMs ? new Date(sinceMs).toISOString().slice(0, 10) : '1970-01-01'
   const days = range > 0 ? dayRange(startDay) : []
 
-  const eventRepo = AppDataSource.getRepository(OrgEvent)
-  const statRepo = AppDataSource.getRepository(OrgDailyStat)
+  const eventRepo = AppDataSource.getRepository(PageEvent)
+  const statRepo = AppDataSource.getRepository(PageDailyStat)
 
   // --- rollup rows in range (range>0: per-day series; all-time: per-metric totals) ---
   const rollups =
@@ -486,13 +519,13 @@ export async function readStats(orgId: number, rangeQuery: unknown): Promise<Sta
       ? await statRepo
           .createQueryBuilder('s')
           .select(['s.day AS day', 's.metric AS metric', 's.count AS count'])
-          .where('s.orgId = :orgId', { orgId })
+          .where('s.pageId = :pageId', { pageId })
           .andWhere('s.day >= :startDay', { startDay })
           .getRawMany<{ day: string; metric: string; count: number }>()
       : await statRepo
           .createQueryBuilder('s')
           .select(['s.metric AS metric', 'SUM(s.count) AS count'])
-          .where('s.orgId = :orgId', { orgId })
+          .where('s.pageId = :pageId', { pageId })
           .groupBy('s.metric')
           .getRawMany<{ metric: string; count: number }>()
 
@@ -515,7 +548,7 @@ export async function readStats(orgId: number, rangeQuery: unknown): Promise<Sta
   const uvByDayRows = await eventRepo
     .createQueryBuilder('e')
     .select(['DATE(e.createdAt) AS day', 'COUNT(DISTINCT e.ipHash) AS uv'])
-    .where('e.orgId = :orgId', { orgId })
+    .where('e.pageId = :pageId', { pageId })
     .andWhere('e.type = :type', { type: 'view' })
     .andWhere('e.createdAt >= :uvSince', { uvSince })
     .groupBy('DATE(e.createdAt)')
@@ -535,7 +568,7 @@ export async function readStats(orgId: number, rangeQuery: unknown): Promise<Sta
             await eventRepo
               .createQueryBuilder('e')
               .select('COUNT(DISTINCT e.ipHash)', 'uv')
-              .where('e.orgId = :orgId', { orgId })
+              .where('e.pageId = :pageId', { pageId })
               .andWhere('e.type = :type', { type: 'view' })
               .andWhere('e.createdAt >= :uvSince', { uvSince })
               .getRawOne<{ uv: number }>()
@@ -550,7 +583,7 @@ export async function readStats(orgId: number, rangeQuery: unknown): Promise<Sta
     let qb = eventRepo
       .createQueryBuilder('e')
       .select([`e.${col} AS key`, 'COUNT(*) AS count'])
-      .where('e.orgId = :orgId', { orgId })
+      .where('e.pageId = :pageId', { pageId })
     qb = eventSince(qb)
     const rows = await qb
       .groupBy(`e.${col}`)
@@ -598,9 +631,9 @@ export async function readStats(orgId: number, rangeQuery: unknown): Promise<Sta
   }
 }
 
-// --- Cross-org overview (powers GET /api/stats/overview → dashboard 看板) ---
+// --- Cross-page overview (powers GET /api/stats/overview → dashboard 看板) ---
 
-export interface OverviewOrg {
+export interface OverviewPage {
   id: number
   slug: string
   name: string
@@ -628,18 +661,18 @@ export interface OverviewResult {
     verifyTotal: number[]
     admitted: number[]
   }
-  orgs: OverviewOrg[]
+  pages: OverviewPage[]
 }
 
 /**
- * Aggregate stats across a set of orgs, for the dashboard 看板: cross-org totals
- * + a summed daily trend + a per-org breakdown (each org's quick KPIs + a views
- * sparkline). UV is a true `COUNT(DISTINCT ip_hash)` across all the orgs (a
- * visitor shared between orgs isn't double counted — the stats salt is stable
- * across orgs).
+ * Aggregate stats across a set of pages, for the dashboard 看板: cross-page totals
+ * + a summed daily trend + a per-page breakdown (each page's quick KPIs + a views
+ * sparkline). UV is a true `COUNT(DISTINCT ip_hash)` across all the pages (a
+ * visitor shared between pages isn't double counted — the stats salt is stable
+ * across pages).
  */
 async function aggregateOverview(
-  accessible: { org: Organization; role: EffectiveRole }[],
+  accessible: { page: Page; role: EffectiveRole }[],
   rangeQuery: unknown,
 ): Promise<OverviewResult> {
   const range = rangeDays(rangeQuery)
@@ -661,32 +694,32 @@ async function aggregateOverview(
       successRate: null,
     },
     daily: { days, views: [], uniqueVisitors: [], verifyTotal: [], admitted: [] },
-    orgs: [],
+    pages: [],
   }
   if (!accessible.length) return empty
 
-  const orgIds = accessible.map((a) => a.org.id)
-  const statRepo = AppDataSource.getRepository(OrgDailyStat)
-  const eventRepo = AppDataSource.getRepository(OrgEvent)
+  const pageIds = accessible.map((a) => a.page.id)
+  const statRepo = AppDataSource.getRepository(PageDailyStat)
+  const eventRepo = AppDataSource.getRepository(PageEvent)
 
-  // --- aggregate totals across orgs ---
+  // --- aggregate totals across pages ---
   const totalRows = await statRepo
     .createQueryBuilder('s')
     .select(['s.metric AS metric', 'SUM(s.count) AS count'])
-    .where('s.orgId IN (:...orgIds)', { orgIds })
+    .where('s.pageId IN (:...pageIds)', { pageIds })
     .groupBy('s.metric')
     .getRawMany<{ metric: string; count: number }>()
   const metricTotals = new Map<string, number>()
   for (const r of totalRows)
     metricTotals.set(r.metric, (metricTotals.get(r.metric) ?? 0) + Number(r.count))
 
-  // --- aggregate daily trend across orgs ---
+  // --- aggregate daily trend across pages ---
   const metricByDay = new Map<string, Record<string, number>>()
   if (range > 0) {
     const dailyRows = await statRepo
       .createQueryBuilder('s')
       .select(['s.day AS day', 's.metric AS metric', 'SUM(s.count) AS count'])
-      .where('s.orgId IN (:...orgIds)', { orgIds })
+      .where('s.pageId IN (:...pageIds)', { pageIds })
       .andWhere('s.day >= :startDay', { startDay })
       .groupBy('s.day')
       .addGroupBy('s.metric')
@@ -699,7 +732,7 @@ async function aggregateOverview(
   }
   const pickDay = (metric: string) => days.map((d) => metricByDay.get(d)?.[metric] ?? 0)
 
-  // --- cross-org unique visitors (distinct ip_hash across all the orgs) ---
+  // --- cross-page unique visitors (distinct ip_hash across all the pages) ---
   const retentionCutoff = new Date(now - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
   const uvSince = since && since > retentionCutoff ? since : retentionCutoff
   let uvSeries: (number | null)[] = days.map(() => null)
@@ -708,7 +741,7 @@ async function aggregateOverview(
     const uvRows = await eventRepo
       .createQueryBuilder('e')
       .select(['DATE(e.createdAt) AS day', 'COUNT(DISTINCT e.ipHash) AS uv'])
-      .where('e.orgId IN (:...orgIds)', { orgIds })
+      .where('e.pageId IN (:...pageIds)', { pageIds })
       .andWhere('e.type = :type', { type: 'view' })
       .andWhere('e.createdAt >= :uvSince', { uvSince })
       .groupBy('DATE(e.createdAt)')
@@ -725,7 +758,7 @@ async function aggregateOverview(
         await eventRepo
           .createQueryBuilder('e')
           .select('COUNT(DISTINCT e.ipHash)', 'uv')
-          .where('e.orgId IN (:...orgIds)', { orgIds })
+          .where('e.pageId IN (:...pageIds)', { pageIds })
           .andWhere('e.type = :type', { type: 'view' })
           .andWhere('e.createdAt >= :uvSince', { uvSince })
           .getRawOne<{ uv: number }>()
@@ -733,42 +766,42 @@ async function aggregateOverview(
     )
   }
 
-  // --- per-org totals ---
-  const perOrgTotals = await statRepo
+  // --- per-page totals ---
+  const perPageTotals = await statRepo
     .createQueryBuilder('s')
-    .select(['s.orgId AS orgId', 's.metric AS metric', 'SUM(s.count) AS count'])
-    .where('s.orgId IN (:...orgIds)', { orgIds })
-    .groupBy('s.orgId')
+    .select(['s.pageId AS pageId', 's.metric AS metric', 'SUM(s.count) AS count'])
+    .where('s.pageId IN (:...pageIds)', { pageIds })
+    .groupBy('s.pageId')
     .addGroupBy('s.metric')
-    .getRawMany<{ orgId: number; metric: string; count: number }>()
-  const perOrg = new Map<number, Record<string, number>>()
-  for (const r of perOrgTotals) {
-    const m = perOrg.get(r.orgId) ?? {}
+    .getRawMany<{ pageId: number; metric: string; count: number }>()
+  const perPage = new Map<number, Record<string, number>>()
+  for (const r of perPageTotals) {
+    const m = perPage.get(r.pageId) ?? {}
     m[r.metric] = (m[r.metric] ?? 0) + Number(r.count)
-    perOrg.set(r.orgId, m)
+    perPage.set(r.pageId, m)
   }
 
-  // --- per-org daily views for the sparkline ---
-  const perOrgSpark = new Map<number, number[]>()
+  // --- per-page daily views for the sparkline ---
+  const perPageSpark = new Map<number, number[]>()
   if (range > 0) {
     const sparkRows = await statRepo
       .createQueryBuilder('s')
-      .select(['s.orgId AS orgId', 's.day AS day', 'SUM(s.count) AS count'])
-      .where('s.orgId IN (:...orgIds)', { orgIds })
+      .select(['s.pageId AS pageId', 's.day AS day', 'SUM(s.count) AS count'])
+      .where('s.pageId IN (:...pageIds)', { pageIds })
       .andWhere('s.metric = :metric', { metric: 'view' })
       .andWhere('s.day >= :startDay', { startDay })
-      .groupBy('s.orgId')
+      .groupBy('s.pageId')
       .addGroupBy('s.day')
-      .getRawMany<{ orgId: number; day: string; count: number }>()
+      .getRawMany<{ pageId: number; day: string; count: number }>()
     const sparkMap = new Map<number, Map<string, number>>()
     for (const r of sparkRows) {
-      const d = sparkMap.get(r.orgId) ?? new Map<string, number>()
+      const d = sparkMap.get(r.pageId) ?? new Map<string, number>()
       d.set(r.day, Number(r.count))
-      sparkMap.set(r.orgId, d)
+      sparkMap.set(r.pageId, d)
     }
-    for (const id of orgIds) {
+    for (const id of pageIds) {
       const d = sparkMap.get(id)
-      perOrgSpark.set(
+      perPageSpark.set(
         id,
         days.map((day) => d?.get(day) ?? 0),
       )
@@ -778,15 +811,15 @@ async function aggregateOverview(
   const verifyTotal = metricTotals.get('verify_total') ?? 0
   const admitted = metricTotals.get('verify_admitted') ?? 0
 
-  const orgs: OverviewOrg[] = accessible
-    .map(({ org, role }) => {
-      const m = perOrg.get(org.id) ?? {}
+  const pages: OverviewPage[] = accessible
+    .map(({ page, role }) => {
+      const m = perPage.get(page.id) ?? {}
       const v = m['verify_total'] ?? 0
       const adm = m['verify_admitted'] ?? 0
       return {
-        id: org.id,
-        slug: org.slug,
-        name: org.name,
+        id: page.id,
+        slug: page.slug,
+        name: page.name,
         role,
         totals: {
           views: m['view'] ?? 0,
@@ -794,7 +827,7 @@ async function aggregateOverview(
           admitted: adm,
           successRate: v > 0 ? adm / v : null,
         },
-        spark: perOrgSpark.get(org.id) ?? [],
+        spark: perPageSpark.get(page.id) ?? [],
       }
     })
     .sort((a, b) => b.totals.views - a.totals.views)
@@ -817,23 +850,23 @@ async function aggregateOverview(
       verifyTotal: pickDay('verify_total'),
       admitted: pickDay('verify_admitted'),
     },
-    orgs,
+    pages,
   }
 }
 
-/** Dashboard overview for a single user — aggregates their accessible orgs. */
+/** Dashboard overview for a single user — aggregates their accessible pages. */
 export async function readOverviewStats(
   userId: number,
   rangeQuery: unknown,
 ): Promise<OverviewResult> {
-  return aggregateOverview(await listAccessibleOrgs(userId), rangeQuery)
+  return aggregateOverview(await listAccessiblePages(userId), rangeQuery)
 }
 
-/** Site-wide overview for the admin panel — aggregates EVERY org. */
+/** Site-wide overview for the admin panel — aggregates EVERY page. */
 export async function readOverviewStatsAll(rangeQuery: unknown): Promise<OverviewResult> {
-  const all = await AppDataSource.getRepository(Organization).find()
+  const all = await AppDataSource.getRepository(Page).find()
   return aggregateOverview(
-    all.map((org) => ({ org, role: 'superadmin' as EffectiveRole })),
+    all.map((page) => ({ page, role: 'superadmin' as EffectiveRole })),
     rangeQuery,
   )
 }

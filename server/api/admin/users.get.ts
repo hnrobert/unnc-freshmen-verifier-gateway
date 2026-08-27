@@ -1,13 +1,13 @@
 import { AppDataSource } from '#server/utils/database'
 import { User } from '#server/entities/user.entity'
-import { Organization } from '#server/entities/organization.entity'
+import { Page } from '#server/entities/page.entity'
 
-/** List every account (superadmin only), with each owner's org count. */
+/** List every account (superadmin only), with each owner's page count. */
 export default defineEventHandler(async (event) => {
   requireSuperAdmin(event)
   const [users, counts] = await Promise.all([
     AppDataSource.getRepository(User).find({ order: { id: 'ASC' } }),
-    AppDataSource.getRepository(Organization)
+    AppDataSource.getRepository(Page)
       .createQueryBuilder('o')
       .select('o.ownerId', 'ownerId')
       .addSelect('COUNT(*)', 'count')
@@ -19,8 +19,8 @@ export default defineEventHandler(async (event) => {
     id: u.id,
     email: u.email,
     role: u.role,
-    orgLimit: u.orgLimit,
-    orgCount: ownedMap.get(u.id) ?? 0,
+    pageLimit: u.pageLimit,
+    pageCount: ownedMap.get(u.id) ?? 0,
     createdAt: u.createdAt,
   }))
 })

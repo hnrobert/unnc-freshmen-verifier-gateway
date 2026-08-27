@@ -4,8 +4,8 @@ definePageMeta({ layout: 'dashboard', middleware: ['auth', 'superadmin'] })
 interface AuditRow {
   id: number
   createdAt: string
-  orgId: number | null
-  orgName: string | null
+  pageId: number | null
+  pageName: string | null
   action: string
   outcome: string | null
   actorType: string | null
@@ -21,7 +21,7 @@ interface AuditResponse {
   retentionDays: number
 }
 
-interface OrgRow {
+interface PageRow {
   id: number
   name: string
   slug: string
@@ -38,10 +38,10 @@ const ACTIONS = [
   'password_change',
   'passkey_add',
   'passkey_remove',
-  'org.create',
-  'org.rename',
-  'org.delete',
-  'org.transfer',
+  'page.create',
+  'page.rename',
+  'page.delete',
+  'page.transfer',
   'collaborator.add',
   'collaborator.role',
   'collaborator.remove',
@@ -54,7 +54,7 @@ const OUTCOMES = ['success', 'failure', 'admitted', 'denied', 'error']
 // --- Filters ---
 const action = ref<string>('')
 const outcome = ref<string>('')
-const orgId = ref<string>('')
+const pageId = ref<string>('')
 const from = ref<string>('')
 const to = ref<string>('')
 const limit = ref<number>(50)
@@ -73,7 +73,7 @@ watch(searchInput, (v) => {
 })
 
 // Reset to the first page whenever any filter narrows the result set.
-watch([action, outcome, orgId, from, to, limit], () => {
+watch([action, outcome, pageId, from, to, limit], () => {
   offset.value = 0
 })
 
@@ -84,7 +84,7 @@ const query = computed(() => {
   }
   if (action.value) q.action = action.value
   if (outcome.value) q.outcome = outcome.value
-  if (orgId.value) q.orgId = orgId.value
+  if (pageId.value) q.pageId = pageId.value
   if (search.value) q.search = search.value
   if (from.value) q.from = `${from.value}T00:00:00`
   // Inclusive end-of-day so a `to` date captures events later that day.
@@ -96,7 +96,7 @@ const { data, pending, refresh } = await useFetch<AuditResponse>('/api/admin/aud
   query,
 })
 
-const { data: orgs } = await useFetch<OrgRow[]>('/api/admin/orgs')
+const { data: pages } = await useFetch<PageRow[]>('/api/admin/pages')
 
 // --- Retention config ---
 const retentionDraft = ref<string>(data.value ? String(data.value.retentionDays) : '90')
@@ -130,7 +130,7 @@ async function onSaveRetention() {
 function resetFilters() {
   action.value = ''
   outcome.value = ''
-  orgId.value = ''
+  pageId.value = ''
   searchInput.value = ''
   search.value = ''
   from.value = ''
@@ -242,13 +242,13 @@ function timeLabel(iso: string): string {
             </select>
           </div>
           <div class="flex flex-col gap-1">
-            <label class="text-xs font-medium text-muted-foreground">Organization</label>
+            <label class="text-xs font-medium text-muted-foreground">Page</label>
             <select
-              v-model="orgId"
+              v-model="pageId"
               class="h-9 max-w-48 rounded-md border bg-transparent px-2 text-sm"
             >
-              <option value="">All orgs</option>
-              <option v-for="o in orgs ?? []" :key="o.id" :value="String(o.id)">
+              <option value="">All pages</option>
+              <option v-for="o in pages ?? []" :key="o.id" :value="String(o.id)">
                 {{ o.name }}
               </option>
             </select>
@@ -313,7 +313,7 @@ function timeLabel(iso: string): string {
                 <th class="py-3 pr-4 font-medium">Action</th>
                 <th class="py-3 pr-4 font-medium">Outcome</th>
                 <th class="py-3 pr-4 font-medium">Person</th>
-                <th class="py-3 pr-4 font-medium">Organization</th>
+                <th class="py-3 pr-4 font-medium">Page</th>
                 <th class="py-3 font-medium">Detail</th>
               </tr>
             </thead>
@@ -340,7 +340,7 @@ function timeLabel(iso: string): string {
                   </div>
                 </td>
                 <td class="py-3 pr-4 align-top text-muted-foreground">
-                  {{ row.orgName ?? (row.orgId != null ? `#${row.orgId}` : '—') }}
+                  {{ row.pageName ?? (row.pageId != null ? `#${row.pageId}` : '—') }}
                 </td>
                 <td class="py-3 align-top">
                   <code
@@ -383,8 +383,8 @@ function timeLabel(iso: string): string {
               </dd>
             </div>
             <div class="flex gap-2">
-              <dt class="w-20 shrink-0 text-muted-foreground">Organization</dt>
-              <dd>{{ row.orgName ?? (row.orgId != null ? `#${row.orgId}` : '—') }}</dd>
+              <dt class="w-20 shrink-0 text-muted-foreground">Page</dt>
+              <dd>{{ row.pageName ?? (row.pageId != null ? `#${row.pageId}` : '—') }}</dd>
             </div>
             <div v-if="row.detail" class="flex gap-2">
               <dt class="w-20 shrink-0 text-muted-foreground">Detail</dt>

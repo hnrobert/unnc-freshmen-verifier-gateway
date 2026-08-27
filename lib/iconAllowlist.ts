@@ -1,5 +1,5 @@
 /**
- * Curated lucide icon registry — the icons orgs can pick in the editor. Only
+ * Curated lucide icon registry — the icons pages can pick in the editor. Only
  * these are bundled (keeps the public verify page small); custom crests use the
  * image-upload path instead. Expanded as needed in Phase 9 (IconPicker).
  */
@@ -74,6 +74,7 @@ import {
   Settings,
   Share2,
   ShieldCheck,
+  ShieldOff,
   Sparkles,
   Star,
   Sun,
@@ -88,7 +89,7 @@ import {
   UserPlus,
   Users,
   X,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 
 export const iconRegistry: Record<string, Component> = {
   ArrowLeft,
@@ -160,6 +161,7 @@ export const iconRegistry: Record<string, Component> = {
   Settings,
   Share2,
   ShieldCheck,
+  ShieldOff,
   Sparkles,
   Star,
   Sun,

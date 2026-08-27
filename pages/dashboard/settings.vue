@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ReminderSlot } from '#shared/types'
+import { SYSTEM_DEFAULT_SLOTS } from '#shared/lib/reminderPref'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -20,9 +21,12 @@ const { data: timezones } = await useFetch<string[]>('/api/timezones')
 // notification preferences — saved together via the bottom save/discard bar
 // (same pattern as the config editor). `originalX` snapshots drive isDirty and
 // Discard; the PATCH only sends fields that actually changed.
+// Unset account values are seeded from the system default (2 days / 1 day /
+// day-of at 12:00 server tz) so the card shows what's actually in effect. An
+// untouched seeded draft isn't dirty, so `null` (inherit) is preserved on save.
 const originalEmail = ref(user.value?.email ?? '')
 const originalNotify = ref(meData.value?.notifyExpiry ?? true)
-const originalSlots = ref<ReminderSlot[]>(meData.value?.reminderSlots ?? [])
+const originalSlots = ref<ReminderSlot[]>(meData.value?.reminderSlots ?? [...SYSTEM_DEFAULT_SLOTS])
 const originalTime = ref(meData.value?.reminderTime ?? '12:00')
 const originalTz = ref<string | null>(meData.value?.tz ?? null)
 
@@ -138,7 +142,7 @@ async function onSave(): Promise<void> {
     originalEmail.value = res.user.email
     if (user.value) user.value.email = res.user.email
     originalNotify.value = res.notifyExpiry
-    originalSlots.value = res.reminderSlots ?? []
+    originalSlots.value = res.reminderSlots ?? [...SYSTEM_DEFAULT_SLOTS]
     originalTime.value = res.reminderTime ?? '12:00'
     originalTz.value = res.tz ?? null
     draft.value = {
@@ -147,7 +151,7 @@ async function onSave(): Promise<void> {
       newPassword: '',
       confirm: '',
       notifyExpiry: res.notifyExpiry,
-      reminderSlots: [...(res.reminderSlots ?? [])],
+      reminderSlots: [...(res.reminderSlots ?? SYSTEM_DEFAULT_SLOTS)],
       reminderTime: res.reminderTime ?? '12:00',
       tz: res.tz ?? null,
     }
@@ -195,6 +199,37 @@ function onTzChange(e: Event): void {
 function autoDetectTz(): void {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
   if (tz) draft.value.tz = tz
+}
+
+// --- Trusted browsers (all of the user's devices; revoke per entry) ---
+interface TrustDevice {
+  id: number
+  name: string
+  device: string
+  current: boolean
+  trustedUntil: string
+  lastRefreshedAt: string
+  revoked: boolean
+}
+const { data: trustData, refresh: refreshTrust } = await useFetch<{ devices: TrustDevice[] }>(
+  '/api/auth/me/trust',
+)
+const revokingId = ref<number | null>(null)
+const fmtDate = (iso: string) => {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString()
+}
+async function revokeDevice(id: number): Promise<void> {
+  revokingId.value = id
+  try {
+    await $fetch(`/api/auth/me/trust/${id}`, { method: 'DELETE' })
+    toast.success('Trusted browser revoked')
+    await refreshTrust()
+  } catch (e) {
+    toast.error(messageFromError(e, 'Could not revoke'))
+  } finally {
+    revokingId.value = null
+  }
 }
 
 // --- Passkeys (independent of the draft above) ---
@@ -245,7 +280,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-md space-y-8 pb-24">
+  <div class="mx-auto w-full max-w-3xl space-y-8 pb-24">
     <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Settings</h1>
 
     <!-- Notifications -->
@@ -253,8 +288,8 @@ onMounted(() => {
       <CardHeader>
         <CardTitle class="text-base">Notifications</CardTitle>
         <CardDescription
-          >Your default expiry-reminder schedule, in your own timezone. You can override it per
-          organization from that org's Notifications tab.</CardDescription
+          >Your default expiry-reminder schedule, in your own timezone. You can override it per page
+          from that page's Notifications tab.</CardDescription
         >
       </CardHeader>
       <CardContent class="space-y-4">
@@ -377,6 +412,69 @@ onMounted(() => {
             autocomplete="new-password"
             :disabled="saving"
           />
+        </div>
+      </CardContent>
+    </Card>
+
+    <!-- Trusted browsers (per-device list, revoke per entry) -->
+    <Card>
+      <CardHeader>
+        <CardTitle class="text-base">Trusted browsers</CardTitle>
+        <CardDescription
+          >Browsers that earned verification trust while you were signed in. Trust is device-bound
+          and renews automatically while the browser keeps visiting — revoking signs that device out
+          everywhere; re-verifying on it re-earns trust.</CardDescription
+        >
+      </CardHeader>
+      <CardContent class="flex flex-col gap-2">
+        <p v-if="!trustData?.devices.length" class="text-sm text-muted-foreground">
+          No trusted browsers yet. Complete a verification on any page (signed in, with "trust this
+          browser" checked) to list it here.
+        </p>
+        <div
+          v-for="d in trustData?.devices ?? []"
+          :key="d.id"
+          class="flex items-center justify-between gap-3 rounded-md border p-3"
+          :class="d.revoked ? 'opacity-60' : d.current ? 'border-primary/40 bg-primary/5' : ''"
+        >
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+              <span class="font-medium">{{ d.name }}</span>
+              <span class="text-xs text-muted-foreground">{{ d.device }}</span>
+              <span
+                v-if="d.current"
+                class="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary-foreground"
+                >this browser</span
+              >
+              <span
+                v-if="d.revoked"
+                class="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                >revoked</span
+              >
+            </div>
+            <p class="mt-1 text-xs text-muted-foreground">
+              {{
+                d.revoked
+                  ? `Revoked · last visit ${fmtDate(d.lastRefreshedAt)}`
+                  : `Trusted until ${fmtDate(d.trustedUntil)} · last visit ${fmtDate(d.lastRefreshedAt)}`
+              }}
+            </p>
+          </div>
+          <Button
+            v-if="!d.revoked"
+            variant="outline"
+            size="sm"
+            class="shrink-0"
+            :disabled="revokingId === d.id"
+            @click="revokeDevice(d.id)"
+          >
+            <Icon
+              :spec="revokingId === d.id ? 'LoaderCircle' : 'ShieldOff'"
+              :size="16"
+              :class="revokingId === d.id ? 'animate-spin' : ''"
+            />
+            Revoke
+          </Button>
         </div>
       </CardContent>
     </Card>

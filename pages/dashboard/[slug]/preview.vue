@@ -15,7 +15,7 @@ const slug = computed(() => route.params.slug as string)
          frame, so the preview lives in this tab instead of being opened separately. -->
     <iframe
       :src="`/${slug}/preview`"
-      title="Organization preview"
+      title="Page preview"
       class="h-[80vh] w-full rounded-lg border"
     />
   </div>

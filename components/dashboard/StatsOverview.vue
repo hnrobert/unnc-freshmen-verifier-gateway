@@ -6,12 +6,12 @@ const props = withDefaults(
   defineProps<{
     /** Overview data endpoint, e.g. /api/stats/overview or /api/admin/stats/overview. */
     endpoint: string
-    /** Render the per-org sparkline cards (the user dashboard). Admin hides them. */
-    showOrgCards?: boolean
-    /** Base path for per-org card links, e.g. '/dashboard' or '/dashboard/admin/organizations'. */
-    orgLinkBase?: string
+    /** Render the per-page sparkline cards (the user dashboard). Admin hides them. */
+    showPageCards?: boolean
+    /** Base path for per-page card links, e.g. '/dashboard' or '/dashboard/admin/pages'. */
+    pageLinkBase?: string
   }>(),
-  { showOrgCards: true, orgLinkBase: '/dashboard' },
+  { showPageCards: true, pageLinkBase: '/dashboard' },
 )
 
 const route = useRoute()
@@ -27,7 +27,7 @@ function setRange(r: string) {
   router.push({ query: { ...route.query, range: r } })
 }
 
-interface OverviewOrg {
+interface OverviewPage {
   id: number
   slug: string
   name: string
@@ -53,7 +53,7 @@ interface Overview {
     verifyTotal: number[]
     admitted: number[]
   }
-  orgs: OverviewOrg[]
+  pages: OverviewPage[]
 }
 
 const { data: overview, pending } = await useFetch<Overview>(
@@ -127,12 +127,12 @@ function sparkPoints(data: number[], w = 140, h = 36): string {
     <div v-if="pending" class="text-muted-foreground">Loading…</div>
 
     <div
-      v-else-if="!overview?.orgs?.length"
+      v-else-if="!overview?.pages?.length"
       class="rounded-lg border border-dashed p-12 text-center"
     >
-      <p class="text-muted-foreground">No organizations to show.</p>
-      <Button v-if="showOrgCards" class="mt-4" @click="navigateTo('/dashboard/new')"
-        >Create your first org</Button
+      <p class="text-muted-foreground">No pages to show.</p>
+      <Button v-if="showPageCards" class="mt-4" @click="navigateTo('/dashboard/new')"
+        >Create your first page</Button
       >
     </div>
 
@@ -186,37 +186,37 @@ function sparkPoints(data: number[], w = 140, h = 36): string {
         <template #fallback><div class="text-muted-foreground">Loading chart…</div></template>
       </ClientOnly>
 
-      <!-- Per-org sparkline cards -->
-      <div v-if="showOrgCards">
-        <h2 class="mb-3 text-sm font-medium text-muted-foreground">By organization</h2>
+      <!-- Per-page sparkline cards -->
+      <div v-if="showPageCards">
+        <h2 class="mb-3 text-sm font-medium text-muted-foreground">By page</h2>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div
-            v-for="org in overview.orgs"
-            :key="org.id"
+            v-for="page in overview.pages"
+            :key="page.id"
             class="flex flex-col gap-3 rounded-lg border p-4"
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
-                  <span class="truncate font-medium">{{ org.name }}</span>
+                  <span class="truncate font-medium">{{ page.name }}</span>
                   <span
-                    v-if="org.role !== 'owner'"
+                    v-if="page.role !== 'owner'"
                     class="rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
-                    >{{ org.role }}</span
+                    >{{ page.role }}</span
                   >
                 </div>
-                <div class="text-xs text-muted-foreground">/{{ org.slug }}</div>
+                <div class="text-xs text-muted-foreground">/{{ page.slug }}</div>
               </div>
             </div>
 
             <svg
-              v-if="sparkPoints(org.spark)"
+              v-if="sparkPoints(page.spark)"
               viewBox="0 0 140 36"
               preserveAspectRatio="none"
               class="h-9 w-full text-primary"
             >
               <polyline
-                :points="sparkPoints(org.spark)"
+                :points="sparkPoints(page.spark)"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="1.5"
@@ -228,20 +228,20 @@ function sparkPoints(data: number[], w = 140, h = 36): string {
 
             <div class="grid grid-cols-3 gap-2 text-center">
               <div>
-                <div class="text-lg font-semibold">{{ org.totals.views }}</div>
+                <div class="text-lg font-semibold">{{ page.totals.views }}</div>
                 <div class="text-[11px] text-muted-foreground">views</div>
               </div>
               <div>
-                <div class="text-lg font-semibold">{{ org.totals.verifyTotal }}</div>
+                <div class="text-lg font-semibold">{{ page.totals.verifyTotal }}</div>
                 <div class="text-[11px] text-muted-foreground">verifies</div>
               </div>
               <div>
-                <div class="text-lg font-semibold">{{ pct(org.totals.successRate) }}</div>
+                <div class="text-lg font-semibold">{{ pct(page.totals.successRate) }}</div>
                 <div class="text-[11px] text-muted-foreground">success</div>
               </div>
             </div>
 
-            <Button variant="outline" size="sm" @click="navigateTo(`${orgLinkBase}/${org.slug}`)">
+            <Button variant="outline" size="sm" @click="navigateTo(`${pageLinkBase}/${page.slug}`)">
               View →
             </Button>
           </div>

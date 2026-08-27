@@ -1,0 +1,46 @@
+import { AppDataSource } from '#server/utils/database'
+import { PageMember } from '#server/entities/pageMember.entity'
+
+const ROLES = ['viewer', 'editor', 'manager'] as const
+
+/** Change a member's role. Manager+. Only the owner may promote to manager. */
+export default defineEventHandler(async (event) => {
+  const me = requireAuth(event)
+  const slug = getRouterParam(event, 'slug') as string
+  const { page, rank } = await requirePageRole(event, slug, RANK.manager)
+  const id = Number(getRouterParam(event, 'id'))
+  if (!Number.isFinite(id)) throw createError({ statusCode: 400, statusMessage: 'Invalid id' })
+
+  const body = await readBody<{ role?: unknown }>(event)
+  const role = String(body?.role ?? '')
+  if (!(ROLES as readonly string[]).includes(role))
+    throw createError({ statusCode: 400, statusMessage: 'Invalid role' })
+  if (role === 'manager' && rank < RANK.owner)
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Only the owner can grant the manager role',
+    })
+
+  const repo = AppDataSource.getRepository(PageMember)
+  const member = await repo.findOne({ where: { id, pageId: page.id } })
+  if (!member) throw createError({ statusCode: 404, statusMessage: 'Collaborator not found' })
+
+  const oldRole = member.role
+  member.role = role
+  await repo.save(member)
+  void recordAudit(event, {
+    action: 'collaborator.role',
+    outcome: 'success',
+    actorType: 'user',
+    userId: me.id,
+    email: me.email,
+    pageId: page.id,
+    detail: {
+      collaboratorId: member.id,
+      invitedEmail: member.invitedEmail,
+      from: oldRole,
+      to: member.role,
+    },
+  })
+  return { id: member.id, role: member.role }
+})

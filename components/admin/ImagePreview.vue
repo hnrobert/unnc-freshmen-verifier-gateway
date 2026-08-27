@@ -11,15 +11,24 @@ const _imgCache = new Map<string, string>()
 async function load(val: string) {
   failed.value = false
   resolved.value = ''
-  if (!val) { failed.value = true; return }
-  if (!val.startsWith('img:')) { resolved.value = val; return }
+  if (!val) {
+    failed.value = true
+    return
+  }
+  if (!val.startsWith('img:')) {
+    resolved.value = val
+    return
+  }
   const key = val.slice(4)
   const cacheKey = `${props.slug}:${key}`
   const cached = _imgCache.get(cacheKey)
-  if (cached) { resolved.value = cached; return }
+  if (cached) {
+    resolved.value = cached
+    return
+  }
   try {
     const res = await $fetch<{ mime: string; base64: string }>(
-      `/api/orgs/${props.slug}/img/${key}`,
+      `/api/pages/${props.slug}/img/${key}`,
       { query: { _t: Date.now() } },
     )
     const dataUrl = `data:${res.mime};base64,${res.base64}`
@@ -30,7 +39,11 @@ async function load(val: string) {
   }
 }
 
-watch(() => props.src, (val) => load(val), { immediate: true })
+watch(
+  () => props.src,
+  (val) => load(val),
+  { immediate: true },
+)
 
 defineExpose({
   refresh: () => {

@@ -11,31 +11,31 @@ export type Locale = 'zh' | 'en'
 /** A string available in every supported locale. */
 export type Localized<T = string> = Record<Locale, T>
 
-/** Selectable QR-expiry reminder slots. All fire at `welcome.reminderTime`
- * (default 12:00) in the org's `welcome.reminderTz` (unset = server-local) on
- * their respective day: `-3d`/`-2d`/`-1d` = that many days before `expiresAt`,
- * `day-of` = on `expiresAt` itself. */
+/** Selectable QR-expiry reminder slots. Each fires on its respective day —
+ * `-3d`/`-2d`/`-1d` = that many days before the page's `welcome.expiresAt`,
+ * `day-of` = on `expiresAt` itself — at the recipient's own reminder time
+ * (per-user preference; default 12:00 server-local). */
 export type ReminderSlot = '-3d' | '-2d' | '-1d' | 'day-of'
 
 /** All valid reminder slots (single source of truth for the UI, validator, scheduler). */
 export const REMINDER_SLOTS: readonly ReminderSlot[] = ['-3d', '-2d', '-1d', 'day-of']
 
 /**
- * Default maximum number of organizations a regular admin (`role: 'admin'`) may
+ * Default maximum number of pages a regular admin (`role: 'admin'`) may
  * create. A superadmin can raise (or lower) this per-user via the Users panel
- * (`User.orgLimit`); `null` on the user falls back to this default. Superadmins
+ * (`User.pageLimit`); `null` on the user falls back to this default. Superadmins
  * themselves are always unlimited.
  */
-export const DEFAULT_ADMIN_ORG_LIMIT = 3
+export const DEFAULT_ADMIN_PAGE_LIMIT = 3
 
 /**
- * Org slug rules. Shared between the server (org create/rename), the old-slug
- * redirect middleware, and the client (new-org / rename forms) so every layer
+ * Page slug rules. Shared between the server (page create/rename), the old-slug
+ * redirect middleware, and the client (new-page / rename forms) so every layer
  * validates against one source of truth.
  */
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
 
-/** Top-level path segments that can never be an org slug (routes/files/reserved words). */
+/** Top-level path segments that can never be an page slug (routes/files/reserved words). */
 export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   'api',
   'dashboard',
@@ -51,7 +51,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   'welcome',
 ])
 
-/** Validate an org slug. Returns an error message, or null when valid. */
+/** Validate an page slug. Returns an error message, or null when valid. */
 export function validateSlug(slug: string): string | null {
   if (!SLUG_RE.test(slug))
     return 'Slug must be 3-32 chars: lowercase letters, digits, hyphens (no leading/trailing/consecutive hyphens).'
@@ -59,9 +59,9 @@ export function validateSlug(slug: string): string | null {
   return null
 }
 
-/** An icon reference: a lucide-vue-next name, or an image URL/key for custom art. */
+/** An icon reference: an @lucide/vue (lucide) name, or an image URL/key for custom art. */
 export interface IconSpec {
-  /** A lucide-vue-next icon name, e.g. `"User"`, `"GraduationCap"`. */
+  /** An @lucide/vue (lucide) icon name, e.g. `"User"`, `"GraduationCap"`. */
   lucide?: string
   /** An image used instead of an icon — `img:<key>` (DB image) or a URL. */
   img?: string
@@ -101,22 +101,13 @@ export interface WelcomeAssetsConfig {
   imageRadius?: string
   /** If true, the welcome image gets a watermark of the visitor's name / email prefix. */
   watermark?: boolean
-  /** Expiry date of the shared QR ('YYYY-MM-DD'). Auto-detected via OCR on upload, manually editable. */
+  /** Expiry date of the shared QR ('YYYY-MM-DD'). Auto-detected via OCR on upload,
+   * manually editable. Reminder *schedules* are not page-level — each person picks
+   * their own in their Notification preferences (see `shared/lib/reminderPref.ts`). */
   expiresAt?: string
-  /** Which reminder slots are active. Empty/absent = reminders off. */
-  reminders?: ReminderSlot[]
-  /** Time-of-day (HH:MM, 24h) at which reminder slots fire. Default "12:00". */
-  reminderTime?: string
-  /** IANA timezone (e.g. "Asia/Shanghai") in which `reminderTime` slots fire.
-   * Empty/unset = use the server's local timezone (logged at boot). The
-   * scheduler resolves the wall-clock to a UTC instant, so when set, reminders
-   * fire on time regardless of the server's own timezone. */
-  reminderTz?: string
-  /** @deprecated use `reminders`; read only to migrate old config rows. */
-  reminderEnabled?: boolean
 }
 
-/** Optional full-page background for the org's verify/welcome pages. */
+/** Optional full-page background for the page's verify/welcome pages. */
 export interface BackgroundConfig {
   /** Background image: `img:<key>` (DB image), public path, or URL. Omit/empty for no background. */
   image?: string
@@ -124,11 +115,17 @@ export interface BackgroundConfig {
   overlayOpacity?: number
 }
 
+/** Share-poster settings (the poster generator on the dashboard Share tab). */
+export interface ShareConfig {
+  /** Custom default poster title. Empty/absent → falls back to the page's brand title. */
+  posterTitle?: string
+}
+
 /** How verification resolves a name + ID. */
 export type VerifyMode = 'live' | 'mock'
 
 /**
- * Per-org live-gateway configuration. The Nitro server queries the admission
+ * Per-page live-gateway configuration. The Nitro server queries the admission
  * portal directly (no CORS server-side), so there is no transport/proxy here.
  */
 export interface GatewayConfig {
@@ -165,7 +162,7 @@ export interface AdmissionResult {
 }
 
 /**
- * The full per-org site configuration (one row in `org_settings`). `messages` is
+ * The full per-page site configuration (one row in `page_settings`). `messages` is
  * fed verbatim into vue-i18n, so the message keys (e.g. `verify.nameLabel`) are
  * the same keys used by `t()` / templates. Images are referenced by `img:<key>`
  * and resolved to serving URLs at render time.
@@ -179,8 +176,10 @@ export interface SiteConfig {
   icons: IconsConfig
   theme: ThemeConfig
   welcome: WelcomeAssetsConfig
-  /** Optional full-page background image for the org's pages. */
+  /** Optional full-page background image for the page's pages. */
   background?: BackgroundConfig
+  /** Share-poster settings (dashboard Share tab). */
+  share?: ShareConfig
   /** Localized labels & content. Keys are referenced via `t('...')`. */
   messages: Record<Locale, Record<string, unknown>>
 }

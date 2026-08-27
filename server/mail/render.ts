@@ -1,6 +1,14 @@
-// The template lives in a standalone authorable file (email/template.html),
-// read at Nuxt config time and shipped to the server as a runtimeConfig default
-// (runtimeConfig.emailTemplate) — bundled into the build reliably.
+// Byte-exact wrapper over email-poster's renderTemplate: the site shell
+// (email/template.html, read at Nuxt config time and shipped via
+// runtimeConfig.emailTemplate) is filled with the same {{PREHEADER}}/
+// {{TITLE}}/{{BODY}}/{{ACTION_BLOCK}}/{{YEAR}}/{{LOGO}} tokens as the original
+// hand-rolled renderer — including its 4-character escape (the library's
+// escapeHtml additionally escapes `'` → `&#39;`, which would change the bytes
+// of e.g. the default "You've been invited…" preheader). Rendering is
+// delegated to the library's token engine; only the legacy escaping and CTA
+// markup are kept local so the output never differs by a single byte.
+
+import { renderTemplate } from 'email-poster/template'
 
 export interface EmailContent {
   /** Big heading inside the card. */
@@ -14,6 +22,7 @@ export interface EmailContent {
   preheader?: string
 }
 
+/** The site's legacy 4-char escape — kept so output stays byte-identical. */
 function escapeHtml(s: string): string {
   return s
     .replaceAll('&', '&amp;')
@@ -33,11 +42,16 @@ export function renderEmail(c: EmailContent): string {
       ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin: 24px 0 4px;"><tr><td bgcolor="#F7D447" style="border-radius: 10px;"><a href="${escapeHtml(c.actionUrl)}" target="_blank" rel="noopener" style="display: inline-block; padding: 12px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 600; color: #1c1917; text-decoration: none; border-radius: 10px;">${escapeHtml(c.actionLabel)}</a></td></tr></table>`
       : ''
 
-  return template
-    .replaceAll('{{PREHEADER}}', escapeHtml(c.preheader ?? ''))
-    .replaceAll('{{TITLE}}', escapeHtml(c.title))
-    .replaceAll('{{BODY}}', c.bodyHtml)
-    .replaceAll('{{ACTION_BLOCK}}', action)
-    .replaceAll('{{YEAR}}', String(new Date().getUTCFullYear()))
-    .replaceAll('{{LOGO}}', logo ?? '')
+  return renderTemplate(
+    template,
+    {},
+    {
+      PREHEADER: escapeHtml(c.preheader ?? ''),
+      TITLE: escapeHtml(c.title),
+      BODY: c.bodyHtml,
+      ACTION_BLOCK: action,
+      YEAR: String(new Date().getUTCFullYear()),
+      LOGO: logo ?? '',
+    },
+  )
 }

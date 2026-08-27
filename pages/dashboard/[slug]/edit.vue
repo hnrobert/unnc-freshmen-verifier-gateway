@@ -7,22 +7,27 @@ const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
 // Page-level awaits (context-safe via Suspense); the results are handed to the
-// sync useOrgDraft composable.
+// sync usePageDraft composable.
 const { data: access } = await useFetch<{ role: string | null; rank: number }>(
-  () => `/api/orgs/${slug.value}/access`,
+  () => `/api/pages/${slug.value}/access`,
   { watch: [slug] },
 )
 const { data: raw } = await useAsyncData(
-  () => `org-edit:${slug.value}`,
-  () => useRequestFetch()<SiteConfig>(`/api/orgs/${slug.value}/config?edit=1`),
+  () => `page-edit:${slug.value}`,
+  () => useRequestFetch()<SiteConfig>(`/api/pages/${slug.value}/config?edit=1`),
   { watch: [slug] },
 )
-if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
+if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
 
-const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscard } = useOrgDraft(
+const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscard } = usePageDraft(
   raw.value,
   access,
 )
+
+// The Name & URL card renders its own SaveBar (separate save path) — track its
+// dirty state so this page's config SaveBar can yield while it's up.
+const nameCard = ref<{ isDirty: boolean } | null>(null)
+const nameCardDirty = computed(() => !!nameCard.value?.isDirty)
 </script>
 
 <template>
@@ -30,15 +35,17 @@ const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscar
     <StatusAlert
       v-if="!canEdit"
       variant="error"
-      message="You have view-only access to this organization. Changes can't be saved."
+      message="You have view-only access to this page. Changes can't be saved."
     />
     <div class="space-y-8">
       <ConfigEditor mode="basic" />
-      <OrgNameSlugCard :key="slug" :slug="slug" />
+      <PageNameSlugCard ref="nameCard" :key="slug" :slug="slug" />
     </div>
 
+    <!-- Hidden while the Name & URL card has its own unsaved changes — two
+         fixed bottom bars must never stack (the card renders its own SaveBar). -->
     <SaveBar
-      v-if="canEdit"
+      v-if="canEdit && !nameCardDirty"
       :dirty="isDirty"
       :saving="saving"
       :saved="saved"

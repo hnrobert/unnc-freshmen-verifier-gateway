@@ -3,7 +3,7 @@ import type { Locale } from '#shared/types'
 import defaultConfig from '#shared/lib/defaultConfig'
 import { escapeI18nMessages } from '#shared/lib/escapeMessage'
 
-// Dashboard/editor UI labels (always available, not per-org).
+// Dashboard/editor UI labels (always available, not per-page).
 const dashboardMessages: Record<Locale, Record<string, unknown>> = {
   zh: {
     editor: {
@@ -13,12 +13,17 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       defaultLocale: '默认',
       backgroundImage: '背景图片',
       uploadBackground: '上传背景',
+      updateBackground: '更新背景',
+      deleteImage: '删除当前图片',
+      deleteImageConfirm: '确定删除当前图片吗？此操作会移除已存储的图片文件。',
+      imageDeleted: '图片已删除',
       overlay: '遮罩',
       remove: '移除',
       preview: '预览',
       bgCoverHint: '背景铺满 + 遮罩',
       welcomeImage: '欢迎图片',
       uploadWelcome: '上传欢迎图片',
+      updateWelcome: '更新欢迎图片',
       maxWidth: '最大宽度',
       radius: '圆角',
       actualSizeHint: '实际尺寸与圆角',
@@ -26,16 +31,6 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       watermarkHint: '在欢迎图片上叠加访客姓名 / 邮箱前缀（用于追踪转发）',
       expiresAt: '到期日期',
       expiresAtHint: '二维码的有效期（上传图片或启动时会自动识别，也可手动修改）',
-      reminders: '到期提醒',
-      remindersHint: '在所选时间（组织时区，默认中午 12:00）向已开启提醒的成员发送邮件',
-      reminder3d: '过期前 3 天',
-      reminder2d: '过期前 2 天',
-      reminder1d: '过期前 1 天',
-      reminderDayOf: '当天',
-      reminderTime: '提醒时间',
-      reminderTz: '提醒时区',
-      remindersFireAt: '提醒触发时间',
-      serverTime: '服务器当前时间',
       imageUploaded: '图片已上传并保存',
       welcomeUploadedDetected: '图片已上传并保存，已识别到期时间：{date}',
       welcomeUploadedNotDetected: '图片已上传并保存，但未识别到到期时间，可在「到期日期」手动设置',
@@ -48,7 +43,7 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       welcomeBody: '正文',
       welcomeExtra: '欢迎页（额外）',
       welcomeImageAlt: '图片描述',
-      welcomeBack: '返回',
+      welcomeHome: '主页按钮',
       verifyPage: '验证页',
       verifyHeading: '标题',
       verifySubheading: '副标题',
@@ -121,9 +116,9 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       navHow: '流程',
       navSecurity: '安全',
       navSource: '源码',
-      badge: '为 UNNC 学生组织打造',
+      badge: '为 UNNC 学子打造',
       title: '让代写有多远滚多远',
-      subtitle: '为每一个学生组织定制专属的入群验证页面',
+      subtitle: '为每一个团队定制专属的入群验证页',
       cta: '进入控制台',
       secondary: '查看源码',
       featuresTitle: '一个平台，覆盖验证的全流程',
@@ -131,20 +126,20 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       f1Title: '实时核验',
       f1Desc:
         "新生服务端直连 UNNC 新生查询门户，秒级返回录取状态；老生可用 {'@'}nottingham.edu.cn 邮件验证身份。",
-      f2Title: '每个组织，专属页面',
+      f2Title: '每个验证页，独立定制',
       f2Desc: '可定制的双语验证与欢迎页：主题色、图标、欢迎图片与 Markdown 文案，皆可配置。',
       f3Title: '协作与权限',
-      f3Desc: '邀请成员加入组织，按角色管理，邮箱验证保障账户安全。',
+      f3Desc: '邀请成员加入验证页，按角色管理，邮箱验证保障账户安全。',
       f4Title: '访问分析',
-      f4Desc: '查看浏览量、验证次数与访客画像，所有组织一目了然。',
+      f4Desc: '查看浏览量、验证次数与访客画像，所有验证页一目了然。',
       f5Title: '邮件系统',
       f5Desc: '验证码、邀请、到期提醒，文案均可自定义，支持 SMTP 与 POST。',
       f6Title: '二维码到期检测',
       f6Desc: 'OCR 自动识别海报上的到期日期，接受时段可自定义。',
       howTitle: '三步上线',
-      howSubtitle: '从创建组织到向新生开放，几分钟即可完成。',
-      step1Title: '创建组织',
-      step1Desc: '登录后创建你的学生组织，配置品牌、主题与验证页文案。',
+      howSubtitle: '从创建验证页到向新生开放，几分钟即可完成。',
+      step1Title: '创建验证页',
+      step1Desc: '登录后创建你的验证页，配置品牌、主题与文案。',
       step2Title: '分享链接',
       step2Desc: '把专属链接发给新生，他们填入姓名与准考证号即可验证。',
       step3Title: '实时验证',
@@ -160,8 +155,8 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       s3Desc: '与 UNNC 录取门户的查询全部在服务端完成，新生的凭证永远不会出现在浏览器里。',
       s4Title: '最小化数据',
       s4Desc: '地区由浏览器语言推断、不做 GeoIP 定位，原始访问日志 90 天后自动清理。',
-      ctaBandTitle: '准备好为你的组织搭建验证页了吗？',
-      ctaBandDesc: '登录即可创建组织，开始定制属于你的验证页面。',
+      ctaBandTitle: '准备好搭建你的验证页了吗？',
+      ctaBandDesc: '登录即可创建验证页，开始定制属于你的页面。',
       themeToggle: '切换主题',
     },
   },
@@ -173,12 +168,17 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       defaultLocale: 'Default',
       backgroundImage: 'Background Image',
       uploadBackground: 'Upload Background',
+      updateBackground: 'Update Background',
+      deleteImage: 'Delete current image',
+      deleteImageConfirm: 'Delete the current image? The stored file will be removed.',
+      imageDeleted: 'Image deleted',
       overlay: 'Overlay',
       remove: 'Remove',
       preview: 'Preview',
       bgCoverHint: 'Background-cover + overlay',
       welcomeImage: 'Welcome Image',
       uploadWelcome: 'Upload Welcome Image',
+      updateWelcome: 'Update Welcome Image',
       maxWidth: 'Max Width',
       radius: 'Radius',
       actualSizeHint: 'Actual size & radius',
@@ -187,16 +187,6 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
         'Overlay the visitor name / email prefix onto the welcome image (tracks forwarding)',
       expiresAt: 'Expiry date',
       expiresAtHint: 'QR validity date (auto-detected on upload/startup; manually editable)',
-      reminders: 'Expiry reminders',
-      remindersHint: 'Email opted-in members at the selected times (12:00 in the org timezone)',
-      reminder3d: '3 days before',
-      reminder2d: '2 days before',
-      reminder1d: '1 day before',
-      reminderDayOf: 'On the day',
-      reminderTime: 'Reminder time',
-      reminderTz: 'Reminder timezone',
-      remindersFireAt: 'Reminders fire at',
-      serverTime: 'Server time',
       imageUploaded: 'Image uploaded and saved',
       welcomeUploadedDetected: 'Image uploaded and saved. Detected expiry: {date}',
       welcomeUploadedNotDetected:
@@ -210,7 +200,7 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       welcomeBody: 'Body',
       welcomeExtra: 'Welcome Page (Extra)',
       welcomeImageAlt: 'Image Alt',
-      welcomeBack: 'Back',
+      welcomeHome: 'Home button',
       verifyPage: 'Verify Page',
       verifyHeading: 'Heading',
       verifySubheading: 'Subheading',
@@ -283,9 +273,9 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       navHow: 'How it works',
       navSecurity: 'Security',
       navSource: 'Source',
-      badge: 'Built for UNNC student orgs',
+      badge: 'Built for UNNC students',
       title: 'PISS OFF, Ghostwriting',
-      subtitle: 'A dedicated verification page for every student org',
+      subtitle: 'A dedicated verification page for every team',
       cta: 'Go to dashboard',
       secondary: 'View source',
       featuresTitle: 'One platform for the whole verification flow',
@@ -294,13 +284,13 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       f1Title: 'Real-time verification',
       f1Desc:
         "Server-side checks against the live UNNC admission portal confirm admission status in seconds for freshmen; returning students verify via their {'@'}nottingham.edu.cn email.",
-      f2Title: 'A dedicated page per org',
+      f2Title: 'Every page, fully customizable',
       f2Desc:
         'Customizable bilingual verify and welcome pages: theme color, icons, welcome image and Markdown copy, all configurable.',
       f3Title: 'Collaboration & roles',
       f3Desc: 'Invite members, manage by role, with email verification to keep accounts safe.',
       f4Title: 'Visit analytics',
-      f4Desc: 'Track views, verifications and visitor profiles across every org at a glance.',
+      f4Desc: 'Track views, verifications and visitor profiles across every page at a glance.',
       f5Title: 'Email system',
       f5Desc:
         'Verification codes, invitations and expiry reminders — all copy customizable, SMTP and POST supported.',
@@ -308,10 +298,9 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       f6Desc:
         'OCR auto-detects the expiry date on posters and reminds on schedule, customizable notification frequency and time window.',
       howTitle: 'Up in three steps',
-      howSubtitle: 'From creating an org to opening it up to freshmen in minutes.',
-      step1Title: 'Create an org',
-      step1Desc:
-        'Sign in, create your student org, and configure the brand, theme and verify-page copy.',
+      howSubtitle: 'From creating a page to opening it up to freshmen in minutes.',
+      step1Title: 'Create a page',
+      step1Desc: 'Sign in, create your page, and configure the brand, theme and copy.',
       step2Title: 'Share the link',
       step2Desc: 'Send your dedicated link to freshmen — they enter their name and ID to verify.',
       step3Title: 'Verify in real time',
@@ -332,16 +321,16 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       s4Title: 'Minimal data',
       s4Desc:
         'Region is inferred from browser language with no GeoIP tracking, and raw event logs are pruned after 90 days.',
-      ctaBandTitle: 'Ready to set up verification for your org?',
-      ctaBandDesc: 'Sign in to create an org and start customizing your own verification page.',
+      ctaBandTitle: 'Ready to set up your verification page?',
+      ctaBandDesc: 'Sign in to create your page and start customizing it.',
       themeToggle: 'Toggle theme',
     },
   },
 }
 
-// Deep-merge the default org config's messages (brand.title, welcome.badge,
-// etc.) into the base so they're always present — even before an org layout
-// calls `applyOrgI18n`. Org-specific messages are merged on top later.
+// Deep-merge the default page config's messages (brand.title, welcome.badge,
+// etc.) into the base so they're always present — even before an page layout
+// calls `applyPageI18n`. Page-specific messages are merged on top later.
 function deepMerge(
   base: Record<string, unknown>,
   override: Record<string, unknown>,
@@ -363,8 +352,8 @@ function deepMerge(
 
 const messages = structuredClone(dashboardMessages) as Record<Locale, Record<string, unknown>>
 for (const loc of defaultConfig.locales) {
-  const orgDefaults = escapeI18nMessages(defaultConfig.messages[loc]) as Record<string, unknown>
-  messages[loc] = deepMerge(messages[loc] ?? {}, orgDefaults)
+  const pageDefaults = escapeI18nMessages(defaultConfig.messages[loc]) as Record<string, unknown>
+  messages[loc] = deepMerge(messages[loc] ?? {}, pageDefaults)
 }
 
 export default defineNuxtPlugin((nuxtApp) => {

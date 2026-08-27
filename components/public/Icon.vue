@@ -18,28 +18,47 @@ const slug = computed(() => route.params.slug as string | undefined)
 
 const isImg = computed(() => isImageIcon(props.spec))
 const rawImg = computed(() => (isImg.value ? (props.spec as { img: string }).img : ''))
-const lucideComp = computed(() => (isImg.value ? null : resolveIcon(props.spec) ?? FALLBACK_ICON))
+const lucideComp = computed(() => (isImg.value ? null : (resolveIcon(props.spec) ?? FALLBACK_ICON)))
 const sizePx = computed(() => (typeof props.size === 'number' ? `${props.size}px` : props.size))
 
 // Image loading state
 const imgSrc = ref('')
 const imgError = ref(false)
 
-watch(rawImg, (val) => {
-  imgError.value = false
-  if (!val) { imgSrc.value = ''; return }
-  if (!val.startsWith('img:')) { imgSrc.value = val; return }
-  const key = val.slice(4)
-  const s = slug.value
-  if (!s) { imgError.value = true; return }
-  $fetch<{ mime: string; base64: string }>(`/api/orgs/${s}/img/${key}`)
-    .then((res) => { imgSrc.value = `data:${res.mime};base64,${res.base64}` })
-    .catch(() => { imgError.value = true })
-}, { immediate: true })
+watch(
+  rawImg,
+  (val) => {
+    imgError.value = false
+    if (!val) {
+      imgSrc.value = ''
+      return
+    }
+    if (!val.startsWith('img:')) {
+      imgSrc.value = val
+      return
+    }
+    const key = val.slice(4)
+    const s = slug.value
+    if (!s) {
+      imgError.value = true
+      return
+    }
+    $fetch<{ mime: string; base64: string }>(`/api/pages/${s}/img/${key}`)
+      .then((res) => {
+        imgSrc.value = `data:${res.mime};base64,${res.base64}`
+      })
+      .catch(() => {
+        imgError.value = true
+      })
+  },
+  { immediate: true },
+)
 
 // Show lucide icon if: not an image, image errored, or image still loading
 const showFallback = computed(() => !isImg.value || imgError.value || !imgSrc.value)
-const fallbackComp = computed(() => imgError.value ? IMAGE_ERROR_ICON : lucideComp.value ?? FALLBACK_ICON)
+const fallbackComp = computed(() =>
+  imgError.value ? IMAGE_ERROR_ICON : (lucideComp.value ?? FALLBACK_ICON),
+)
 </script>
 
 <template>

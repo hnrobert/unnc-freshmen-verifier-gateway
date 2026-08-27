@@ -1,4 +1,5 @@
 import { saveMailConfig, mailConfigToClient, type MailConfigInput } from '#server/utils/mail'
+import { FieldMapSchema } from 'email-poster'
 
 const clampInt = (v: unknown, fallback: number, min = 1, max = 65535): number => {
   const n = Number(v)
@@ -17,6 +18,30 @@ export default defineEventHandler(async (event) => {
     typeof body?.provider === 'string' && (PROVIDERS as readonly string[]).includes(body.provider)
       ? body.provider
       : 'smtp'
+
+  // postFieldMap: email-poster FieldMap JSON (logical field → downstream key).
+  // Validate non-empty values so a malformed map can never be persisted (the
+  // body XOR rule — `body` vs `bodyHtml`/`bodyText` — is enforced here too).
+  let postFieldMap = ''
+  if (typeof body?.postFieldMap === 'string' && body.postFieldMap.trim() !== '') {
+    let parsedJson: unknown
+    try {
+      parsedJson = JSON.parse(body.postFieldMap)
+    } catch {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid field map: not valid JSON' })
+    }
+    const fm = FieldMapSchema.safeParse(parsedJson)
+    if (!fm.success) {
+      throw createError({
+        statusCode: 400,
+        statusMessage:
+          'Invalid field map: ' +
+          fm.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; '),
+      })
+    }
+    // Store canonical form (only known logical keys, XOR already resolved).
+    postFieldMap = JSON.stringify(fm.data)
+  }
 
   const patch: MailConfigInput = {
     provider,
@@ -38,6 +63,7 @@ export default defineEventHandler(async (event) => {
       (SCHEMAS as readonly string[]).includes(body.postSchema)
         ? body.postSchema
         : 'smtogo',
+    postFieldMap,
   }
   // Secrets only updated when a non-empty string is supplied.
   if (typeof body?.senderPassword === 'string' && body.senderPassword !== '') {
