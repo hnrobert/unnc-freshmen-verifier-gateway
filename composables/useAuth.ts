@@ -15,10 +15,10 @@ export interface PasskeyInfo {
 export function useAuth() {
   const user = useState<AuthUser | null>('user', () => null)
 
-  async function login(email: string, password: string): Promise<void> {
+  async function login(email: string, password: string, trustBrowser = false): Promise<void> {
     const res = await $fetch<{ user: AuthUser }>('/api/auth/login', {
       method: 'POST',
-      body: { email, password },
+      body: { email, password, trustBrowser },
     })
     user.value = res.user
   }

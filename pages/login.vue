@@ -9,6 +9,14 @@ const loading = ref(false)
 const pkSupported = ref(false)
 const pkLoading = ref(false)
 
+// School-email accounts may also mark this browser as visitor-trusted (skip
+// public-page re-verification) — offered as an opt-in checkbox, only shown
+// when the typed email is @nottingham.edu.cn (the server re-checks).
+const trustBrowser = ref(false)
+const isSchoolEmail = computed(() =>
+  email.value.trim().toLowerCase().endsWith('@nottingham.edu.cn'),
+)
+
 // Passkeys need a secure context (HTTPS or localhost) — hide the button where
 // the browser can't use WebAuthn at all.
 onMounted(async () => {
@@ -19,7 +27,7 @@ onMounted(async () => {
 async function onSubmit() {
   loading.value = true
   try {
-    await login(email.value, password.value)
+    await login(email.value, password.value, trustBrowser.value)
     toast.success('Logged in')
     await navigateTo((route.query.redirect as string) || '/dashboard')
   } catch (e: unknown) {
@@ -73,6 +81,22 @@ async function onPasskey() {
             :disabled="loading"
           />
         </div>
+        <label
+          v-if="isSchoolEmail"
+          class="flex items-center gap-2 text-sm"
+          :class="loading ? 'opacity-60' : ''"
+        >
+          <input
+            type="checkbox"
+            class="size-4 shrink-0"
+            style="accent-color: var(--primary)"
+            v-model="trustBrowser"
+            :disabled="loading"
+          />
+          <span class="text-muted-foreground"
+            >Trust this browser (skip re-verification on this site)</span
+          >
+        </label>
         <Button type="submit" :disabled="loading" class="mt-1">
           {{ loading ? 'Logging in…' : 'Log in' }}
         </Button>
