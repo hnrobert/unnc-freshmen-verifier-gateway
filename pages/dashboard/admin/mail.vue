@@ -58,8 +58,8 @@ watch(
 )
 const mailPassword = ref('')
 const postAuthToken = ref('')
+// Mirrored from GuardedSave so the inputs can disable themselves mid-save.
 const mailSaving = ref(false)
-const mailSaved = ref(false)
 const mailTesting = ref(false)
 const testRecipient = ref(authUser.value?.email ?? '')
 /**
@@ -92,11 +92,7 @@ const canTest = computed(() =>
     ? !!mail.value.postUrl
     : !!mail.value.smtpServer && (mail.value.hasPassword || mailPassword.value !== ''),
 )
-const { confirmLeave, proceed } = useUnsavedLeaveGuard(mailDirty, mailSaving)
-
-async function onSaveMail() {
-  mailSaving.value = true
-  mailSaved.value = false
+async function onSaveMail(): Promise<boolean> {
   try {
     const res = await $fetch<MailConfigView>('/api/mail/config', {
       method: 'PUT',
@@ -110,12 +106,10 @@ async function onSaveMail() {
     mailOriginal.value = { ...res }
     mailPassword.value = ''
     postAuthToken.value = ''
-    mailSaved.value = true
-    setTimeout(() => (mailSaved.value = false), 2000)
+    return true
   } catch (e) {
     toast.error(messageFromError(e, 'Save failed'))
-  } finally {
-    mailSaving.value = false
+    return false
   }
 }
 function discardMail() {
@@ -144,7 +138,7 @@ async function onSendTest() {
 <template>
   <div>
     <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Mail</h1>
-    <div class="mt-6 pb-24">
+    <div class="mt-6">
       <Card>
         <CardHeader>
           <CardTitle class="text-base">Outgoing mail</CardTitle>
@@ -324,29 +318,11 @@ async function onSendTest() {
       </Card>
     </div>
 
-    <SaveBar
+    <GuardedSave
+      v-model:saving="mailSaving"
       :dirty="mailDirty"
-      :saving="mailSaving"
-      :saved="mailSaved"
-      @save="onSaveMail"
-      @discard="discardMail"
-    />
-    <UnsavedLeaveDialog
-      :open="confirmLeave"
-      :saving="mailSaving"
-      @stay="confirmLeave = false"
-      @discard="
-        () => {
-          discardMail()
-          proceed()
-        }
-      "
-      @save="
-        async () => {
-          await onSaveMail()
-          proceed()
-        }
-      "
+      :on-save="onSaveMail"
+      :on-discard="discardMail"
     />
   </div>
 </template>

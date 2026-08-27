@@ -40,8 +40,6 @@ const draft = ref({
   reminderTime: originalTime.value,
   tz: originalTz.value as string | null,
 })
-const saving = ref(false)
-const saved = ref(false)
 
 function slotsEqual(a: ReminderSlot[], b: ReminderSlot[]): boolean {
   if (a.length !== b.length) return false
@@ -60,8 +58,8 @@ const isDirty = computed(
     !slotsEqual(draft.value.reminderSlots, originalSlots.value),
 )
 
-// Unsaved-changes prompt on leave (matches the config editor).
-const { confirmLeave, proceed } = useUnsavedLeaveGuard(isDirty, saving)
+// Mirrored from GuardedSave so the inputs can disable themselves mid-save.
+const saving = ref(false)
 
 // --- Email verification code (sent to the NEW address to prove ownership) ---
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
@@ -101,10 +99,10 @@ async function sendEmailCode(): Promise<void> {
   }
 }
 
-async function onSave(): Promise<void> {
+async function onSave(): Promise<boolean> {
   if (draft.value.newPassword !== draft.value.confirm) {
     toast.error('New passwords do not match')
-    return
+    return false
   }
 
   const body: Record<string, unknown> = {}
@@ -115,7 +113,7 @@ async function onSave(): Promise<void> {
   if (wantEmail && wantEmail !== originalEmail.value) {
     if (!codeSentTo.value || codeSentTo.value !== wantEmail || !emailCode.value) {
       toast.error('Enter the verification code sent to your new email')
-      return
+      return false
     }
     body.email = wantEmail
     body.code = emailCode.value
@@ -133,10 +131,8 @@ async function onSave(): Promise<void> {
   if (!slotsEqual(draft.value.reminderSlots, originalSlots.value))
     body.reminderSlots = draft.value.reminderSlots
 
-  if (Object.keys(body).length === 0) return
+  if (Object.keys(body).length === 0) return false
 
-  saving.value = true
-  saved.value = false
   try {
     const res = await $fetch<MeData>('/api/auth/me', { method: 'PATCH', body })
     originalEmail.value = res.user.email
@@ -157,12 +153,10 @@ async function onSave(): Promise<void> {
     }
     emailCode.value = ''
     codeSentTo.value = null
-    saved.value = true
-    setTimeout(() => (saved.value = false), 2000)
+    return true
   } catch (e) {
     toast.error(messageFromError(e, 'Failed to save'))
-  } finally {
-    saving.value = false
+    return false
   }
 }
 
@@ -280,7 +274,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-3xl space-y-8 pb-24">
+  <div class="mx-auto w-full max-w-3xl space-y-8">
     <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Settings</h1>
 
     <!-- Notifications -->
@@ -519,26 +513,12 @@ onMounted(() => {
       </CardContent>
     </Card>
 
-    <!-- Sticky save/discard bar (dirty tracking + save logic live in this page) -->
-    <SaveBar :dirty="isDirty" :saving="saving" :saved="saved" @save="onSave" @discard="onDiscard" />
-
-    <!-- Unsaved changes leave dialog -->
-    <UnsavedLeaveDialog
-      :open="confirmLeave"
-      :saving="saving"
-      @stay="confirmLeave = false"
-      @discard="
-        () => {
-          onDiscard()
-          proceed()
-        }
-      "
-      @save="
-        async () => {
-          await onSave()
-          proceed()
-        }
-      "
+    <!-- Save bar + leave guard + saving lifecycle (page owns the draft) -->
+    <GuardedSave
+      v-model:saving="saving"
+      :dirty="isDirty"
+      :on-save="onSave"
+      :on-discard="onDiscard"
     />
   </div>
 </template>

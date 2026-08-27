@@ -58,8 +58,8 @@ function seedDraft(d: NotifResult | null | undefined): Draft {
 }
 const original = ref<Draft>(seedDraft(data.value))
 const draft = ref<Draft>(seedDraft(data.value))
+// Mirrored from GuardedSave so the controls can disable themselves mid-save.
 const saving = ref(false)
-const saved = ref(false)
 
 function slotsEqual(a: ReminderSlot[], b: ReminderSlot[]): boolean {
   if (a.length !== b.length) return false
@@ -72,9 +72,6 @@ const isDirty = computed(
     draft.value.time !== original.value.time ||
     !slotsEqual(draft.value.slots, original.value.slots),
 )
-
-// Unsaved-changes prompt on leave (matches the config editor + Settings).
-const { confirmLeave, proceed } = useUnsavedLeaveGuard(isDirty, saving)
 
 // In inherit mode the controls render the resolved effective schedule (disabled,
 // read-only); in custom mode they render the editable draft.
@@ -113,9 +110,7 @@ function reseed(): void {
   draft.value = seedDraft(data.value)
 }
 
-async function onSave(): Promise<void> {
-  saving.value = true
-  saved.value = false
+async function onSave(): Promise<boolean> {
   try {
     await $fetch(`/api/pages/${slug.value}/me/notifications`, {
       method: 'PATCH',
@@ -129,12 +124,10 @@ async function onSave(): Promise<void> {
     })
     await refresh()
     reseed()
-    saved.value = true
-    setTimeout(() => (saved.value = false), 2000)
+    return true
   } catch (e) {
     toast.error(messageFromError(e, 'Could not save'))
-  } finally {
-    saving.value = false
+    return false
   }
 }
 
@@ -144,7 +137,7 @@ function onDiscard(): void {
 </script>
 
 <template>
-  <div class="space-y-6 pb-24">
+  <div class="space-y-6">
     <div>
       <h2 class="text-lg font-semibold tracking-tight">Notifications</h2>
       <p class="mt-1 text-sm text-muted-foreground">
@@ -194,26 +187,11 @@ function onDiscard(): void {
       </CardContent>
     </Card>
 
-    <!-- Sticky save/discard bar (dirty tracking + save logic live in this page) -->
-    <SaveBar :dirty="isDirty" :saving="saving" :saved="saved" @save="onSave" @discard="onDiscard" />
-
-    <!-- Unsaved changes leave dialog -->
-    <UnsavedLeaveDialog
-      :open="confirmLeave"
-      :saving="saving"
-      @stay="confirmLeave = false"
-      @discard="
-        () => {
-          onDiscard()
-          proceed()
-        }
-      "
-      @save="
-        async () => {
-          await onSave()
-          proceed()
-        }
-      "
+    <GuardedSave
+      v-model:saving="saving"
+      :dirty="isDirty"
+      :on-save="onSave"
+      :on-discard="onDiscard"
     />
   </div>
 </template>

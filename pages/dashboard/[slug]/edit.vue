@@ -19,10 +19,7 @@ const { data: raw } = await useAsyncData(
 )
 if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
 
-const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscard } = usePageDraft(
-  raw.value,
-  access,
-)
+const { isDirty, canEdit, onSave, onDiscard } = usePageDraft(raw.value, access)
 
 // The Name & URL card renders its own SaveBar (separate save path) — track its
 // dirty state so this page's config SaveBar can yield while it's up.
@@ -31,7 +28,7 @@ const nameCardDirty = computed(() => !!nameCard.value?.isDirty)
 </script>
 
 <template>
-  <div class="pb-24">
+  <div>
     <StatusAlert
       v-if="!canEdit"
       variant="error"
@@ -43,31 +40,12 @@ const nameCardDirty = computed(() => !!nameCard.value?.isDirty)
     </div>
 
     <!-- Hidden while the Name & URL card has its own unsaved changes — two
-         fixed bottom bars must never stack (the card renders its own SaveBar). -->
-    <SaveBar
+         fixed bottom bars must never stack. -->
+    <GuardedSave
       v-if="canEdit && !nameCardDirty"
       :dirty="isDirty"
-      :saving="saving"
-      :saved="saved"
-      @save="onSave"
-      @discard="onDiscard"
-    />
-    <UnsavedLeaveDialog
-      :open="confirmLeave"
-      :saving="saving"
-      @stay="confirmLeave = false"
-      @discard="
-        () => {
-          onDiscard()
-          proceed()
-        }
-      "
-      @save="
-        async () => {
-          await onSave()
-          proceed()
-        }
-      "
+      :on-save="onSave"
+      :on-discard="onDiscard"
     />
   </div>
 </template>
