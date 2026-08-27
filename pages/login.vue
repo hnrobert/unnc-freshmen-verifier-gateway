@@ -93,9 +93,7 @@ async function onPasskey() {
             v-model="trustBrowser"
             :disabled="loading"
           />
-          <span class="text-muted-foreground"
-            >Trust this browser (skip re-verification on this site)</span
-          >
+          <span class="text-muted-foreground">Trust this browser (skip re-verification)</span>
         </label>
         <Button type="submit" :disabled="loading" class="mt-1">
           {{ loading ? 'Logging in…' : 'Log in' }}
