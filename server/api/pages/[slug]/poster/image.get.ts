@@ -59,7 +59,8 @@ export default defineEventHandler(async (event) => {
     borderRadius: queryNumber(q.borderRadius) ?? stored?.borderRadius,
   })
 
-  const title = resolvePosterTitle(settings.title, config, page.name)
+  const titleConfig = stored ? { ...config, share: { ...config.share, posterTitle: '' } } : config
+  const title = resolvePosterTitle(settings.title, titleConfig, page.name)
   const palette = posterPalette(
     settings.theme === 'dark' ? 'dark' : settings.theme,
     config.theme.primaryColor ?? '#F7D447',
