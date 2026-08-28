@@ -65,6 +65,18 @@ const { data: rawConfig } = await useFetch<SiteConfig>(
   () => `/api/pages/${slug.value}/config?edit=1`,
   { watch: [slug] },
 )
+interface ShareSettings {
+  title: string
+  fontSize: number
+  width: number
+  height: number
+  borderWidth: number
+  borderRadius: number
+}
+const { data: storedShare, refresh: refreshShare } = await useFetch<ShareSettings>(
+  () => `/api/pages/${slug.value}/share-settings`,
+  { watch: [slug] },
+)
 const { data: pubConfig } = await useFetch<SiteConfig>(() => `/api/pages/${slug.value}/config`, {
   watch: [slug],
 })
@@ -76,9 +88,14 @@ const brandTitle = computed(() => {
   const pageName = myPages.value?.pages.find((p) => p.slug === slug.value)?.name ?? slug.value
   return (brand.title ?? '').trim() || pageName
 })
-const storedPosterTitle = computed(() => (rawConfig.value?.share?.posterTitle ?? '').trim())
+const storedPosterTitle = computed(() => (storedShare.value?.title ?? '').trim())
 
-const posterTitle = ref('')
+const posterTitle = ref(storedShare.value?.title ?? '')
+const posterFontSize = ref(storedShare.value?.fontSize ?? 60)
+const embedWidth = ref(storedShare.value?.width ?? 480)
+const embedHeight = ref(storedShare.value?.height ?? 680)
+const embedBorderWidth = ref(storedShare.value?.borderWidth ?? 0)
+const embedBorderRadius = ref(storedShare.value?.borderRadius ?? 12)
 const posterTheme = ref<PosterTheme>('page')
 const themeLabels: Record<PosterTheme, string> = {
   page: 'Page background',
@@ -154,10 +171,12 @@ function drawPoster(): void {
   // (Microsoft-Forms portrait layout).
   ctx.textAlign = 'center'
   ctx.fillStyle = palette.text
-  ctx.font = `700 60px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`
-  const lines = wrapTitle(effectiveTitle.value, 60, 880, 3)
-  const startY = POSTER_TITLE_CENTER + 30 - ((lines.length - 1) * 74) / 2
-  lines.forEach((l, i) => ctx.fillText(l, POSTER_W / 2, startY + i * 74))
+  const fontSize = Math.min(160, Math.max(20, posterFontSize.value))
+  const lineHeight = Math.round(fontSize * 1.23)
+  ctx.font = `700 ${fontSize}px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`
+  const lines = wrapTitle(effectiveTitle.value, fontSize, 880, 3)
+  const startY = POSTER_TITLE_CENTER + fontSize / 2 - ((lines.length - 1) * lineHeight) / 2
+  lines.forEach((l, i) => ctx.fillText(l, POSTER_W / 2, startY + i * lineHeight))
 
   // QR card (large, horizontally centered, white rounded card)
   const cardX = (POSTER_W - POSTER_QR_CARD) / 2
@@ -191,7 +210,7 @@ function roundRect(
 // outside the effect's tracking scope — without this line changing the theme/
 // title/background would never re-render.
 watchEffect(() => {
-  void [posterTheme.value, effectiveTitle.value, bgImage.value, qrImage.value]
+  void [posterTheme.value, effectiveTitle.value, posterFontSize.value, bgImage.value, qrImage.value]
   if (import.meta.client && canvasEl.value) {
     rendering.value = true
     requestAnimationFrame(() => {
@@ -220,6 +239,9 @@ const posterQuery = computed(() => {
   const params = new URLSearchParams()
   if (posterTitle.value.trim()) params.set('title', posterTitle.value.trim())
   if (posterTheme.value !== 'page') params.set('theme', posterTheme.value)
+  params.set('fontSize', String(posterFontSize.value))
+  params.set('borderWidth', String(embedBorderWidth.value))
+  params.set('borderRadius', String(embedBorderRadius.value))
   const s = params.toString()
   return s ? `?${s}` : ''
 })
@@ -228,7 +250,7 @@ const posterUrl = computed(
 )
 const iframeSnippet = computed(
   () =>
-    `<iframe src="${publicUrl.value.replace(/\/[^/]*$/, '')}/api/pages/${slug.value}/poster${posterQuery.value}" width="480" height="680" style="border:0;border-radius:12px" loading="lazy" title="${effectiveTitle.value.replace(/"/g, '&quot;')}"></iframe>`,
+    `<iframe src="${publicUrl.value.replace(/\/[^/]*$/, '')}/api/pages/${slug.value}/poster${posterQuery.value}" width="${embedWidth.value}" height="${embedHeight.value}" style="max-width:100%;border:0;border-radius:${embedBorderRadius.value}px;overflow:hidden" loading="lazy" title="${effectiveTitle.value.replace(/"/g, '&quot;')}"></iframe>`,
 )
 
 async function copyText(text: string, what: string): Promise<void> {
@@ -240,26 +262,52 @@ async function copyText(text: string, what: string): Promise<void> {
   }
 }
 
-// Persist the custom title as the page's poster default (editor+).
-const savingTitle = ref(false)
-const canSave = computed(() => (access.value?.rank ?? 0) >= 2)
-const titleDirty = computed(() => posterTitle.value.trim() !== storedPosterTitle.value)
+// Persist all share defaults in the dedicated table (editor+).
+const saving = ref(false)
+const canEdit = computed(() => (access.value?.rank ?? 0) >= 2)
+const shareDirty = computed(() => {
+  const saved = storedShare.value
+  if (!saved) return false
+  return (
+    posterTitle.value.trim() !== saved.title ||
+    posterFontSize.value !== saved.fontSize ||
+    embedWidth.value !== saved.width ||
+    embedHeight.value !== saved.height ||
+    embedBorderWidth.value !== saved.borderWidth ||
+    embedBorderRadius.value !== saved.borderRadius
+  )
+})
 
-async function savePosterTitle(): Promise<void> {
-  savingTitle.value = true
+function discardShareSettings(): void {
+  const saved = storedShare.value
+  if (!saved) return
+  posterTitle.value = saved.title
+  posterFontSize.value = saved.fontSize
+  embedWidth.value = saved.width
+  embedHeight.value = saved.height
+  embedBorderWidth.value = saved.borderWidth
+  embedBorderRadius.value = saved.borderRadius
+}
+
+async function saveShareSettings(): Promise<boolean> {
   try {
-    const current = await $fetch<SiteConfig>(`/api/pages/${slug.value}/config?edit=1`)
-    current.share = { ...current.share, posterTitle: posterTitle.value.trim() }
-    await $fetch(`/api/pages/${slug.value}/config`, {
+    await $fetch(`/api/pages/${slug.value}/share-settings`, {
       method: 'PUT',
-      body: { config: current },
+      body: {
+        title: posterTitle.value.trim(),
+        fontSize: posterFontSize.value,
+        width: embedWidth.value,
+        height: embedHeight.value,
+        borderWidth: embedBorderWidth.value,
+        borderRadius: embedBorderRadius.value,
+      },
     })
-    toast.success('Poster title saved')
-    await refreshNuxtData() // refresh rawConfig so storedPosterTitle updates
+    await refreshShare()
+    toast.success('Share settings saved')
+    return true
   } catch (e) {
     toast.error(messageFromError(e, 'Could not save'))
-  } finally {
-    savingTitle.value = false
+    return false
   }
 }
 </script>
@@ -280,7 +328,7 @@ async function savePosterTitle(): Promise<void> {
     </div>
 
     <!-- QR + poster generator side by side (Microsoft-Forms share panel feel) -->
-    <div class="grid gap-6 lg:grid-cols-[auto_1fr]">
+    <div class="grid min-w-0 gap-6 lg:grid-cols-[auto_minmax(0,1fr)]">
       <Card class="self-start">
         <CardHeader>
           <CardTitle class="text-base">QR code</CardTitle>
@@ -295,7 +343,7 @@ async function savePosterTitle(): Promise<void> {
       </Card>
 
       <!-- Share poster generator -->
-      <Card>
+      <Card class="min-w-0">
         <CardHeader>
           <CardTitle class="text-base">Share poster</CardTitle>
           <CardDescription>
@@ -314,6 +362,29 @@ async function savePosterTitle(): Promise<void> {
             <p class="text-xs text-muted-foreground">
               Empty uses {{ storedPosterTitle ? 'the saved title' : 'the page title' }}.
             </p>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <label class="grid gap-1.5">
+              <span class="text-sm font-medium">Font size</span>
+              <Input v-model.number="posterFontSize" type="number" min="20" max="160" />
+            </label>
+            <label class="grid gap-1.5">
+              <span class="text-sm font-medium">Width</span>
+              <Input v-model.number="embedWidth" type="number" min="240" max="1920" />
+            </label>
+            <label class="grid gap-1.5">
+              <span class="text-sm font-medium">Height</span>
+              <Input v-model.number="embedHeight" type="number" min="240" max="2160" />
+            </label>
+            <label class="grid gap-1.5">
+              <span class="text-sm font-medium">Border</span>
+              <Input v-model.number="embedBorderWidth" type="number" min="0" max="20" />
+            </label>
+            <label class="grid gap-1.5">
+              <span class="text-sm font-medium">Border radius</span>
+              <Input v-model.number="embedBorderRadius" type="number" min="0" max="160" />
+            </label>
           </div>
 
           <div class="grid gap-1.5">
@@ -341,16 +412,6 @@ async function savePosterTitle(): Promise<void> {
             <Button size="sm" @click="downloadPoster">
               <Icon spec="Download" :size="16" /> Download PNG
             </Button>
-            <Button
-              v-if="canSave"
-              size="sm"
-              variant="outline"
-              :disabled="savingTitle || !titleDirty"
-              @click="savePosterTitle"
-            >
-              <Icon v-if="savingTitle" spec="LoaderCircle" :size="16" class="animate-spin" />
-              <Icon v-else spec="Save" :size="16" /> Save as default title
-            </Button>
           </div>
 
           <div class="grid gap-1.5">
@@ -358,7 +419,7 @@ async function savePosterTitle(): Promise<void> {
             <textarea
               readonly
               rows="3"
-              class="w-full resize-none rounded-md border bg-muted/40 p-2 font-mono text-xs"
+              class="w-full max-w-full resize-none overflow-x-auto rounded-md border bg-muted/40 p-2 font-mono text-xs"
               :value="iframeSnippet"
               @focus="($event.target as HTMLTextAreaElement).select()"
             />
@@ -374,5 +435,12 @@ async function savePosterTitle(): Promise<void> {
         </CardContent>
       </Card>
     </div>
+    <GuardedSave
+      v-if="canEdit"
+      v-model:saving="saving"
+      :dirty="shareDirty"
+      :on-save="saveShareSettings"
+      :on-discard="discardShareSettings"
+    />
   </div>
 </template>

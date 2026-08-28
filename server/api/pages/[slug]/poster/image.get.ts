@@ -13,6 +13,7 @@ import {
   resolvePosterTitle,
   wrapTitle,
 } from '#shared/lib/poster'
+import { loadPageShareSettings } from '#server/utils/pageShareSettings'
 
 /**
  * Public: the share poster as a PNG (Microsoft-Forms-style: page background +
@@ -35,8 +36,15 @@ export default defineEventHandler(async (event) => {
   const config = await loadPageConfig(slug)
   const page = await getPageBySlug(slug)
   if (!page) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
+  const share = await loadPageShareSettings(page.id)
 
-  const title = resolvePosterTitle(String(q.title ?? ''), config, page.name)
+  // The dedicated share row is authoritative. Ignore the legacy JSON title so
+  // saving an empty title correctly restores the page-brand fallback.
+  const title = resolvePosterTitle(
+    String(q.title ?? share.title),
+    { ...config, share: { ...config.share, posterTitle: '' } },
+    page.name,
+  )
   const palette = posterPalette(
     theme === 'dark' ? 'dark' : theme,
     config.theme.primaryColor ?? '#F7D447',
@@ -77,8 +85,11 @@ export default defineEventHandler(async (event) => {
   const scrim = hasPhotoBg
     ? `<rect width="${POSTER_W}" height="${POSTER_H}" fill="rgba(10,10,10,0.5)"/>`
     : ''
-  const fontSize = 60
-  const lineHeight = 74
+  const requestedFontSize = Number(q.fontSize ?? share.fontSize)
+  const fontSize = Number.isFinite(requestedFontSize)
+    ? Math.min(160, Math.max(20, Math.round(requestedFontSize)))
+    : share.fontSize
+  const lineHeight = Math.round(fontSize * 1.23)
   const lines = wrapTitle(title, fontSize, 880, 3)
   const startY = POSTER_TITLE_CENTER + fontSize / 2 - ((lines.length - 1) * lineHeight) / 2
   const titleTspans = lines
