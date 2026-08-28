@@ -7,11 +7,12 @@ import {
   POSTER_QR_TOP,
   POSTER_TITLE_CENTER,
   POSTER_THEMES,
+  normalizeShareSettings,
   posterPalette,
   wrapTitle,
   type PosterTheme,
 } from '#shared/lib/poster'
-import type { SiteConfig } from '#shared/types'
+import type { ShareSettings, SiteConfig } from '#shared/types'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -65,14 +66,6 @@ const { data: rawConfig } = await useFetch<SiteConfig>(
   () => `/api/pages/${slug.value}/config?edit=1`,
   { watch: [slug] },
 )
-interface ShareSettings {
-  title: string
-  fontSize: number
-  width: number
-  height: number
-  borderWidth: number
-  borderRadius: number
-}
 const { data: storedShare, refresh: refreshShare } = await useFetch<ShareSettings>(
   () => `/api/pages/${slug.value}/share-settings`,
   { watch: [slug] },
@@ -171,7 +164,7 @@ function drawPoster(): void {
   // (Microsoft-Forms portrait layout).
   ctx.textAlign = 'center'
   ctx.fillStyle = palette.text
-  const fontSize = Math.min(160, Math.max(20, posterFontSize.value))
+  const fontSize = normalizeShareSettings({ fontSize: posterFontSize.value }).fontSize
   const lineHeight = Math.round(fontSize * 1.23)
   ctx.font = `700 ${fontSize}px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`
   const lines = wrapTitle(effectiveTitle.value, fontSize, 880, 3)
@@ -240,6 +233,8 @@ const posterQuery = computed(() => {
   if (posterTitle.value.trim()) params.set('title', posterTitle.value.trim())
   if (posterTheme.value !== 'page') params.set('theme', posterTheme.value)
   params.set('fontSize', String(posterFontSize.value))
+  params.set('width', String(embedWidth.value))
+  params.set('height', String(embedHeight.value))
   params.set('borderWidth', String(embedBorderWidth.value))
   params.set('borderRadius', String(embedBorderRadius.value))
   const s = params.toString()
@@ -358,6 +353,7 @@ async function saveShareSettings(): Promise<boolean> {
               id="poster-title"
               v-model="posterTitle"
               :placeholder="storedPosterTitle || brandTitle"
+              :disabled="saving"
             />
             <p class="text-xs text-muted-foreground">
               Empty uses {{ storedPosterTitle ? 'the saved title' : 'the page title' }}.
@@ -365,26 +361,61 @@ async function saveShareSettings(): Promise<boolean> {
           </div>
 
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <label class="grid gap-1.5">
-              <span class="text-sm font-medium">Font size</span>
-              <Input v-model.number="posterFontSize" type="number" min="20" max="160" />
-            </label>
-            <label class="grid gap-1.5">
-              <span class="text-sm font-medium">Width</span>
-              <Input v-model.number="embedWidth" type="number" min="240" max="1920" />
-            </label>
-            <label class="grid gap-1.5">
-              <span class="text-sm font-medium">Height</span>
-              <Input v-model.number="embedHeight" type="number" min="240" max="2160" />
-            </label>
-            <label class="grid gap-1.5">
-              <span class="text-sm font-medium">Border</span>
-              <Input v-model.number="embedBorderWidth" type="number" min="0" max="20" />
-            </label>
-            <label class="grid gap-1.5">
-              <span class="text-sm font-medium">Border radius</span>
-              <Input v-model.number="embedBorderRadius" type="number" min="0" max="160" />
-            </label>
+            <div class="grid gap-1.5">
+              <Label for="poster-font-size">Font size</Label>
+              <Input
+                id="poster-font-size"
+                v-model.number="posterFontSize"
+                type="number"
+                min="20"
+                max="160"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-width">Width</Label>
+              <Input
+                id="poster-width"
+                v-model.number="embedWidth"
+                type="number"
+                min="240"
+                max="1920"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-height">Height</Label>
+              <Input
+                id="poster-height"
+                v-model.number="embedHeight"
+                type="number"
+                min="240"
+                max="2160"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-border">Border</Label>
+              <Input
+                id="poster-border"
+                v-model.number="embedBorderWidth"
+                type="number"
+                min="0"
+                max="20"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-border-radius">Border radius</Label>
+              <Input
+                id="poster-border-radius"
+                v-model.number="embedBorderRadius"
+                type="number"
+                min="0"
+                max="160"
+                :disabled="saving"
+              />
+            </div>
           </div>
 
           <div class="grid gap-1.5">

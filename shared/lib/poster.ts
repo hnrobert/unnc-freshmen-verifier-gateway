@@ -1,4 +1,4 @@
-import type { SiteConfig } from '../types'
+import type { ShareSettings, SiteConfig } from '../types'
 
 /**
  * Shared helpers for the share-poster generator (dashboard Share tab) — used
@@ -16,6 +16,38 @@ export const POSTER_QR_CARD = 600
 export const POSTER_QR_TOP = 640
 /** Vertical center of the title zone; lines are stacked around it. */
 export const POSTER_TITLE_CENTER = 340
+
+/** Saved Share-tab defaults (page_share_settings) — one shape for the
+ * dashboard form, the PUT endpoint, and both poster endpoints. */
+export const DEFAULT_SHARE_SETTINGS: ShareSettings = {
+  title: '',
+  fontSize: 60,
+  width: 480,
+  height: 680,
+  borderWidth: 0,
+  borderRadius: 12,
+}
+
+/** Clamp arbitrary input (API body, query params, form refs) into a valid
+ * ShareSettings — the single place the numeric ranges live, so the client
+ * canvas, the PUT validation, and the server render can never disagree.
+ * Keys are constrained but values may be anything (query strings, etc.). */
+export function normalizeShareSettings(
+  input: Partial<{ [K in keyof ShareSettings]: unknown }>,
+): ShareSettings {
+  const clamp = (value: unknown, fallback: number, min: number, max: number) => {
+    const n = Number(value)
+    return Math.round(Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback)
+  }
+  return {
+    title: String(input.title ?? '').trim(),
+    fontSize: clamp(input.fontSize, DEFAULT_SHARE_SETTINGS.fontSize, 20, 160),
+    width: clamp(input.width, DEFAULT_SHARE_SETTINGS.width, 240, 1920),
+    height: clamp(input.height, DEFAULT_SHARE_SETTINGS.height, 240, 2160),
+    borderWidth: clamp(input.borderWidth, DEFAULT_SHARE_SETTINGS.borderWidth, 0, 20),
+    borderRadius: clamp(input.borderRadius, DEFAULT_SHARE_SETTINGS.borderRadius, 0, 160),
+  }
+}
 
 export function isPosterTheme(v: string): v is PosterTheme {
   return (POSTER_THEMES as readonly string[]).includes(v)
