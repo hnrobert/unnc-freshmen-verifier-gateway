@@ -77,7 +77,11 @@ function norm(a: Float32Array): number {
  *  - ncc:  normalized cross-correlation of the window vs the piece (RGB)
  * Buckets take the top-10 of each heuristic (asc/desc) and merge in order.
  */
-export function rankOffsets(bgImg: DecodedImage, pieceImg: DecodedImage, targetY: number): number[] {
+export function rankOffsets(
+  bgImg: DecodedImage,
+  pieceImg: DecodedImage,
+  targetY: number,
+): number[] {
   const bw = bgImg.width
   const bh = bgImg.height
   const bg = bgImg.data
@@ -97,7 +101,7 @@ export function rankOffsets(bgImg: DecodedImage, pieceImg: DecodedImage, targetY
   for (let yy = 0; yy < bh; yy++) {
     for (let xx = 0; xx < bw; xx++) {
       const idx = yy * bw + xx
-      const left = xx === 0 ? gray[idx] ?? 0 : gray[idx - 1] ?? 0
+      const left = xx === 0 ? (gray[idx] ?? 0) : (gray[idx - 1] ?? 0)
       gx[idx] = Math.abs((gray[idx] ?? 0) - left)
     }
   }
