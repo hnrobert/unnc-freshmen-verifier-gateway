@@ -1,4 +1,4 @@
-import type { SiteConfig } from '../types'
+import type { PosterSettings, SiteConfig } from '../types'
 
 /**
  * Shared helpers for the share-poster generator (dashboard Share tab) — used
@@ -9,6 +9,31 @@ export const POSTER_W = 1080
 export const POSTER_H = 1440
 export const POSTER_THEMES = ['page', 'dark', 'light', 'primary'] as const
 export type PosterTheme = (typeof POSTER_THEMES)[number]
+
+export const DEFAULT_POSTER_SETTINGS: PosterSettings = {
+  title: '',
+  theme: 'page',
+  fontSize: 60,
+  width: POSTER_W,
+  height: POSTER_H,
+  border: 0,
+  borderRadius: 28,
+}
+
+export function normalizePosterSettings(input: Partial<PosterSettings>): PosterSettings {
+  const theme = String(input.theme ?? 'page')
+  const number = (value: unknown, fallback: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, Number.isFinite(Number(value)) ? Number(value) : fallback))
+  return {
+    title: String(input.title ?? '').trim(),
+    theme: isPosterTheme(theme) ? theme : 'page',
+    fontSize: number(input.fontSize, 60, 12, 180),
+    width: number(input.width, POSTER_W, 240, POSTER_W),
+    height: number(input.height, POSTER_H, 240, POSTER_H),
+    border: number(input.border, 0, 0, 40),
+    borderRadius: number(input.borderRadius, 28, 0, 120),
+  }
+}
 
 /** QR card geometry — Microsoft-Forms portrait card: title in the upper third,
  * one large centered QR below, no URL text baked into the image. */

@@ -121,6 +121,16 @@ export interface ShareConfig {
   posterTitle?: string
 }
 
+export interface PosterSettings {
+  title: string
+  theme: 'page' | 'dark' | 'light' | 'primary'
+  fontSize: number
+  width: number
+  height: number
+  border: number
+  borderRadius: number
+}
+
 /** How verification resolves a name + ID. */
 export type VerifyMode = 'live' | 'mock'
 

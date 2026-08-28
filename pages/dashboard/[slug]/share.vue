@@ -11,7 +11,7 @@ import {
   wrapTitle,
   type PosterTheme,
 } from '#shared/lib/poster'
-import type { SiteConfig } from '#shared/types'
+import type { PosterSettings, SiteConfig } from '#shared/types'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -68,6 +68,10 @@ const { data: rawConfig } = await useFetch<SiteConfig>(
 const { data: pubConfig } = await useFetch<SiteConfig>(() => `/api/pages/${slug.value}/config`, {
   watch: [slug],
 })
+const { data: posterSettings } = await useFetch<PosterSettings>(
+  () => `/api/pages/${slug.value}/poster/settings`,
+  { watch: [slug] },
+)
 
 const { data: myPages } = await useFetch<{ pages: { slug: string; name: string }[] }>('/api/pages')
 const brandTitle = computed(() => {
@@ -76,10 +80,39 @@ const brandTitle = computed(() => {
   const pageName = myPages.value?.pages.find((p) => p.slug === slug.value)?.name ?? slug.value
   return (brand.title ?? '').trim() || pageName
 })
-const storedPosterTitle = computed(() => (rawConfig.value?.share?.posterTitle ?? '').trim())
+const storedPosterTitle = computed(() => (posterSettings.value?.title ?? '').trim())
 
 const posterTitle = ref('')
 const posterTheme = ref<PosterTheme>('page')
+const posterFontSize = ref(60)
+const posterWidth = ref(POSTER_W)
+const posterHeight = ref(POSTER_H)
+const posterBorder = ref(0)
+const posterBorderRadius = ref(28)
+const originalPosterSettings = ref<PosterSettings>({
+  title: '',
+  theme: 'page',
+  fontSize: 60,
+  width: POSTER_W,
+  height: POSTER_H,
+  border: 0,
+  borderRadius: 28,
+})
+watch(
+  posterSettings,
+  (value) => {
+    if (!value) return
+    originalPosterSettings.value = { ...value }
+    posterTitle.value = value.title
+    posterTheme.value = value.theme
+    posterFontSize.value = value.fontSize
+    posterWidth.value = value.width
+    posterHeight.value = value.height
+    posterBorder.value = value.border
+    posterBorderRadius.value = value.borderRadius
+  },
+  { immediate: true },
+)
 const themeLabels: Record<PosterTheme, string> = {
   page: 'Page background',
   dark: 'Dark',
@@ -122,10 +155,12 @@ const effectiveTitle = computed(
 function drawPoster(): void {
   const canvas = canvasEl.value
   if (!canvas) return
-  canvas.width = POSTER_W
-  canvas.height = POSTER_H
+  canvas.width = posterWidth.value
+  canvas.height = posterHeight.value
   const ctx = canvas.getContext('2d')
   if (!ctx) return
+  ctx.save()
+  ctx.scale(posterWidth.value / POSTER_W, posterHeight.value / POSTER_H)
 
   const theme = posterTheme.value === 'page' && !bgImage.value ? 'dark' : posterTheme.value
   const palette = posterPalette(theme, pubConfig.value?.theme.primaryColor ?? '#F7D447')
@@ -136,7 +171,7 @@ function drawPoster(): void {
     const scale = Math.max(POSTER_W / img.width, POSTER_H / img.height)
     const w = img.width * scale
     const h = img.height * scale
-    ctx.drawImage(img, (POSTER_W - w) / 2, (POSTER_H - h) / 2, w, h)
+    ctx.drawImage(img as unknown as CanvasImageSource, (POSTER_W - w) / 2, (POSTER_H - h) / 2, w, h)
     ctx.fillStyle = 'rgba(10,10,10,0.5)'
     ctx.fillRect(0, 0, POSTER_W, POSTER_H)
   } else if (theme === 'primary') {
@@ -154,19 +189,33 @@ function drawPoster(): void {
   // (Microsoft-Forms portrait layout).
   ctx.textAlign = 'center'
   ctx.fillStyle = palette.text
-  ctx.font = `700 60px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`
-  const lines = wrapTitle(effectiveTitle.value, 60, 880, 3)
-  const startY = POSTER_TITLE_CENTER + 30 - ((lines.length - 1) * 74) / 2
-  lines.forEach((l, i) => ctx.fillText(l, POSTER_W / 2, startY + i * 74))
+  ctx.font = `700 ${posterFontSize.value}px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`
+  const lines = wrapTitle(effectiveTitle.value, posterFontSize.value, 880, 3)
+  const lineHeight = Math.round(posterFontSize.value * 1.23)
+  const startY =
+    POSTER_TITLE_CENTER + posterFontSize.value / 2 - ((lines.length - 1) * lineHeight) / 2
+  lines.forEach((l, i) => ctx.fillText(l, POSTER_W / 2, startY + i * lineHeight))
 
   // QR card (large, horizontally centered, white rounded card)
   const cardX = (POSTER_W - POSTER_QR_CARD) / 2
   const cardY = POSTER_QR_TOP
   ctx.fillStyle = '#ffffff'
-  roundRect(ctx, cardX, cardY, POSTER_QR_CARD, POSTER_QR_CARD, 28)
+  roundRect(ctx, cardX, cardY, POSTER_QR_CARD, POSTER_QR_CARD, posterBorderRadius.value)
   ctx.fill()
+  if (posterBorder.value) {
+    ctx.strokeStyle = '#1c1917'
+    ctx.lineWidth = posterBorder.value
+    ctx.stroke()
+  }
   if (qrImage.value)
-    ctx.drawImage(qrImage.value, cardX + 44, cardY + 44, POSTER_QR_CARD - 88, POSTER_QR_CARD - 88)
+    ctx.drawImage(
+      qrImage.value as unknown as CanvasImageSource,
+      cardX + 44,
+      cardY + 44,
+      POSTER_QR_CARD - 88,
+      POSTER_QR_CARD - 88,
+    )
+  ctx.restore()
 }
 
 function roundRect(
@@ -191,7 +240,17 @@ function roundRect(
 // outside the effect's tracking scope — without this line changing the theme/
 // title/background would never re-render.
 watchEffect(() => {
-  void [posterTheme.value, effectiveTitle.value, bgImage.value, qrImage.value]
+  void [
+    posterTheme.value,
+    effectiveTitle.value,
+    posterFontSize.value,
+    posterWidth.value,
+    posterHeight.value,
+    posterBorder.value,
+    posterBorderRadius.value,
+    bgImage.value,
+    qrImage.value,
+  ]
   if (import.meta.client && canvasEl.value) {
     rendering.value = true
     requestAnimationFrame(() => {
@@ -220,6 +279,11 @@ const posterQuery = computed(() => {
   const params = new URLSearchParams()
   if (posterTitle.value.trim()) params.set('title', posterTitle.value.trim())
   if (posterTheme.value !== 'page') params.set('theme', posterTheme.value)
+  params.set('fontSize', String(posterFontSize.value))
+  params.set('width', String(posterWidth.value))
+  params.set('height', String(posterHeight.value))
+  params.set('border', String(posterBorder.value))
+  params.set('borderRadius', String(posterBorderRadius.value))
   const s = params.toString()
   return s ? `?${s}` : ''
 })
@@ -241,26 +305,50 @@ async function copyText(text: string, what: string): Promise<void> {
 }
 
 // Persist the custom title as the page's poster default (editor+).
-const savingTitle = ref(false)
+const saving = ref(false)
 const canSave = computed(() => (access.value?.rank ?? 0) >= 2)
-const titleDirty = computed(() => posterTitle.value.trim() !== storedPosterTitle.value)
+const posterDirty = computed(
+  () =>
+    posterTitle.value.trim() !== originalPosterSettings.value.title ||
+    posterTheme.value !== originalPosterSettings.value.theme ||
+    posterFontSize.value !== originalPosterSettings.value.fontSize ||
+    posterWidth.value !== originalPosterSettings.value.width ||
+    posterHeight.value !== originalPosterSettings.value.height ||
+    posterBorder.value !== originalPosterSettings.value.border ||
+    posterBorderRadius.value !== originalPosterSettings.value.borderRadius,
+)
 
-async function savePosterTitle(): Promise<void> {
-  savingTitle.value = true
+async function onSave(): Promise<boolean> {
   try {
-    const current = await $fetch<SiteConfig>(`/api/pages/${slug.value}/config?edit=1`)
-    current.share = { ...current.share, posterTitle: posterTitle.value.trim() }
-    await $fetch(`/api/pages/${slug.value}/config`, {
+    const saved = await $fetch<PosterSettings>(`/api/pages/${slug.value}/poster/settings`, {
       method: 'PUT',
-      body: { config: current },
+      body: {
+        title: posterTitle.value.trim(),
+        theme: posterTheme.value,
+        fontSize: posterFontSize.value,
+        width: posterWidth.value,
+        height: posterHeight.value,
+        border: posterBorder.value,
+        borderRadius: posterBorderRadius.value,
+      },
     })
-    toast.success('Poster title saved')
-    await refreshNuxtData() // refresh rawConfig so storedPosterTitle updates
+    originalPosterSettings.value = { ...saved }
+    toast.success('Poster settings saved')
+    return true
   } catch (e) {
     toast.error(messageFromError(e, 'Could not save'))
-  } finally {
-    savingTitle.value = false
+    return false
   }
+}
+
+function onDiscard(): void {
+  posterTitle.value = originalPosterSettings.value.title
+  posterTheme.value = originalPosterSettings.value.theme
+  posterFontSize.value = originalPosterSettings.value.fontSize
+  posterWidth.value = originalPosterSettings.value.width
+  posterHeight.value = originalPosterSettings.value.height
+  posterBorder.value = originalPosterSettings.value.border
+  posterBorderRadius.value = originalPosterSettings.value.borderRadius
 }
 </script>
 
@@ -310,6 +398,7 @@ async function savePosterTitle(): Promise<void> {
               id="poster-title"
               v-model="posterTitle"
               :placeholder="storedPosterTitle || brandTitle"
+              :disabled="saving"
             />
             <p class="text-xs text-muted-foreground">
               Empty uses {{ storedPosterTitle ? 'the saved title' : 'the page title' }}.
@@ -332,24 +421,76 @@ async function savePosterTitle(): Promise<void> {
             </div>
           </div>
 
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="grid gap-1.5">
+              <Label for="poster-font-size">Font size</Label>
+              <Input
+                id="poster-font-size"
+                v-model.number="posterFontSize"
+                type="number"
+                min="12"
+                max="180"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-width">Width</Label>
+              <Input
+                id="poster-width"
+                v-model.number="posterWidth"
+                type="number"
+                min="240"
+                max="1080"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-height">Height</Label>
+              <Input
+                id="poster-height"
+                v-model.number="posterHeight"
+                type="number"
+                min="240"
+                max="1440"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-border">Border</Label>
+              <Input
+                id="poster-border"
+                v-model.number="posterBorder"
+                type="number"
+                min="0"
+                max="40"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-border-radius">Border-radius</Label>
+              <Input
+                id="poster-border-radius"
+                v-model.number="posterBorderRadius"
+                type="number"
+                min="0"
+                max="120"
+                :disabled="saving"
+              />
+            </div>
+          </div>
+
           <!-- Canvas preview (client-rendered, same layout as the server poster) -->
           <div class="mx-auto max-w-88 overflow-hidden rounded-lg border bg-muted/40">
-            <canvas ref="canvasEl" class="block w-full" :style="{ aspectRatio: '1080 / 1440' }" />
+            <canvas
+              ref="canvasEl"
+              class="block w-full"
+              :style="{ aspectRatio: `${posterWidth} / ${posterHeight}` }"
+            />
           </div>
 
           <div class="flex flex-wrap gap-2">
             <Button size="sm" @click="downloadPoster">
               <Icon spec="Download" :size="16" /> Download PNG
-            </Button>
-            <Button
-              v-if="canSave"
-              size="sm"
-              variant="outline"
-              :disabled="savingTitle || !titleDirty"
-              @click="savePosterTitle"
-            >
-              <Icon v-if="savingTitle" spec="LoaderCircle" :size="16" class="animate-spin" />
-              <Icon v-else spec="Save" :size="16" /> Save as default title
             </Button>
           </div>
 
@@ -374,5 +515,12 @@ async function savePosterTitle(): Promise<void> {
         </CardContent>
       </Card>
     </div>
+    <GuardedSave
+      v-if="canSave"
+      v-model:saving="saving"
+      :dirty="posterDirty"
+      :on-save="onSave"
+      :on-discard="onDiscard"
+    />
   </div>
 </template>
