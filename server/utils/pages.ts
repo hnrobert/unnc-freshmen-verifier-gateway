@@ -8,6 +8,7 @@ import { PageEvent } from '#server/entities/pageEvent.entity'
 import { PageDailyStat } from '#server/entities/pageDailyStat.entity'
 import { PageVerifiedIdentity } from '#server/entities/pageVerifiedIdentity.entity'
 import { PageRedirect } from '#server/entities/pageRedirect.entity'
+import { PagePosterSetting } from '#server/entities/pagePosterSetting.entity'
 import type { SiteConfig } from '#shared/types'
 import { resolveImageRefs } from './config'
 import { applyDefaults } from '#shared/lib/applyDefaults'
@@ -56,5 +57,6 @@ export async function deletePageCascade(pageId: number): Promise<void> {
   await AppDataSource.getRepository(PageDailyStat).delete({ pageId })
   await AppDataSource.getRepository(PageVerifiedIdentity).delete({ pageId })
   await AppDataSource.getRepository(PageRedirect).delete({ pageId })
+  await AppDataSource.getRepository(PagePosterSetting).delete({ pageId })
   await AppDataSource.getRepository(Page).delete(pageId)
 }

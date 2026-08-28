@@ -13,6 +13,9 @@ export default defineEventHandler(async (event) => {
   const params = new URLSearchParams()
   if (q.title) params.set('title', String(q.title))
   if (q.theme) params.set('theme', String(q.theme))
+  for (const key of ['fontSize', 'width', 'height', 'border', 'borderRadius']) {
+    if (q[key]) params.set(key, String(q[key]))
+  }
   const imgSrc = `./image?${params.toString()}`
 
   setResponseHeader(event, 'content-type', 'text/html; charset=utf-8')

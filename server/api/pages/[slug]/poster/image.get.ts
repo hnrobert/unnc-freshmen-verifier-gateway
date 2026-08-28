@@ -11,8 +11,13 @@ import {
   isPosterTheme,
   posterPalette,
   resolvePosterTitle,
+  DEFAULT_POSTER_SETTINGS,
+  normalizePosterSettings,
+  type PosterTheme,
   wrapTitle,
 } from '#shared/lib/poster'
+import { AppDataSource } from '#server/utils/database'
+import { PagePosterSetting } from '#server/entities/pagePosterSetting.entity'
 
 /**
  * Public: the share poster as a PNG (Microsoft-Forms-style: page background +
@@ -35,10 +40,28 @@ export default defineEventHandler(async (event) => {
   const config = await loadPageConfig(slug)
   const page = await getPageBySlug(slug)
   if (!page) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
+  const stored = await AppDataSource.getRepository(PagePosterSetting).findOne({
+    where: { pageId: page.id },
+  })
+  const queryNumber = (value: unknown): number | undefined => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  const settings = normalizePosterSettings({
+    ...DEFAULT_POSTER_SETTINGS,
+    ...(stored ?? {}),
+    title: q.title ? String(q.title) : (stored?.title ?? ''),
+    theme: q.theme ? theme : ((stored?.theme as PosterTheme | undefined) ?? theme),
+    fontSize: queryNumber(q.fontSize) ?? stored?.fontSize,
+    width: queryNumber(q.width) ?? stored?.width,
+    height: queryNumber(q.height) ?? stored?.height,
+    border: queryNumber(q.border) ?? stored?.border,
+    borderRadius: queryNumber(q.borderRadius) ?? stored?.borderRadius,
+  })
 
-  const title = resolvePosterTitle(String(q.title ?? ''), config, page.name)
+  const title = resolvePosterTitle(settings.title, config, page.name)
   const palette = posterPalette(
-    theme === 'dark' ? 'dark' : theme,
+    settings.theme === 'dark' ? 'dark' : settings.theme,
     config.theme.primaryColor ?? '#F7D447',
   )
 
@@ -51,7 +74,7 @@ export default defineEventHandler(async (event) => {
   // --- Background layer -----------------------------------------------------
   let canvas: Sharp | undefined
   let hasPhotoBg = false
-  if (theme === 'page' && config.background?.image) {
+  if (settings.theme === 'page' && config.background?.image) {
     const src =
       config.background.image.startsWith('img:') && page
         ? await resolveImgRef(config.background.image, page.id)
@@ -67,9 +90,9 @@ export default defineEventHandler(async (event) => {
   if (!hasPhotoBg) {
     const primary = config.theme.primaryColor ?? '#F7D447'
     const bgSvg =
-      theme === 'primary'
+      settings.theme === 'primary'
         ? `<svg width="${POSTER_W}" height="${POSTER_H}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${escapeXml(primary)}"/><stop offset="1" stop-color="#141414"/></linearGradient></defs><rect width="${POSTER_W}" height="${POSTER_H}" fill="url(#g)"/></svg>`
-        : `<svg width="${POSTER_W}" height="${POSTER_H}" xmlns="http://www.w3.org/2000/svg"><rect width="${POSTER_W}" height="${POSTER_H}" fill="${theme === 'light' ? '#f5f5f5' : '#171717'}"/></svg>`
+        : `<svg width="${POSTER_W}" height="${POSTER_H}" xmlns="http://www.w3.org/2000/svg"><rect width="${POSTER_W}" height="${POSTER_H}" fill="${settings.theme === 'light' ? '#f5f5f5' : '#171717'}"/></svg>`
     canvas = sharp(Buffer.from(bgSvg))
   }
 
@@ -77,8 +100,8 @@ export default defineEventHandler(async (event) => {
   const scrim = hasPhotoBg
     ? `<rect width="${POSTER_W}" height="${POSTER_H}" fill="rgba(10,10,10,0.5)"/>`
     : ''
-  const fontSize = 60
-  const lineHeight = 74
+  const fontSize = settings.fontSize
+  const lineHeight = Math.round(fontSize * 1.23)
   const lines = wrapTitle(title, fontSize, 880, 3)
   const startY = POSTER_TITLE_CENTER + fontSize / 2 - ((lines.length - 1) * lineHeight) / 2
   const titleTspans = lines
@@ -91,7 +114,7 @@ export default defineEventHandler(async (event) => {
   const overlay = Buffer.from(
     `<svg width="${POSTER_W}" height="${POSTER_H}" xmlns="http://www.w3.org/2000/svg">${scrim}
 <text text-anchor="middle" font-family="-apple-system,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif" font-size="${fontSize}" font-weight="700" fill="${palette.text}">${titleTspans}</text>
-<rect x="${qrLeft}" y="${POSTER_QR_TOP}" width="${POSTER_QR_CARD}" height="${POSTER_QR_CARD}" rx="28" fill="#ffffff"/>
+<rect x="${qrLeft}" y="${POSTER_QR_TOP}" width="${POSTER_QR_CARD}" height="${POSTER_QR_CARD}" rx="${settings.borderRadius}" stroke="#1c1917" stroke-width="${settings.border}" fill="#ffffff"/>
 </svg>`,
   )
 
@@ -115,9 +138,10 @@ export default defineEventHandler(async (event) => {
   ])
   // Photo backgrounds compress far better as JPEG (~5× smaller than PNG);
   // flat/gradient themes stay PNG (sharp text, tiny either way).
+  const resized = piped.resize(settings.width, settings.height)
   const out = hasPhotoBg
-    ? await piped.jpeg({ quality: 88 }).toBuffer()
-    : await piped.png().toBuffer()
+    ? await resized.jpeg({ quality: 88 }).toBuffer()
+    : await resized.png().toBuffer()
 
   setResponseHeader(event, 'content-type', hasPhotoBg ? 'image/jpeg' : 'image/png')
   setResponseHeader(event, 'Cache-Control', 'public, max-age=600')
