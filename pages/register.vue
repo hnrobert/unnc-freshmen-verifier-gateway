@@ -53,10 +53,6 @@ async function onSubmit() {
     toast.error('Passwords do not match')
     return
   }
-  if (!code.value) {
-    toast.error('Please enter the verification code')
-    return
-  }
   loading.value = true
   try {
     if (!session.value) session.value = crypto.randomUUID()
