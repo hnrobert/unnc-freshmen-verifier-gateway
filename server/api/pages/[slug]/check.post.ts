@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
 
   // Site-wide kill switch (admin panel → Verification). Refused before any
-  // portal traffic, for every branch incl. trusted/reused cookies.
+  // portal traffic, for every branch including trusted/reused cookies.
   const settings = await getVerificationSettings()
   if (!settings.freshmanEnabled)
     throw createError({ statusCode: 403, statusMessage: 'Freshman verification is disabled' })

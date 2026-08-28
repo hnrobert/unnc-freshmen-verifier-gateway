@@ -7,6 +7,7 @@
   "engines": {
     "node": ">=24"
   },
+  "packageManager": "pnpm@11.24.0",
   "scripts": {
     "dev": "nuxt dev --port 9234",
     "build": "nuxt build",
@@ -55,7 +56,9 @@
     "ua-parser-js": "^2.0.10",
     "vue": "3.5.41",
     "vue-chartjs": "^5.3.4",
+    "vue-guarded-save": "^0.2.0",
     "vue-i18n": "^11.4.6",
+    "vue-router": "^5.2.0",
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {

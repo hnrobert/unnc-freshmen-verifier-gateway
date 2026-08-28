@@ -8,8 +8,6 @@ interface WhitelistConfig {
 const { data: whitelist } = await useFetch<WhitelistConfig>('/api/admin/registration')
 const wlEnabled = ref(false)
 const wlPatternsText = ref('')
-const wlSaving = ref(false)
-const wlSaved = ref(false)
 // Snapshot of the persisted values, for dirty tracking + discard.
 const wlOriginal = ref({ enabled: false, patternsText: '' })
 watch(
@@ -28,11 +26,7 @@ const wlDirty = computed(
     wlEnabled.value !== wlOriginal.value.enabled ||
     wlPatternsText.value !== wlOriginal.value.patternsText,
 )
-const { confirmLeave, proceed } = useUnsavedLeaveGuard(wlDirty, wlSaving)
-
-async function saveWhitelist() {
-  wlSaving.value = true
-  wlSaved.value = false
+async function saveWhitelist(): Promise<boolean> {
   try {
     const patterns = wlPatternsText.value
       .split('\n')
@@ -46,12 +40,10 @@ async function saveWhitelist() {
     wlEnabled.value = snap.enabled
     wlPatternsText.value = snap.patternsText
     wlOriginal.value = snap
-    wlSaved.value = true
-    setTimeout(() => (wlSaved.value = false), 2000)
+    return true
   } catch (e) {
     toast.error(messageFromError(e, 'Save failed'))
-  } finally {
-    wlSaving.value = false
+    return false
   }
 }
 function discardWhitelist() {
@@ -63,7 +55,7 @@ function discardWhitelist() {
 <template>
   <div>
     <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Registration</h1>
-    <div class="mt-6 space-y-4 pb-24">
+    <div class="mt-6 space-y-4">
       <Card>
         <CardContent class="space-y-4">
           <div class="flex items-start gap-3">
@@ -103,29 +95,6 @@ function discardWhitelist() {
       </Card>
     </div>
 
-    <SaveBar
-      :dirty="wlDirty"
-      :saving="wlSaving"
-      :saved="wlSaved"
-      @save="saveWhitelist"
-      @discard="discardWhitelist"
-    />
-    <UnsavedLeaveDialog
-      :open="confirmLeave"
-      :saving="wlSaving"
-      @stay="confirmLeave = false"
-      @discard="
-        () => {
-          discardWhitelist()
-          proceed()
-        }
-      "
-      @save="
-        async () => {
-          await saveWhitelist()
-          proceed()
-        }
-      "
-    />
+    <GuardedSave :dirty="wlDirty" :on-save="saveWhitelist" :on-discard="discardWhitelist" />
   </div>
 </template>

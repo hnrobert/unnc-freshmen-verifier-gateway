@@ -17,14 +17,11 @@ const { data: raw } = await useAsyncData(
 )
 if (!raw.value) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
 
-const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscard } = usePageDraft(
-  raw.value,
-  access,
-)
+const { isDirty, canEdit, onSave, onDiscard } = usePageDraft(raw.value, access)
 </script>
 
 <template>
-  <div class="pb-24">
+  <div>
     <StatusAlert
       v-if="!canEdit"
       variant="error"
@@ -32,30 +29,6 @@ const { isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscar
     />
     <ConfigEditor mode="advanced" />
 
-    <SaveBar
-      v-if="canEdit"
-      :dirty="isDirty"
-      :saving="saving"
-      :saved="saved"
-      @save="onSave"
-      @discard="onDiscard"
-    />
-    <UnsavedLeaveDialog
-      :open="confirmLeave"
-      :saving="saving"
-      @stay="confirmLeave = false"
-      @discard="
-        () => {
-          onDiscard()
-          proceed()
-        }
-      "
-      @save="
-        async () => {
-          await onSave()
-          proceed()
-        }
-      "
-    />
+    <GuardedSave v-if="canEdit" :dirty="isDirty" :on-save="onSave" :on-discard="onDiscard" />
   </div>
 </template>

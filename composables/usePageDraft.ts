@@ -41,15 +41,10 @@ export function usePageDraft(raw: SiteConfig, access: Ref<{ role: string | null 
   const canEdit = computed(() =>
     ['owner', 'manager', 'editor', 'superadmin'].includes(access.value?.role ?? ''),
   )
-  const saving = ref(false)
-  const saved = ref(false)
   const originalSerialized = ref(JSON.stringify(raw))
   const isDirty = computed(() => JSON.stringify(draft.value) !== originalSerialized.value)
-  const { confirmLeave, proceed } = useUnsavedLeaveGuard(isDirty, saving)
 
   async function onSave(): Promise<boolean> {
-    saving.value = true
-    saved.value = false
     try {
       const v = await $fetch<{ errors: string[] }>('/api/pages/validate', {
         method: 'POST',
@@ -64,14 +59,10 @@ export function usePageDraft(raw: SiteConfig, access: Ref<{ role: string | null 
         body: { config: draft.value },
       })
       originalSerialized.value = JSON.stringify(draft.value)
-      saved.value = true
-      setTimeout(() => (saved.value = false), 2000)
       return true
     } catch (e) {
       toast.error(messageFromError(e, 'Save failed'))
       return false
-    } finally {
-      saving.value = false
     }
   }
 
@@ -80,5 +71,6 @@ export function usePageDraft(raw: SiteConfig, access: Ref<{ role: string | null 
     originalSerialized.value = JSON.stringify(raw)
   }
 
-  return { slug, isDirty, canEdit, saving, saved, confirmLeave, proceed, onSave, onDiscard }
+  // Saving/saved/leave-guard lifecycles live in GuardedSave, not here.
+  return { slug, isDirty, canEdit, onSave, onDiscard }
 }

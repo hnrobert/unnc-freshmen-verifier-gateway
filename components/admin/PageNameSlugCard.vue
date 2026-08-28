@@ -13,7 +13,7 @@ const props = defineProps<{ slug: string }>()
 const router = useRouter()
 const route = useRoute()
 
-// Identity + role come from /access (works for every viewer incl. a superadmin
+// Identity + role come from /access (works for every viewer including a superadmin
 // on a page they don't own — the /api/pages list only covers owned/shared).
 const { data: access, refresh: refreshAccess } = await useFetch<{
   role: string | null
@@ -33,6 +33,7 @@ const canManage = computed(() => (access.value?.rank ?? 0) >= 4) // owner or sup
 const nameDraft = ref('')
 const slugDraft = ref('')
 const confirmDraft = ref('')
+// Mirrored from GuardedSave so the inputs can disable themselves mid-save.
 const saving = ref(false)
 
 // Fill the drafts once, when the page resolves — never again, so edits are never
@@ -66,8 +67,6 @@ const canSave = computed(
 
 // Leave-guard for the card's own draft (the page-level one covers the config
 // draft; both may be dirty independently).
-const { confirmLeave, proceed } = useUnsavedLeaveGuard(dirty, saving)
-
 function reset() {
   if (!page.value) return
   nameDraft.value = page.value.name
@@ -75,9 +74,8 @@ function reset() {
   confirmDraft.value = ''
 }
 
-async function onSave() {
-  if (!canSave.value || !page.value) return
-  saving.value = true
+async function onSave(): Promise<boolean> {
+  if (!canSave.value || !page.value) return false
   try {
     const res = await $fetch<{
       page: { id: number; slug: string; name: string }
@@ -89,8 +87,6 @@ async function onSave() {
     })
     toast.success(res.renamed ? 'Page renamed' : 'Page updated')
     confirmDraft.value = ''
-    saved.value = true
-    setTimeout(() => (saved.value = false), 2000)
     await refreshPages()
     if (res.renamed) {
       // The URL changed — relocate to the new slug's edit page, staying on the
@@ -102,17 +98,16 @@ async function onSave() {
       await router.replace(`${base}/edit`)
     }
     await refreshAccess()
+    return true
   } catch (e) {
     toast.error(messageFromError(e, 'Update failed'))
-  } finally {
-    saving.value = false
+    return false
   }
 }
 
-// Surfaced to the parent (edit.vue) so the config editor's SaveBar can hide
-// while this card's bar is up — two fixed bottom bars must never stack.
+// Surfaced to the parent (edit.vue) so the config editor's GuardedSave can
+// hide while this card's bar is up — two fixed bottom bars must never stack.
 defineExpose({ isDirty: dirty })
-const saved = ref(false)
 </script>
 
 <template>
@@ -191,23 +186,6 @@ const saved = ref(false)
     </form>
 
     <!-- Same shared save affordance as the rest of the app (own save path). -->
-    <SaveBar :dirty="dirty" :saving="saving" :saved="saved" @save="onSave" @discard="reset" />
-    <UnsavedLeaveDialog
-      :open="confirmLeave"
-      :saving="saving"
-      @stay="confirmLeave = false"
-      @discard="
-        () => {
-          reset()
-          proceed()
-        }
-      "
-      @save="
-        async () => {
-          await onSave()
-          proceed()
-        }
-      "
-    />
+    <GuardedSave v-model:saving="saving" :dirty="dirty" :on-save="onSave" :on-discard="reset" />
   </section>
 </template>

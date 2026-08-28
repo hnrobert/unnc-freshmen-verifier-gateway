@@ -19,7 +19,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
   // Server: useRequestFetch forwards the cookie header on SSR so vg_verify +
   // vg_device are seen during the server-render pass. Client: plain $fetch
-  // (cookies ride along). Two separate call sites — unioning the two typed
+  // (cookies ride along). Two separate call sites — a union of the two typed
   // fetchers overflows the compiler.
   let trust: TrustResult | null = null
   try {

@@ -6,6 +6,8 @@ allowBuilds:
   vue-demi: true
 minimumReleaseAgeExclude:
   - email-poster@0.3.7
+  # own package, published minutes ago — exempt all versions from the cooldown
+  - vue-guarded-save
 # Force the transitive `ini` (rc <- prebuild-install <- better-sqlite3) off the
 # deprecated 1.3.0 (prototype-pollution CVE) onto the latest 1.x, which is
 # non-deprecated and still inside rc's own declared `~1.3.0` range. The other

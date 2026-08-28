@@ -11,8 +11,8 @@ const { data: settings } = await useFetch<VerificationSettings>('/api/admin/veri
 const freshmanEnabled = ref(true)
 const welcomeMode = ref(true)
 const codeMode = ref(false)
+// Mirrored from GuardedSave so the controls can disable themselves mid-save.
 const saving = ref(false)
-const saved = ref(false)
 const original = ref({ freshmanEnabled: true, welcome: true, code: false })
 
 watch(
@@ -44,11 +44,7 @@ const dirty = computed(
     welcomeMode.value !== original.value.welcome ||
     codeMode.value !== original.value.code,
 )
-const { confirmLeave, proceed } = useUnsavedLeaveGuard(dirty, saving)
-
-async function onSave(): Promise<void> {
-  saving.value = true
-  saved.value = false
+async function onSave(): Promise<boolean> {
   try {
     const res = await $fetch<VerificationSettings>('/api/admin/verification', {
       method: 'PUT',
@@ -62,12 +58,10 @@ async function onSave(): Promise<void> {
       welcome: welcomeMode.value,
       code: codeMode.value,
     }
-    saved.value = true
-    setTimeout(() => (saved.value = false), 2000)
+    return true
   } catch (e) {
     toast.error(messageFromError(e, 'Failed to save'))
-  } finally {
-    saving.value = false
+    return false
   }
 }
 
@@ -79,7 +73,7 @@ function onDiscard(): void {
 </script>
 
 <template>
-  <div class="max-w-xl space-y-6 pb-24">
+  <div class="max-w-xl space-y-6">
     <div>
       <h1 class="text-xl font-semibold tracking-tight">Verification</h1>
       <p class="mt-1 text-sm text-muted-foreground">
@@ -163,24 +157,6 @@ function onDiscard(): void {
       </CardContent>
     </Card>
 
-    <SaveBar :dirty="dirty" :saving="saving" :saved="saved" @save="onSave" @discard="onDiscard" />
-
-    <UnsavedLeaveDialog
-      :open="confirmLeave"
-      :saving="saving"
-      @stay="confirmLeave = false"
-      @discard="
-        () => {
-          onDiscard()
-          proceed()
-        }
-      "
-      @save="
-        async () => {
-          await onSave()
-          proceed()
-        }
-      "
-    />
+    <GuardedSave v-model:saving="saving" :dirty="dirty" :on-save="onSave" :on-discard="onDiscard" />
   </div>
 </template>
