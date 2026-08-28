@@ -11,11 +11,25 @@ const props = defineProps<{
 const defaultMsgs = defaultConfig.messages as Record<string, unknown>
 
 function getPath(locale: string): string {
-  return props.path.split('.').reduce<unknown>((o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), props.messages[locale]) as string ?? ''
+  return (
+    (props.path
+      .split('.')
+      .reduce<unknown>(
+        (o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined),
+        props.messages[locale],
+      ) as string) ?? ''
+  )
 }
 
 function getDefaultPath(locale: string): string {
-  return props.path.split('.').reduce<unknown>((o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), defaultMsgs[locale]) as string ?? ''
+  return (
+    (props.path
+      .split('.')
+      .reduce<unknown>(
+        (o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined),
+        defaultMsgs[locale],
+      ) as string) ?? ''
+  )
 }
 
 /**
@@ -31,10 +45,13 @@ function displayValue(locale: string): string {
 function setPath(locale: string, value: string): void {
   const keys = props.path.split('.')
   const last = keys.pop()!
-  const obj = keys.reduce<Record<string, unknown>>((o, k) => {
-    if (!o[k] || typeof o[k] !== 'object') o[k] = {}
-    return o[k] as Record<string, unknown>
-  }, props.messages[locale] as Record<string, unknown>)
+  const obj = keys.reduce<Record<string, unknown>>(
+    (o, k) => {
+      if (!o[k] || typeof o[k] !== 'object') o[k] = {}
+      return o[k] as Record<string, unknown>
+    },
+    props.messages[locale] as Record<string, unknown>,
+  )
   obj[last] = value
 }
 </script>

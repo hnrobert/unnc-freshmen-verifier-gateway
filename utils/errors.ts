@@ -6,7 +6,9 @@ export function messageFromError(e: unknown, fallback: string): string {
       statusMessage?: string
       message?: string
     }
-    return any.data?.statusMessage || any.data?.message || any.statusMessage || any.message || fallback
+    return (
+      any.data?.statusMessage || any.data?.message || any.statusMessage || any.message || fallback
+    )
   }
   return fallback
 }
