@@ -23,6 +23,13 @@ function toggleLocale(loc: Locale, checked: boolean): void {
 const bgPreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
 const welcomePreview = ref<InstanceType<typeof import('./ImagePreview.vue').default> | null>(null)
 
+// The real welcome-image endpoint composites the visitor's name server-side
+// with Sharp. The editor works with an unsaved config draft, so that endpoint
+// cannot reflect a just-toggled watermark yet. Mirror the pattern here with
+// sample text so editors get immediate, representative feedback.
+const watermarkPreviewRows = Array.from({ length: 14 }, (_, index) => index)
+const watermarkPreviewLine = Array.from({ length: 12 }, () => 'Preview').join('   ')
+
 // Strip/add "rem" so inputs show only numbers with unit as suffix label
 const maxWidthNum = computed({
   get: () => parseFloat(config.value.welcome.imageMaxWidth || '12') || 0,
@@ -326,8 +333,12 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
             ></Label
           >
           <div
-            class="flex justify-center"
-            :style="{ maxWidth: config.welcome.imageMaxWidth || '12rem', margin: '0 auto' }"
+            class="relative overflow-hidden"
+            :style="{
+              maxWidth: config.welcome.imageMaxWidth || '12rem',
+              margin: '0 auto',
+              borderRadius: config.welcome.imageRadius || '0.5rem',
+            }"
           >
             <ImagePreview
               ref="welcomePreview"
@@ -336,6 +347,23 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
               :img-style="{ borderRadius: config.welcome.imageRadius || '0.5rem' }"
               class="shadow-sm"
             />
+            <div
+              v-if="config.welcome.watermark"
+              class="pointer-events-none absolute inset-0 overflow-hidden"
+              :style="{ borderRadius: config.welcome.imageRadius || '0.5rem' }"
+              aria-hidden="true"
+            >
+              <div class="absolute -inset-[60%] flex rotate-[-30deg] flex-col justify-around">
+                <span
+                  v-for="row in watermarkPreviewRows"
+                  :key="row"
+                  class="whitespace-nowrap text-center text-sm font-semibold text-white opacity-25"
+                  style="text-shadow: 0 0 1px rgba(0, 0, 0, 0.8)"
+                >
+                  {{ watermarkPreviewLine }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
