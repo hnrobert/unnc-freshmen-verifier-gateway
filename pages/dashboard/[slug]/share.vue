@@ -308,7 +308,7 @@ async function saveShareSettings(): Promise<boolean> {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="min-w-0 space-y-6">
     <div>
       <h2 class="text-lg font-semibold tracking-tight">Share</h2>
       <p class="mt-1 text-sm text-muted-foreground">
@@ -317,14 +317,16 @@ async function saveShareSettings(): Promise<boolean> {
       </p>
     </div>
 
-    <div class="flex items-center gap-2 rounded-md border bg-muted/40 p-3 text-sm">
-      <code class="min-w-0 ml-2 flex-1 truncate">{{ publicUrl }}</code>
-      <Button variant="ghost" size="sm" @click="copyLink">Copy</Button>
+    <div
+      class="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border bg-muted/40 p-3 text-sm"
+    >
+      <code class="min-w-0 flex-1 truncate">{{ publicUrl }}</code>
+      <Button class="shrink-0" variant="ghost" size="sm" @click="copyLink">Copy</Button>
     </div>
 
     <!-- QR + poster generator side by side (Microsoft-Forms share panel feel) -->
     <div class="grid min-w-0 gap-6 lg:grid-cols-[auto_minmax(0,1fr)]">
-      <Card class="self-start">
+      <Card class="w-full min-w-0 self-start lg:w-auto">
         <CardHeader>
           <CardTitle class="text-base">QR code</CardTitle>
           <CardDescription>Scanning opens the public verify page.</CardDescription>
