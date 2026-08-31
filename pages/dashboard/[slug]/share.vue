@@ -24,6 +24,19 @@ const slug = computed(() => route.params.slug as string)
 // localhost, HTTPS tunnels, and prod alike.
 const publicUrl = computed(() => `${useRequestURL().origin}/${slug.value}`)
 
+// Let the URL prefix shrink while always keeping the final `/slug` visible.
+const publicUrlParts = computed(() => {
+  const value = publicUrl.value
+  const lastSlash = value.lastIndexOf('/')
+
+  if (lastSlash < 0) return { prefix: value, suffix: '' }
+
+  return {
+    prefix: value.slice(0, lastSlash),
+    suffix: value.slice(lastSlash),
+  }
+})
+
 // qrcode is isomorphic → SSR generates the PNG data URL (no client-only needed).
 const qr = await QRCode.toDataURL(publicUrl.value, {
   width: 240,
@@ -320,7 +333,10 @@ async function saveShareSettings(): Promise<boolean> {
     <div
       class="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border bg-muted/40 p-3 text-sm"
     >
-      <code class="min-w-0 flex-1 truncate">{{ publicUrl }}</code>
+      <code class="flex min-w-0 flex-1 items-baseline" :title="publicUrl">
+        <span class="min-w-0 truncate">{{ publicUrlParts.prefix }}</span>
+        <span class="max-w-full shrink-0 break-all">{{ publicUrlParts.suffix }}</span>
+      </code>
       <Button class="shrink-0" variant="ghost" size="sm" @click="copyLink">Copy</Button>
     </div>
 
