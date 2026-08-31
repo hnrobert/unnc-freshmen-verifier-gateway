@@ -24,6 +24,19 @@ const slug = computed(() => route.params.slug as string)
 // localhost, HTTPS tunnels, and prod alike.
 const publicUrl = computed(() => `${useRequestURL().origin}/${slug.value}`)
 
+// Let the URL prefix shrink while always keeping the final `/slug` visible.
+const publicUrlParts = computed(() => {
+  const value = publicUrl.value
+  const lastSlash = value.lastIndexOf('/')
+
+  if (lastSlash < 0) return { prefix: value, suffix: '' }
+
+  return {
+    prefix: value.slice(0, lastSlash),
+    suffix: value.slice(lastSlash),
+  }
+})
+
 // qrcode is isomorphic → SSR generates the PNG data URL (no client-only needed).
 const qr = await QRCode.toDataURL(publicUrl.value, {
   width: 240,
@@ -308,7 +321,7 @@ async function saveShareSettings(): Promise<boolean> {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="min-w-0 space-y-6">
     <div>
       <h2 class="text-lg font-semibold tracking-tight">Share</h2>
       <p class="mt-1 text-sm text-muted-foreground">
@@ -317,14 +330,19 @@ async function saveShareSettings(): Promise<boolean> {
       </p>
     </div>
 
-    <div class="flex items-center gap-2 rounded-md border bg-muted/40 p-3 text-sm">
-      <code class="min-w-0 ml-2 flex-1 truncate">{{ publicUrl }}</code>
-      <Button variant="ghost" size="sm" @click="copyLink">Copy</Button>
+    <div
+      class="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border bg-muted/40 p-3 text-sm"
+    >
+      <code class="flex min-w-0 flex-1 items-baseline" :title="publicUrl">
+        <span class="min-w-0 truncate">{{ publicUrlParts.prefix }}</span>
+        <span class="max-w-full shrink-0 break-all">{{ publicUrlParts.suffix }}</span>
+      </code>
+      <Button class="shrink-0" variant="ghost" size="sm" @click="copyLink">Copy</Button>
     </div>
 
     <!-- QR + poster generator side by side (Microsoft-Forms share panel feel) -->
     <div class="grid min-w-0 gap-6 lg:grid-cols-[auto_minmax(0,1fr)]">
-      <Card class="self-start">
+      <Card class="w-full min-w-0 self-start lg:w-auto">
         <CardHeader>
           <CardTitle class="text-base">QR code</CardTitle>
           <CardDescription>Scanning opens the public verify page.</CardDescription>
