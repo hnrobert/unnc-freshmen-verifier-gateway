@@ -9,10 +9,12 @@ import {
   POSTER_TITLE_CENTER,
   escapeXml,
   isPosterTheme,
+  normalizeShareSettings,
   posterPalette,
   resolvePosterTitle,
   wrapTitle,
 } from '#shared/lib/poster'
+import { loadPageShareSettings } from '#server/utils/pageShareSettings'
 
 /**
  * Public: the share poster as a PNG (Microsoft-Forms-style: page background +
@@ -21,6 +23,7 @@ import {
  *                           title → page name
  *   ?theme=page|dark|light|primary   `page` uses the page's background image
  *                           (default; dark is the fallback when it has none)
+ *   ?fontSize=&width=&height=   override the saved share settings (clamped)
  *
  * Rendered server-side with sharp so it can be hot-linked, embedded in iframes
  * (see ../poster/index.get.ts) or downloaded directly. The dashboard Share tab
@@ -35,8 +38,15 @@ export default defineEventHandler(async (event) => {
   const config = await loadPageConfig(slug)
   const page = await getPageBySlug(slug)
   if (!page) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
+  const share = await loadPageShareSettings(page.id)
 
-  const title = resolvePosterTitle(String(q.title ?? ''), config, page.name)
+  // The dedicated share row is authoritative. Ignore the legacy JSON title so
+  // saving an empty title correctly restores the page-brand fallback.
+  const title = resolvePosterTitle(
+    String(q.title ?? share.title),
+    { ...config, share: { ...config.share, posterTitle: '' } },
+    page.name,
+  )
   const palette = posterPalette(
     theme === 'dark' ? 'dark' : theme,
     config.theme.primaryColor ?? '#F7D447',
@@ -77,8 +87,15 @@ export default defineEventHandler(async (event) => {
   const scrim = hasPhotoBg
     ? `<rect width="${POSTER_W}" height="${POSTER_H}" fill="rgba(10,10,10,0.5)"/>`
     : ''
-  const fontSize = 60
-  const lineHeight = 74
+  // Query overrides win over the saved settings; normalizeShareSettings is the
+  // single clamp source shared with the PUT endpoint and the client canvas.
+  const size = normalizeShareSettings({
+    fontSize: q.fontSize ?? share.fontSize,
+    width: q.width ?? share.width,
+    height: q.height ?? share.height,
+  })
+  const fontSize = size.fontSize
+  const lineHeight = Math.round(fontSize * 1.23)
   const lines = wrapTitle(title, fontSize, 880, 3)
   const startY = POSTER_TITLE_CENTER + fontSize / 2 - ((lines.length - 1) * lineHeight) / 2
   const titleTspans = lines
@@ -114,10 +131,13 @@ export default defineEventHandler(async (event) => {
     },
   ])
   // Photo backgrounds compress far better as JPEG (~5× smaller than PNG);
-  // flat/gradient themes stay PNG (sharp text, tiny either way).
+  // flat/gradient themes stay PNG (sharp text, tiny either way). The poster is
+  // composed at the native 1080×1440 design size, then resized to the saved
+  // embed size so hot-linked/iframe images match their box exactly.
+  const sized = piped.resize(size.width, size.height)
   const out = hasPhotoBg
-    ? await piped.jpeg({ quality: 88 }).toBuffer()
-    : await piped.png().toBuffer()
+    ? await sized.jpeg({ quality: 88 }).toBuffer()
+    : await sized.png().toBuffer()
 
   setResponseHeader(event, 'content-type', hasPhotoBg ? 'image/jpeg' : 'image/png')
   setResponseHeader(event, 'Cache-Control', 'public, max-age=600')

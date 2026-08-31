@@ -121,6 +121,22 @@ export interface ShareConfig {
   posterTitle?: string
 }
 
+/** Persisted Share-tab presentation defaults (page_share_settings table). */
+export interface ShareSettings {
+  /** Custom default poster/embed title; empty → the page's brand title. */
+  title: string
+  /** Poster title font size (px, in the 1080-wide design space). */
+  fontSize: number
+  /** Poster/embed image width in px. */
+  width: number
+  /** Poster/embed image height in px. */
+  height: number
+  /** Embed frame border width in px. */
+  borderWidth: number
+  /** Embed frame corner radius in px. */
+  borderRadius: number
+}
+
 /** How verification resolves a name + ID. */
 export type VerifyMode = 'live' | 'mock'
 

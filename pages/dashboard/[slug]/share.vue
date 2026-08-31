@@ -7,11 +7,12 @@ import {
   POSTER_QR_TOP,
   POSTER_TITLE_CENTER,
   POSTER_THEMES,
+  normalizeShareSettings,
   posterPalette,
   wrapTitle,
   type PosterTheme,
 } from '#shared/lib/poster'
-import type { SiteConfig } from '#shared/types'
+import type { ShareSettings, SiteConfig } from '#shared/types'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -22,6 +23,19 @@ const slug = computed(() => route.params.slug as string)
 // SSR (from the request) and client (from window.location), so this works on
 // localhost, HTTPS tunnels, and prod alike.
 const publicUrl = computed(() => `${useRequestURL().origin}/${slug.value}`)
+
+// Let the URL prefix shrink while always keeping the final `/slug` visible.
+const publicUrlParts = computed(() => {
+  const value = publicUrl.value
+  const lastSlash = value.lastIndexOf('/')
+
+  if (lastSlash < 0) return { prefix: value, suffix: '' }
+
+  return {
+    prefix: value.slice(0, lastSlash),
+    suffix: value.slice(lastSlash),
+  }
+})
 
 // qrcode is isomorphic → SSR generates the PNG data URL (no client-only needed).
 const qr = await QRCode.toDataURL(publicUrl.value, {
@@ -65,6 +79,10 @@ const { data: rawConfig } = await useFetch<SiteConfig>(
   () => `/api/pages/${slug.value}/config?edit=1`,
   { watch: [slug] },
 )
+const { data: storedShare, refresh: refreshShare } = await useFetch<ShareSettings>(
+  () => `/api/pages/${slug.value}/share-settings`,
+  { watch: [slug] },
+)
 const { data: pubConfig } = await useFetch<SiteConfig>(() => `/api/pages/${slug.value}/config`, {
   watch: [slug],
 })
@@ -76,9 +94,14 @@ const brandTitle = computed(() => {
   const pageName = myPages.value?.pages.find((p) => p.slug === slug.value)?.name ?? slug.value
   return (brand.title ?? '').trim() || pageName
 })
-const storedPosterTitle = computed(() => (rawConfig.value?.share?.posterTitle ?? '').trim())
+const storedPosterTitle = computed(() => (storedShare.value?.title ?? '').trim())
 
-const posterTitle = ref('')
+const posterTitle = ref(storedShare.value?.title ?? '')
+const posterFontSize = ref(storedShare.value?.fontSize ?? 60)
+const embedWidth = ref(storedShare.value?.width ?? 480)
+const embedHeight = ref(storedShare.value?.height ?? 680)
+const embedBorderWidth = ref(storedShare.value?.borderWidth ?? 0)
+const embedBorderRadius = ref(storedShare.value?.borderRadius ?? 12)
 const posterTheme = ref<PosterTheme>('page')
 const themeLabels: Record<PosterTheme, string> = {
   page: 'Page background',
@@ -154,10 +177,12 @@ function drawPoster(): void {
   // (Microsoft-Forms portrait layout).
   ctx.textAlign = 'center'
   ctx.fillStyle = palette.text
-  ctx.font = `700 60px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`
-  const lines = wrapTitle(effectiveTitle.value, 60, 880, 3)
-  const startY = POSTER_TITLE_CENTER + 30 - ((lines.length - 1) * 74) / 2
-  lines.forEach((l, i) => ctx.fillText(l, POSTER_W / 2, startY + i * 74))
+  const fontSize = normalizeShareSettings({ fontSize: posterFontSize.value }).fontSize
+  const lineHeight = Math.round(fontSize * 1.23)
+  ctx.font = `700 ${fontSize}px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`
+  const lines = wrapTitle(effectiveTitle.value, fontSize, 880, 3)
+  const startY = POSTER_TITLE_CENTER + fontSize / 2 - ((lines.length - 1) * lineHeight) / 2
+  lines.forEach((l, i) => ctx.fillText(l, POSTER_W / 2, startY + i * lineHeight))
 
   // QR card (large, horizontally centered, white rounded card)
   const cardX = (POSTER_W - POSTER_QR_CARD) / 2
@@ -191,7 +216,7 @@ function roundRect(
 // outside the effect's tracking scope — without this line changing the theme/
 // title/background would never re-render.
 watchEffect(() => {
-  void [posterTheme.value, effectiveTitle.value, bgImage.value, qrImage.value]
+  void [posterTheme.value, effectiveTitle.value, posterFontSize.value, bgImage.value, qrImage.value]
   if (import.meta.client && canvasEl.value) {
     rendering.value = true
     requestAnimationFrame(() => {
@@ -220,6 +245,11 @@ const posterQuery = computed(() => {
   const params = new URLSearchParams()
   if (posterTitle.value.trim()) params.set('title', posterTitle.value.trim())
   if (posterTheme.value !== 'page') params.set('theme', posterTheme.value)
+  params.set('fontSize', String(posterFontSize.value))
+  params.set('width', String(embedWidth.value))
+  params.set('height', String(embedHeight.value))
+  params.set('borderWidth', String(embedBorderWidth.value))
+  params.set('borderRadius', String(embedBorderRadius.value))
   const s = params.toString()
   return s ? `?${s}` : ''
 })
@@ -228,7 +258,7 @@ const posterUrl = computed(
 )
 const iframeSnippet = computed(
   () =>
-    `<iframe src="${publicUrl.value.replace(/\/[^/]*$/, '')}/api/pages/${slug.value}/poster${posterQuery.value}" width="480" height="680" style="border:0;border-radius:12px" loading="lazy" title="${effectiveTitle.value.replace(/"/g, '&quot;')}"></iframe>`,
+    `<iframe src="${publicUrl.value.replace(/\/[^/]*$/, '')}/api/pages/${slug.value}/poster${posterQuery.value}" width="${embedWidth.value}" height="${embedHeight.value}" style="max-width:100%;border:0;border-radius:${embedBorderRadius.value}px;overflow:hidden" loading="lazy" title="${effectiveTitle.value.replace(/"/g, '&quot;')}"></iframe>`,
 )
 
 async function copyText(text: string, what: string): Promise<void> {
@@ -240,32 +270,58 @@ async function copyText(text: string, what: string): Promise<void> {
   }
 }
 
-// Persist the custom title as the page's poster default (editor+).
-const savingTitle = ref(false)
-const canSave = computed(() => (access.value?.rank ?? 0) >= 2)
-const titleDirty = computed(() => posterTitle.value.trim() !== storedPosterTitle.value)
+// Persist all share defaults in the dedicated table (editor+).
+const saving = ref(false)
+const canEdit = computed(() => (access.value?.rank ?? 0) >= 2)
+const shareDirty = computed(() => {
+  const saved = storedShare.value
+  if (!saved) return false
+  return (
+    posterTitle.value.trim() !== saved.title ||
+    posterFontSize.value !== saved.fontSize ||
+    embedWidth.value !== saved.width ||
+    embedHeight.value !== saved.height ||
+    embedBorderWidth.value !== saved.borderWidth ||
+    embedBorderRadius.value !== saved.borderRadius
+  )
+})
 
-async function savePosterTitle(): Promise<void> {
-  savingTitle.value = true
+function discardShareSettings(): void {
+  const saved = storedShare.value
+  if (!saved) return
+  posterTitle.value = saved.title
+  posterFontSize.value = saved.fontSize
+  embedWidth.value = saved.width
+  embedHeight.value = saved.height
+  embedBorderWidth.value = saved.borderWidth
+  embedBorderRadius.value = saved.borderRadius
+}
+
+async function saveShareSettings(): Promise<boolean> {
   try {
-    const current = await $fetch<SiteConfig>(`/api/pages/${slug.value}/config?edit=1`)
-    current.share = { ...current.share, posterTitle: posterTitle.value.trim() }
-    await $fetch(`/api/pages/${slug.value}/config`, {
+    await $fetch(`/api/pages/${slug.value}/share-settings`, {
       method: 'PUT',
-      body: { config: current },
+      body: {
+        title: posterTitle.value.trim(),
+        fontSize: posterFontSize.value,
+        width: embedWidth.value,
+        height: embedHeight.value,
+        borderWidth: embedBorderWidth.value,
+        borderRadius: embedBorderRadius.value,
+      },
     })
-    toast.success('Poster title saved')
-    await refreshNuxtData() // refresh rawConfig so storedPosterTitle updates
+    await refreshShare()
+    toast.success('Share settings saved')
+    return true
   } catch (e) {
     toast.error(messageFromError(e, 'Could not save'))
-  } finally {
-    savingTitle.value = false
+    return false
   }
 }
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="min-w-0 space-y-6">
     <div>
       <h2 class="text-lg font-semibold tracking-tight">Share</h2>
       <p class="mt-1 text-sm text-muted-foreground">
@@ -274,14 +330,19 @@ async function savePosterTitle(): Promise<void> {
       </p>
     </div>
 
-    <div class="flex items-center gap-2 rounded-md border bg-muted/40 p-3 text-sm">
-      <code class="min-w-0 ml-2 flex-1 truncate">{{ publicUrl }}</code>
-      <Button variant="ghost" size="sm" @click="copyLink">Copy</Button>
+    <div
+      class="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border bg-muted/40 p-3 text-sm"
+    >
+      <code class="flex min-w-0 flex-1 items-baseline" :title="publicUrl">
+        <span class="min-w-0 truncate">{{ publicUrlParts.prefix }}</span>
+        <span class="max-w-full shrink-0 break-all">{{ publicUrlParts.suffix }}</span>
+      </code>
+      <Button class="shrink-0" variant="ghost" size="sm" @click="copyLink">Copy</Button>
     </div>
 
     <!-- QR + poster generator side by side (Microsoft-Forms share panel feel) -->
-    <div class="grid gap-6 lg:grid-cols-[auto_1fr]">
-      <Card class="self-start">
+    <div class="grid min-w-0 gap-6 lg:grid-cols-[auto_minmax(0,1fr)]">
+      <Card class="w-full min-w-0 self-start lg:w-auto">
         <CardHeader>
           <CardTitle class="text-base">QR code</CardTitle>
           <CardDescription>Scanning opens the public verify page.</CardDescription>
@@ -295,7 +356,7 @@ async function savePosterTitle(): Promise<void> {
       </Card>
 
       <!-- Share poster generator -->
-      <Card>
+      <Card class="min-w-0">
         <CardHeader>
           <CardTitle class="text-base">Share poster</CardTitle>
           <CardDescription>
@@ -310,10 +371,69 @@ async function savePosterTitle(): Promise<void> {
               id="poster-title"
               v-model="posterTitle"
               :placeholder="storedPosterTitle || brandTitle"
+              :disabled="saving"
             />
             <p class="text-xs text-muted-foreground">
               Empty uses {{ storedPosterTitle ? 'the saved title' : 'the page title' }}.
             </p>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div class="grid gap-1.5">
+              <Label for="poster-font-size">Font size</Label>
+              <Input
+                id="poster-font-size"
+                v-model.number="posterFontSize"
+                type="number"
+                min="20"
+                max="160"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-width">Width</Label>
+              <Input
+                id="poster-width"
+                v-model.number="embedWidth"
+                type="number"
+                min="240"
+                max="1920"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-height">Height</Label>
+              <Input
+                id="poster-height"
+                v-model.number="embedHeight"
+                type="number"
+                min="240"
+                max="2160"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-border">Border</Label>
+              <Input
+                id="poster-border"
+                v-model.number="embedBorderWidth"
+                type="number"
+                min="0"
+                max="20"
+                :disabled="saving"
+              />
+            </div>
+            <div class="grid gap-1.5">
+              <Label for="poster-border-radius">Border radius</Label>
+              <Input
+                id="poster-border-radius"
+                v-model.number="embedBorderRadius"
+                type="number"
+                min="0"
+                max="160"
+                :disabled="saving"
+              />
+            </div>
           </div>
 
           <div class="grid gap-1.5">
@@ -341,16 +461,6 @@ async function savePosterTitle(): Promise<void> {
             <Button size="sm" @click="downloadPoster">
               <Icon spec="Download" :size="16" /> Download PNG
             </Button>
-            <Button
-              v-if="canSave"
-              size="sm"
-              variant="outline"
-              :disabled="savingTitle || !titleDirty"
-              @click="savePosterTitle"
-            >
-              <Icon v-if="savingTitle" spec="LoaderCircle" :size="16" class="animate-spin" />
-              <Icon v-else spec="Save" :size="16" /> Save as default title
-            </Button>
           </div>
 
           <div class="grid gap-1.5">
@@ -358,7 +468,7 @@ async function savePosterTitle(): Promise<void> {
             <textarea
               readonly
               rows="3"
-              class="w-full resize-none rounded-md border bg-muted/40 p-2 font-mono text-xs"
+              class="w-full max-w-full resize-none overflow-x-auto rounded-md border bg-muted/40 p-2 font-mono text-xs"
               :value="iframeSnippet"
               @focus="($event.target as HTMLTextAreaElement).select()"
             />
@@ -374,5 +484,12 @@ async function savePosterTitle(): Promise<void> {
         </CardContent>
       </Card>
     </div>
+    <GuardedSave
+      v-if="canEdit"
+      v-model:saving="saving"
+      :dirty="shareDirty"
+      :on-save="saveShareSettings"
+      :on-discard="discardShareSettings"
+    />
   </div>
 </template>

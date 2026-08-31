@@ -117,7 +117,7 @@ function tabActive(to: string, exact: boolean) {
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-background">
+  <div class="flex min-h-screen min-w-0 overflow-x-hidden bg-background">
     <!-- Mobile overlay -->
     <div
       v-if="sidebarOpen"
@@ -334,7 +334,7 @@ function tabActive(to: string, exact: boolean) {
       </div>
     </aside>
     <!-- Main -->
-    <div class="flex flex-1 flex-col lg:pl-64">
+    <div class="flex min-w-0 flex-1 flex-col lg:pl-64">
       <!-- Mobile top bar (auto-hides on scroll-down, reappears on scroll-up) -->
       <header
         class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur transition-transform duration-300 lg:hidden"
@@ -365,7 +365,7 @@ function tabActive(to: string, exact: boolean) {
         </button>
       </header>
 
-      <main class="flex-1">
+      <main class="min-w-0 flex-1">
         <!-- Sticky full-width breadcrumb (top-14 on mobile to sit under the mobile
              top bar, top-0 on desktop). Only the breadcrumb is pinned; the page
              tabs below scroll normally with the page. -->
@@ -421,8 +421,8 @@ function tabActive(to: string, exact: boolean) {
           </div>
         </nav>
         <!-- Page content (centered) -->
-        <div class="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <div class="mx-auto w-full max-w-4xl">
+        <div class="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div class="mx-auto min-w-0 w-full max-w-4xl">
             <slot />
           </div>
         </div>
