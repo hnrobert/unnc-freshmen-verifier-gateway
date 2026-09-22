@@ -69,6 +69,11 @@ export function validateConfig(config: SiteConfig): string[] {
 
   if (!config.messages) errors.push('messages is missing')
 
+  // Optional open-access switch (skip verification → straight to the QR).
+  if (config.allowSkipVerify !== undefined && typeof config.allowSkipVerify !== 'boolean') {
+    errors.push('allowSkipVerify must be a boolean')
+  }
+
   // Welcome QR expiry (optional, but if present must be a calendar date).
   const expiresAt = config.welcome?.expiresAt
   if (expiresAt !== undefined && expiresAt !== null && expiresAt !== '') {

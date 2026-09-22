@@ -2,12 +2,24 @@ import type { AdmissionResult } from '#shared/types'
 import { clearVerifyCookie, verifyVerifyJwt } from '#server/utils/jwt'
 import { isDeviceTrustRevoked } from '#server/utils/trustGrants'
 
+/** Gate verdict for this visitor + the page's open-access switch. */
+interface GateStatus {
+  trusted: boolean
+  admission?: AdmissionResult
+  /** This page lets visitors view the welcome page (QR) without verifying. */
+  skipAllowed: boolean
+}
+
 /**
  * Cross-page "skip verification" check. A visitor who already verified (in any
  * page, on this browser) carries a device-bound `vg_verify` JWT; if it is still
  * valid AND the request's device fingerprint matches the one bound into the
  * token, the caller can jump straight to this page's welcome page without
  * filling the form or re-querying the portal.
+ *
+ * The response also carries `skipAllowed` — whether this page has opened its
+ * welcome page (QR) to everyone via `allowSkipVerify` — so the welcome-gate
+ * can let unverified visitors through on the same call.
  *
  * Returns `{ trusted: false }` (never throws / 4xx) so the verify page degrades
  * gracefully to showing the form. A token that fails the device check is purged
@@ -16,6 +28,11 @@ import { isDeviceTrustRevoked } from '#server/utils/trustGrants'
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') as string
   const page = await getPageBySlug(slug)
+
+  // Page-level open-access switch (dashboard editor → "Allow skipping
+  // verification"). loadPageConfig is cached (60s, invalidated on save), so
+  // this is cheap on every gate check.
+  const skipAllowed = !!page && !!(await loadPageConfig(slug).catch(() => null))?.allowSkipVerify
 
   const trust = verifyVerifyJwt(event)
 
@@ -29,13 +46,13 @@ export default defineEventHandler(async (event) => {
 
   if (!page || !trust || !hasClaims || !notExpired || revoked) {
     if (trust && (!hasClaims || revoked)) clearVerifyCookie(event) // purge stale/revoked token
-    return { trusted: false } satisfies { trusted: false }
+    return { trusted: false, skipAllowed } satisfies GateStatus
   }
 
   if (!deviceMatches) {
     // Issued on another browser/device — drop it so they re-verify here.
     clearVerifyCookie(event)
-    return { trusted: false } satisfies { trusted: false }
+    return { trusted: false, skipAllowed } satisfies GateStatus
   }
 
   // Trusted device + identity: record this page's verify (so it shows in stats and
@@ -54,5 +71,5 @@ export default defineEventHandler(async (event) => {
     name: trust.name,
     idHash: trust.idHash,
   })
-  return { trusted: true, admission } satisfies { trusted: true; admission: AdmissionResult }
+  return { trusted: true, admission, skipAllowed } satisfies GateStatus
 })

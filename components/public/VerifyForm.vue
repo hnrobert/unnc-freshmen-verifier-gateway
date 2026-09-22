@@ -96,6 +96,15 @@ async function onSubmit(): Promise<void> {
   }
 }
 
+// Open-access skip (dashboard toggle "Allow skipping verification"): the page
+// opens its welcome page (QR) to everyone. Shown in preview too so owners see
+// what visitors get. No setVerified / trust cookie — the visitor stays
+// unverified; the welcome-gate's skipAllowed simply lets them through.
+const allowSkipVerify = computed(() => !!config.value.allowSkipVerify)
+async function onSkip(): Promise<void> {
+  await router.push(props.welcomePath ?? `/${props.slug}/welcome`)
+}
+
 const emailAddr = ref('')
 const emailSending = ref(false)
 
@@ -359,6 +368,14 @@ async function onVerifyCode(): Promise<void> {
           {{ t('verify.codeHint') }}
         </p>
       </form>
+
+      <!-- Open-access skip (page toggle): straight to the welcome page (QR) -->
+      <div v-if="allowSkipVerify" class="mt-4 flex flex-col gap-2 border-t pt-4">
+        <Button type="button" variant="outline" size="lg" @click="onSkip">
+          <Icon spec="FastForward" :size="18" />
+          {{ t('verify.skip') }}
+        </Button>
+      </div>
     </CardContent>
   </Card>
 </template>

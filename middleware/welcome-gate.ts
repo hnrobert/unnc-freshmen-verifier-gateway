@@ -16,6 +16,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   interface TrustResult {
     trusted: boolean
     admission?: AdmissionResult
+    skipAllowed?: boolean
   }
   // Server: useRequestFetch forwards the cookie header on SSR so vg_verify +
   // vg_device are seen during the server-render pass. Client: plain $fetch
@@ -34,6 +35,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     setVerified(true, trust.admission)
     return
   }
+
+  // The page opened its welcome page (QR) to everyone — unverified visitors
+  // pass too. No setVerified: they stay "unverified" (no admission details,
+  // no trust cookie), they simply aren't bounced back to the form.
+  if (trust?.skipAllowed) return
 
   const isDemo = to.path.split('/').filter(Boolean)[1] === 'preview'
   return navigateTo(isDemo ? `/${slug}/preview` : `/${slug}`)

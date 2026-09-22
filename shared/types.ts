@@ -188,6 +188,10 @@ export interface SiteConfig {
   locales: Locale[]
   /** Locale used before the visitor picks one. */
   defaultLocale: Locale
+  /** Open the welcome page (QR) without verifying: the verify page shows a
+   * "skip" entry and the welcome-gate lets anyone through — for visitors who
+   * cannot verify (e.g. parents). Watermarks don't apply to skipped visits. */
+  allowSkipVerify?: boolean
   gateway: GatewayConfig
   icons: IconsConfig
   theme: ThemeConfig

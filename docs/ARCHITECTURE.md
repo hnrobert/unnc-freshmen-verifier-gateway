@@ -162,6 +162,9 @@ Each page's entire configuration is a JSON `SiteConfig` stored in
 - `theme` — primary color (hex), border radius.
 - `background` — optional full-page image + overlay opacity.
 - `gateway` — mode (live/mock), portal URL, captcha/timeout settings.
+- `allowSkipVerify` — open access: when true the verify page shows a "skip"
+  entry and the welcome-gate lets unverified visitors view the welcome page
+  (QR). Watermarks don't apply to skipped visits.
 
 ### Config loading & caching
 

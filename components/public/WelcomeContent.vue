@@ -32,12 +32,11 @@ watchEffect(async () => {
     imgError.value = false
     return
   }
-  // Watermark needs the visitor's name to composite; until it's known, hold the
-  // skeleton rather than fetching an un-watermarked image.
-  if (watermarkEnabled.value && !name) {
-    imgSrc.value = ''
-    return
-  }
+  // Watermark needs the visitor's name to composite. Every verify path sets
+  // `admission` (with a name) synchronously before navigating here — so a
+  // missing name means a skipped visitor (page opened via allowSkipVerify) or
+  // a portal reply without one. Serve the un-watermarked image rather than
+  // holding the skeleton forever.
   // Skip the self-fetch during SSR — the client loads it post-hydrate.
   if (import.meta.server) return
   imgError.value = false

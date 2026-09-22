@@ -53,6 +53,11 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       verifyIdPlaceholder: '身份证占位符',
       verifySubmit: '提交按钮',
       verifyHint: '提示',
+      verifySkip: '跳过验证按钮',
+      accessControl: '访问控制',
+      allowSkipVerify: '开放跳过验证',
+      allowSkipVerifyHint:
+        '开启后验证页会出现「跳过验证」入口，访客无需核验即可直接查看欢迎页（二维码）。水印对跳过的访客不生效。',
       errorsSection: '错误提示',
       errorEmptyName: '姓名为空',
       errorBadIdFormat: '身份证格式错误',
@@ -210,6 +215,11 @@ const dashboardMessages: Record<Locale, Record<string, unknown>> = {
       verifyIdPlaceholder: 'ID Placeholder',
       verifySubmit: 'Submit',
       verifyHint: 'Hint',
+      verifySkip: 'Skip-verification button',
+      accessControl: 'Access Control',
+      allowSkipVerify: 'Allow skipping verification',
+      allowSkipVerifyHint:
+        'Shows a "skip verification" entry on the verify page so visitors can view the welcome page (QR) without verifying. Watermarks do not apply to skipped visits.',
       errorsSection: 'Errors',
       errorEmptyName: 'Empty Name',
       errorBadIdFormat: 'Bad ID Format',

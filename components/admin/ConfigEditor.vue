@@ -200,6 +200,27 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
         </div>
       </section>
 
+      <!-- Access control -->
+      <section class="space-y-2">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          {{ t('editor.accessControl') }}
+        </h3>
+        <label class="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            class="shrink-0"
+            :checked="!!config.allowSkipVerify"
+            @change="config.allowSkipVerify = ($event.target as HTMLInputElement).checked"
+          />
+          <span>
+            {{ t('editor.allowSkipVerify') }}
+            <span class="block text-xs font-normal text-muted-foreground">{{
+              t('editor.allowSkipVerifyHint')
+            }}</span>
+          </span>
+        </label>
+      </section>
+
       <!-- Background image -->
       <section class="space-y-4">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -353,7 +374,7 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
               :style="{ borderRadius: config.welcome.imageRadius || '0.5rem' }"
               aria-hidden="true"
             >
-              <div class="absolute -inset-[60%] flex rotate-[-30deg] flex-col justify-around">
+              <div class="absolute inset-[-60%] flex rotate-[-30deg] flex-col justify-around">
                 <span
                   v-for="row in watermarkPreviewRows"
                   :key="row"
@@ -488,6 +509,12 @@ withDefaults(defineProps<{ mode?: 'basic' | 'advanced' }>(), { mode: 'basic' })
           :locales="config.locales"
           :messages="msgs"
           path="verify.hint"
+        />
+        <LocaleField
+          :label="t('editor.verifySkip')"
+          :locales="config.locales"
+          :messages="msgs"
+          path="verify.skip"
         />
 
         <h4 class="pt-2 text-sm font-semibold text-muted-foreground">

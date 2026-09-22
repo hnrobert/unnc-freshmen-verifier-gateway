@@ -14,6 +14,9 @@ const config: SiteConfig = {
   locales: ['zh', 'en'],
   defaultLocale: 'zh',
 
+  // Let visitors view the welcome page (QR) without verifying (dashboard toggle).
+  allowSkipVerify: false,
+
   gateway: {
     // 'live' = query the real portal; 'mock' = admit any well-formed input (UI preview)
     mode: 'live',
@@ -97,6 +100,7 @@ const config: SiteConfig = {
         codeSubmit: '验证',
         codeInvalid: '验证码错误或已过期',
         codeHint: '输入你的 UNNC 邮箱并获取验证码，验证通过后 30 天内无需重复验证。',
+        skip: '跳过验证，直接查看',
       },
       errors: {
         emptyName: '请输入姓名',
@@ -188,6 +192,7 @@ const config: SiteConfig = {
         codeInvalid: 'Invalid or expired code',
         codeHint:
           'Enter your UNNC email and request a code — verifying trusts this browser for 30 days.',
+        skip: 'Skip verification',
       },
       errors: {
         emptyName: 'Please enter your name',
